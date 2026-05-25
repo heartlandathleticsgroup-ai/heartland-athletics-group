@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Heartland Athletics Group</title>
   <meta name="description" content="Heartland Athletics Group creates competitive, developmental, and community-driven athletic experiences for youth and amateur athletes throughout the Heartland region." />
+
   <style>
     :root {
       --black: #050608;
@@ -45,29 +46,36 @@
     header {
       width: min(1120px, 92%);
       margin: 0 auto;
-      padding: 26px 0;
+      padding: 24px 0 12px;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: space-between;
-      gap: 24px;
+      justify-content: center;
+      gap: 18px;
     }
 
     .brand {
       display: flex;
-      align-items: center;
+      justify-content: center;
+      width: 100%;
     }
 
     .brand-logo {
-      width: min(340px, 72vw);
+      width: min(760px, 95vw);
       height: auto;
       display: block;
     }
 
     nav {
       display: flex;
-      gap: 22px;
-      font-size: 14px;
+      justify-content: center;
+      align-items: center;
+      gap: 34px;
+      font-size: 15px;
       color: var(--silver);
+      flex-wrap: wrap;
+      width: 100%;
+      padding-top: 4px;
     }
 
     nav a:hover {
@@ -77,7 +85,7 @@
     .hero {
       width: min(1120px, 92%);
       margin: 0 auto;
-      padding: 82px 0 78px;
+      padding: 42px 0 78px;
       display: grid;
       grid-template-columns: 1.15fr .85fr;
       gap: 48px;
@@ -255,17 +263,21 @@
 
     @media (max-width: 820px) {
       header {
-        align-items: flex-start;
-        flex-direction: column;
+        padding-top: 20px;
+      }
+
+      .brand-logo {
+        width: min(620px, 96vw);
       }
 
       nav {
-        flex-wrap: wrap;
+        gap: 18px;
+        font-size: 14px;
       }
 
       .hero {
         grid-template-columns: 1fr;
-        padding-top: 48px;
+        padding-top: 34px;
       }
 
       .grid,
@@ -280,12 +292,14 @@
     }
   </style>
 </head>
+
 <body>
   <div class="page">
     <header>
       <a class="brand" href="#top" aria-label="Heartland Athletics Group home">
         <img class="brand-logo" src="logo.png" alt="Heartland Athletics Group logo" />
       </a>
+
       <nav aria-label="Main navigation">
         <a href="#about">About</a>
         <a href="#mission">Mission</a>
@@ -298,62 +312,95 @@
       <section class="hero">
         <div>
           <div class="eyebrow">Regional Sports & Athletic Development</div>
-          <h1>Compete.<br><span>Develop.</span><br>Inspire.</h1>
+
+          <h1>
+            Compete.<br />
+            <span>Develop.</span><br />
+            Inspire.
+          </h1>
+
           <div class="tagline">
             <span>Events</span>
             <span>Training</span>
             <span>Community</span>
           </div>
+
           <p>
-            Heartland Athletics Group is a regional sports organization focused on creating competitive, developmental, and community-driven athletic experiences for youth and amateur athletes throughout the Heartland region.
+            Heartland Athletics Group is a regional sports organization focused on creating competitive,
+            developmental, and community-driven athletic experiences for youth and amateur athletes throughout
+            the Heartland region.
           </p>
+
           <div class="buttons">
             <a class="btn btn-primary" href="#contact">Contact Us</a>
             <a class="btn btn-secondary" href="#coming-soon">What’s Coming</a>
           </div>
         </div>
+
         <div class="hero-card">
           <h2>Prelaunch Stage</h2>
           <p>
-            We are currently building our foundation, connecting with families, coaches, teams, sponsors, and community partners, and preparing future athletic events, camps, clinics, tournaments, and training opportunities.
+            We are currently building our foundation, connecting with families, coaches, teams, sponsors,
+            and community partners, and preparing future athletic events, camps, clinics, tournaments,
+            and training opportunities.
           </p>
         </div>
       </section>
 
       <section id="about">
         <h2 class="section-title">About Heartland Athletics Group</h2>
+
         <p class="section-intro">
-          Built from coaching experience and a belief in stronger athletic opportunities for smaller communities, Heartland Athletics Group is designed to become a trusted platform for organized sports experiences across Illinois, Missouri, Iowa, and the surrounding Heartland region.
+          Built from coaching experience and a belief in stronger athletic opportunities for smaller communities,
+          Heartland Athletics Group is designed to become a trusted platform for organized sports experiences
+          across Illinois, Missouri, Iowa, and the surrounding Heartland region.
         </p>
+
         <div class="grid">
           <div class="card">
             <h3>Competitive</h3>
-            <p>Creating organized athletic environments where athletes and teams can challenge themselves and compete the right way.</p>
+            <p>
+              Creating organized athletic environments where athletes and teams can challenge themselves
+              and compete the right way.
+            </p>
           </div>
+
           <div class="card">
             <h3>Developmental</h3>
-            <p>Prioritizing skill growth, confidence, fundamentals, leadership, and long-term athlete development.</p>
+            <p>
+              Prioritizing skill growth, confidence, fundamentals, leadership, and long-term athlete development.
+            </p>
           </div>
+
           <div class="card">
             <h3>Community-Driven</h3>
-            <p>Connecting families, coaches, teams, sponsors, and communities through quality sports experiences.</p>
+            <p>
+              Connecting families, coaches, teams, sponsors, and communities through quality sports experiences.
+            </p>
           </div>
         </div>
       </section>
 
       <section id="mission">
         <h2 class="section-title">Mission & Vision</h2>
+
         <div class="mission-vision">
           <div class="card highlight">
             <h3>Mission</h3>
             <p>
-              Heartland Athletics Group exists to create competitive, developmental, and community-driven athletic experiences for youth and amateur athletes throughout the Heartland region. Through organized events, camps, clinics, tournaments, training opportunities, and future sports divisions, we aim to help athletes compete, develop, and grow both on and off the playing surface.
+              Heartland Athletics Group exists to create competitive, developmental, and community-driven
+              athletic experiences for youth and amateur athletes throughout the Heartland region. Through
+              organized events, camps, clinics, tournaments, training opportunities, and future sports divisions,
+              we aim to help athletes compete, develop, and grow both on and off the playing surface.
             </p>
           </div>
+
           <div class="card highlight">
             <h3>Vision</h3>
             <p>
-              Our vision is to become a trusted regional athletics organization known for well-run events, strong player development, positive sports culture, and meaningful opportunities for athletes, families, teams, and communities across Illinois, Missouri, Iowa, and the surrounding Heartland region.
+              Our vision is to become a trusted regional athletics organization known for well-run events,
+              strong player development, positive sports culture, and meaningful opportunities for athletes,
+              families, teams, and communities across Illinois, Missouri, Iowa, and the surrounding Heartland region.
             </p>
           </div>
         </div>
@@ -361,33 +408,54 @@
 
       <section id="coming-soon">
         <h2 class="section-title">Coming Soon</h2>
+
         <p class="section-intro">
-          Heartland Athletics Group is currently preparing future opportunities. More details will be announced as events and programming are finalized.
+          Heartland Athletics Group is currently preparing future opportunities. More details will be announced
+          as events and programming are finalized.
         </p>
+
         <div class="grid">
           <div class="card">
             <h3>Events</h3>
-            <p>Youth and amateur athletic events, showcases, competitions, and community sports experiences.</p>
+            <p>
+              Youth and amateur athletic events, showcases, competitions, and community sports experiences.
+            </p>
           </div>
+
           <div class="card">
             <h3>Camps & Clinics</h3>
-            <p>Development-focused sessions designed to help athletes improve skills, confidence, and understanding of the game.</p>
+            <p>
+              Development-focused sessions designed to help athletes improve skills, confidence, and understanding
+              of the game.
+            </p>
           </div>
+
           <div class="card">
             <h3>Tournaments</h3>
-            <p>Future organized tournament opportunities built around professionalism, communication, and quality competition.</p>
+            <p>
+              Future organized tournament opportunities built around professionalism, communication, and quality competition.
+            </p>
           </div>
+
           <div class="card">
             <h3>Training</h3>
-            <p>Sport-specific and general athletic development opportunities for youth and amateur athletes.</p>
+            <p>
+              Sport-specific and general athletic development opportunities for youth and amateur athletes.
+            </p>
           </div>
+
           <div class="card">
             <h3>Sport Divisions</h3>
-            <p>Future division possibilities may include basketball, volleyball, baseball/softball, and other youth athletics.</p>
+            <p>
+              Future division possibilities may include basketball, volleyball, baseball/softball, and other youth athletics.
+            </p>
           </div>
+
           <div class="card">
             <h3>Apparel</h3>
-            <p>Future Heartland Athletics Group apparel and event merchandise opportunities.</p>
+            <p>
+              Future Heartland Athletics Group apparel and event merchandise opportunities.
+            </p>
           </div>
         </div>
       </section>
@@ -397,9 +465,11 @@
           <div>
             <h2 class="section-title">Get Connected</h2>
             <p>
-              Interested in future events, camps, clinics, sponsorships, partnerships, or community opportunities? Reach out and connect with Heartland Athletics Group.
+              Interested in future events, camps, clinics, sponsorships, partnerships, or community opportunities?
+              Reach out and connect with Heartland Athletics Group.
             </p>
           </div>
+
           <a class="btn btn-primary" href="mailto:info@heartlandathleticsgroup.com">Email Us</a>
         </div>
       </section>

@@ -25,6 +25,7 @@
       --shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
       --radius: 24px;
       --max: 1180px;
+      --header-height: 76px;
     }
 
     * {
@@ -41,6 +42,7 @@
       color: var(--text);
       background: var(--white);
       line-height: 1.6;
+      overflow-x: hidden;
     }
 
     img {
@@ -50,6 +52,10 @@
 
     a {
       color: inherit;
+    }
+
+    section[id] {
+      scroll-margin-top: 105px;
     }
 
     .container {
@@ -68,12 +74,12 @@
 
     .navbar {
       width: min(var(--max), calc(100% - 32px));
-      min-height: 86px;
+      min-height: var(--header-height);
       margin: 0 auto;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 24px;
+      gap: 20px;
     }
 
     .brand {
@@ -81,22 +87,23 @@
       text-decoration: none;
       display: flex;
       align-items: center;
-      gap: 14px;
-      min-width: 260px;
+      gap: 12px;
+      min-width: 235px;
+      flex-shrink: 0;
     }
 
     .brand-mark {
       width: 6px;
-      height: 54px;
+      height: 48px;
       background: linear-gradient(180deg, var(--gold), var(--blue));
       border-radius: 999px;
       flex: 0 0 auto;
     }
 
     .brand-wordmark {
-      display: flex;
-      flex-direction: column;
-      line-height: 0.95;
+      display: grid;
+      gap: 2px;
+      line-height: 1;
       text-transform: uppercase;
       font-weight: 1000;
       letter-spacing: 0.105em;
@@ -104,19 +111,17 @@
 
     .brand-wordmark .heartland {
       color: var(--white);
-      font-size: 1.04rem;
+      font-size: 0.98rem;
     }
 
     .brand-wordmark .athletics {
       color: var(--gold);
-      font-size: 0.98rem;
-      margin-top: 7px;
+      font-size: 0.92rem;
     }
 
     .brand-wordmark .group {
       color: var(--blue);
-      font-size: 0.78rem;
-      margin-top: 5px;
+      font-size: 0.75rem;
       letter-spacing: 0.18em;
     }
 
@@ -132,14 +137,17 @@
     .nav-links {
       display: flex;
       align-items: center;
-      gap: 22px;
+      justify-content: flex-end;
+      gap: 17px;
+      min-width: 0;
     }
 
     .nav-links a {
       color: rgba(255, 255, 255, 0.82);
       text-decoration: none;
       font-weight: 850;
-      font-size: 0.93rem;
+      font-size: 0.9rem;
+      white-space: nowrap;
     }
 
     .nav-links a:hover {
@@ -149,7 +157,7 @@
     .nav-links .nav-cta {
       background: var(--gold);
       color: var(--black);
-      padding: 10px 16px;
+      padding: 10px 15px;
       border-radius: 999px;
     }
 
@@ -161,6 +169,7 @@
       border-radius: 12px;
       background: transparent;
       cursor: pointer;
+      flex-shrink: 0;
     }
 
     .nav-toggle span {
@@ -212,7 +221,7 @@
     }
 
     h2 {
-      font-size: clamp(2rem, 4.4vw, 3.8rem);
+      font-size: clamp(2rem, 4.2vw, 3.65rem);
       letter-spacing: -0.045em;
     }
 
@@ -236,12 +245,12 @@
     }
 
     .hero {
-      min-height: 680px;
+      min-height: 650px;
       display: flex;
       align-items: center;
       position: relative;
       overflow: hidden;
-      padding: 96px 0 86px;
+      padding: 90px 0 82px;
     }
 
     .hero::after {
@@ -359,7 +368,7 @@
 
     .logo-showcase {
       min-height: 310px;
-      padding: 34px;
+      padding: 42px;
       display: grid;
       place-items: center;
       border-radius: var(--radius);
@@ -371,13 +380,14 @@
     }
 
     .logo-showcase img {
-      width: 330px;
-      height: 330px;
-      max-width: 85%;
-      max-height: 85%;
-      object-fit: cover;
-      border-radius: 50%;
-      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+      width: auto;
+      height: auto;
+      max-width: 430px;
+      max-height: 430px;
+      object-fit: contain;
+      border-radius: 0;
+      box-shadow: none;
+      background: transparent;
     }
 
     .stats-grid,
@@ -417,11 +427,12 @@
       background:
         linear-gradient(90deg, rgba(0, 87, 255, 0.06), transparent),
         var(--white);
+      padding-top: 116px;
     }
 
     .why-grid {
       display: grid;
-      grid-template-columns: 410px minmax(0, 1fr);
+      grid-template-columns: 440px minmax(0, 1fr);
       gap: 56px;
       align-items: center;
     }
@@ -494,10 +505,14 @@
     }
 
     .panel-logo {
-      width: 120px;
-      height: 120px;
-      object-fit: cover;
-      border-radius: 50%;
+      width: auto;
+      height: auto;
+      max-width: 140px;
+      max-height: 140px;
+      object-fit: contain;
+      border-radius: 0;
+      box-shadow: none;
+      background: transparent;
       margin-bottom: 18px;
     }
 
@@ -639,10 +654,14 @@
     }
 
     .footer-brand img {
-      width: 58px;
-      height: 58px;
-      object-fit: cover;
-      border-radius: 50%;
+      width: auto;
+      height: auto;
+      max-width: 64px;
+      max-height: 64px;
+      object-fit: contain;
+      border-radius: 0;
+      box-shadow: none;
+      background: transparent;
     }
 
     .footer-brand p {
@@ -673,6 +692,20 @@
       transform: translateY(0);
     }
 
+    @media (max-width: 1100px) {
+      .nav-links {
+        gap: 12px;
+      }
+
+      .nav-links a {
+        font-size: 0.82rem;
+      }
+
+      .brand {
+        min-width: 220px;
+      }
+    }
+
     @media (max-width: 940px) {
       .nav-toggle {
         display: block;
@@ -680,7 +713,7 @@
 
       .nav-links {
         position: absolute;
-        top: 86px;
+        top: var(--header-height);
         left: 16px;
         right: 16px;
         display: none;
@@ -714,11 +747,15 @@
       }
 
       .family-photo {
-        max-width: 520px;
+        max-width: 540px;
       }
     }
 
     @media (max-width: 640px) {
+      :root {
+        --header-height: 72px;
+      }
+
       .container {
         width: min(100% - 28px, var(--max));
       }
@@ -732,19 +769,30 @@
         letter-spacing: -0.055em;
       }
 
+      .navbar {
+        min-height: var(--header-height);
+      }
+
       .brand {
         min-width: 0;
       }
 
+      .brand-mark {
+        height: 44px;
+      }
+
       .brand-wordmark .heartland {
-        font-size: 0.92rem;
+        font-size: 0.88rem;
       }
 
       .brand-wordmark .athletics {
-        font-size: 0.82rem;
+        font-size: 0.78rem;
       }
 
-      .brand-wordmark .group,
+      .brand-wordmark .group {
+        display: none;
+      }
+
       .brand-tagline {
         display: none;
       }

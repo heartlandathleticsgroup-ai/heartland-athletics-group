@@ -1071,4 +1071,13 @@
 /* Keep the active Contact button readable */
 .nav-links .nav-cta[aria-current="page"] {
   color: var(--black);
+} 
+
+/* Keep text readable inside dark highlight panels */
+.highlight-panel h3 {
+  color: var(--white);
+}
+
+.highlight-panel .check-list li {
+  color: rgba(255, 255, 255, 0.86);
 }

@@ -6,942 +6,59 @@
 
   <title>Heartland Athletics Group | Compete. Develop. Inspire.</title>
 
-  <meta name="description" content="Heartland Athletics Group creates competitive, developmental, and community-driven athletic opportunities for youth and amateur athletes across the Heartland region." />
+  <meta
+    name="description"
+    content="Heartland Athletics Group creates exceptional athletic experiences that strengthen athletes, families, and communities through competition, development, and leadership."
+  />
+
   <meta property="og:title" content="Heartland Athletics Group" />
-  <meta property="og:description" content="Multi-sport athletic opportunities, community partnerships, and athlete development across the Heartland." />
+  <meta
+    property="og:description"
+    content="Competitive, developmental, and community-driven athletic opportunities across the Heartland."
+  />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="/assets/assets/hag-logo.png" />
 
-  <style>
-    :root {
-      --black: #0d0d0d;
-      --white: #ffffff;
-      --soft-white: #f5f6fa;
-      --text: #1b1b1b;
-      --muted: #5f6675;
-      --gold: #f5b500;
-      --blue: #0057ff;
-      --shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
-      --radius: 24px;
-      --max: 1180px;
-      --header-height: 76px;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    html {
-      scroll-behavior: smooth;
-    }
-
-    body {
-      margin: 0;
-      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: var(--text);
-      background: var(--white);
-      line-height: 1.6;
-      overflow-x: hidden;
-    }
-
-    img {
-      max-width: 100%;
-      display: block;
-    }
-
-    a {
-      color: inherit;
-    }
-
-    section[id] {
-      scroll-margin-top: 105px;
-    }
-
-    .container {
-      width: min(var(--max), calc(100% - 40px));
-      margin: 0 auto;
-    }
-
-    .site-header {
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-      background: rgba(13, 13, 13, 0.97);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(12px);
-    }
-
-    .navbar {
-      width: min(var(--max), calc(100% - 32px));
-      min-height: var(--header-height);
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 20px;
-    }
-
-    .brand {
-      color: var(--white);
-      text-decoration: none;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 235px;
-      flex-shrink: 0;
-    }
-
-    .brand-mark {
-      width: 6px;
-      height: 48px;
-      background: linear-gradient(180deg, var(--gold), var(--blue));
-      border-radius: 999px;
-      flex: 0 0 auto;
-    }
-
-    .brand-wordmark {
-      display: grid;
-      gap: 2px;
-      line-height: 1;
-      text-transform: uppercase;
-      font-weight: 1000;
-      letter-spacing: 0.105em;
-    }
-
-    .brand-wordmark .heartland {
-      color: var(--white);
-      font-size: 0.98rem;
-    }
-
-    .brand-wordmark .athletics {
-      color: var(--gold);
-      font-size: 0.92rem;
-    }
-
-    .brand-wordmark .group {
-      color: var(--blue);
-      font-size: 0.75rem;
-      letter-spacing: 0.18em;
-    }
-
-    .brand-tagline {
-      color: rgba(255, 255, 255, 0.52);
-      font-size: 0.72rem;
-      font-weight: 850;
-      letter-spacing: 0.08em;
-      margin-top: 8px;
-    }
-
-    .nav-links {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 14px;
-      min-width: 0;
-    }
-
-    .nav-links a {
-      color: rgba(255, 255, 255, 0.82);
-      text-decoration: none;
-      font-weight: 850;
-      font-size: 0.86rem;
-      white-space: nowrap;
-    }
-
-    .nav-links a:hover {
-      color: var(--white);
-    }
-
-    .nav-links .nav-cta {
-      background: var(--gold);
-      color: var(--black);
-      padding: 10px 15px;
-      border-radius: 999px;
-    }
-
-    .nav-toggle {
-      display: none;
-      width: 44px;
-      height: 40px;
-      border: 1px solid rgba(255, 255, 255, 0.22);
-      border-radius: 12px;
-      background: transparent;
-      cursor: pointer;
-      flex-shrink: 0;
-    }
-
-    .nav-toggle span {
-      display: block;
-      width: 22px;
-      height: 2px;
-      margin: 5px auto;
-      background: var(--white);
-    }
-
-    .section {
-      padding: 92px 0;
-    }
-
-    .section-dark {
-      color: var(--white);
-      background:
-        radial-gradient(circle at 16% 18%, rgba(0, 87, 255, 0.28), transparent 28%),
-        radial-gradient(circle at 90% 4%, rgba(245, 181, 0, 0.18), transparent 24%),
-        linear-gradient(135deg, #0d0d0d 0%, #171717 55%, #07102a 100%);
-    }
-
-    .section-light {
-      background: var(--soft-white);
-    }
-
-    .eyebrow {
-      margin: 0 0 12px;
-      color: var(--gold);
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      font-size: 0.78rem;
-      font-weight: 950;
-    }
-
-    h1,
-    h2,
-    h3 {
-      margin: 0;
-      line-height: 1.05;
-    }
-
-    h1 {
-      max-width: 920px;
-      font-size: clamp(3rem, 6.2vw, 6rem);
-      line-height: 0.98;
-      letter-spacing: -0.06em;
-      text-transform: uppercase;
-    }
-
-    h2 {
-      font-size: clamp(2rem, 4.2vw, 3.65rem);
-      letter-spacing: -0.045em;
-    }
-
-    h3 {
-      font-size: 1.35rem;
-    }
-
-    p {
-      font-size: 1.05rem;
-    }
-
-    .section-copy p,
-    .section-heading p {
-      color: var(--muted);
-    }
-
-    .section-dark .section-copy p,
-    .section-dark .section-heading p,
-    .section-dark p {
-      color: rgba(255, 255, 255, 0.78);
-    }
-
-    .hero {
-      min-height: 650px;
-      display: flex;
-      align-items: center;
-      position: relative;
-      overflow: hidden;
-      padding: 90px 0 82px;
-    }
-
-    .hero::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-      background-size: 44px 44px;
-      opacity: 0.42;
-      pointer-events: none;
-    }
-
-    .hero-inner {
-      position: relative;
-      z-index: 2;
-      max-width: 980px;
-    }
-
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 24px;
-      padding: 12px 18px;
-      border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      background: rgba(255, 255, 255, 0.07);
-      color: rgba(255, 255, 255, 0.84);
-      font-weight: 900;
-    }
-
-    .hero-lead {
-      max-width: 850px;
-      font-size: 1.25rem;
-      margin: 26px 0 0;
-      color: rgba(255, 255, 255, 0.82);
-    }
-
-    .hero-actions,
-    .button-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 14px;
-      margin-top: 34px;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 48px;
-      padding: 0 20px;
-      border-radius: 999px;
-      text-decoration: none;
-      font-weight: 950;
-      border: 0;
-      cursor: pointer;
-      transition: transform 0.18s ease, box-shadow 0.18s ease;
-    }
-
-    .btn:hover {
-      transform: translateY(-2px);
-    }
-
-    .btn-primary {
-      background: var(--gold);
-      color: var(--black);
-      box-shadow: 0 12px 28px rgba(245, 181, 0, 0.22);
-    }
-
-    .btn-blue {
-      background: var(--blue);
-      color: var(--white);
-      box-shadow: 0 12px 28px rgba(0, 87, 255, 0.24);
-    }
-
-    .btn-outline {
-      color: var(--white);
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.32);
-    }
-
-    .btn-dark {
-      color: var(--white);
-      background: var(--black);
-    }
-
-    .pill-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 32px;
-    }
-
-    .pill-row span {
-      padding: 10px 15px;
-      border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      background: rgba(255, 255, 255, 0.06);
-      color: rgba(255, 255, 255, 0.88);
-      font-weight: 950;
-    }
-
-
-    .enforcers-section {
-      color: var(--white);
-      background:
-        radial-gradient(circle at 88% 12%, rgba(245, 181, 0, 0.22), transparent 28%),
-        radial-gradient(circle at 8% 88%, rgba(0, 87, 255, 0.18), transparent 30%),
-        linear-gradient(135deg, #050505 0%, #111111 54%, #191300 100%);
-      border-bottom: 1px solid rgba(245, 181, 0, 0.18);
-    }
-
-    .enforcers-grid {
-      display: grid;
-      grid-template-columns: minmax(360px, 1.08fr) minmax(0, 0.92fr);
-      gap: 52px;
-      align-items: center;
-    }
-
-    .enforcers-image {
-      padding: 10px;
-      border-radius: 28px;
-      background: #050505;
-      border: 1px solid rgba(245, 181, 0, 0.32);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-
-    .enforcers-image img {
-      width: 100%;
-      height: auto;
-      border-radius: 19px;
-      object-fit: contain;
-    }
-
-    .enforcers-copy h2 {
-      max-width: 650px;
-      margin-bottom: 18px;
-    }
-
-    .enforcers-tagline {
-      margin: 0 0 22px;
-      color: var(--gold) !important;
-      font-size: clamp(1.2rem, 2.4vw, 1.75rem);
-      font-weight: 1000;
-      letter-spacing: -0.025em;
-      text-transform: uppercase;
-    }
-
-    .enforcers-intro {
-      max-width: 680px;
-      color: rgba(255, 255, 255, 0.78) !important;
-    }
-
-    .enforcers-statements {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 16px;
-      margin: 28px 0 0;
-    }
-
-    .enforcers-statement {
-      padding: 22px;
-      border-radius: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      background: rgba(255, 255, 255, 0.07);
-    }
-
-    .enforcers-statement strong {
-      display: block;
-      margin-bottom: 8px;
-      color: var(--gold);
-      font-size: 0.78rem;
-      font-weight: 1000;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-    }
-
-    .enforcers-statement p {
-      margin: 0;
-      color: rgba(255, 255, 255, 0.82) !important;
-      font-size: 0.98rem;
-    }
-
-    .enforcers-values {
-      margin: 24px 0 0;
-      color: rgba(255, 255, 255, 0.74) !important;
-      font-weight: 820;
-    }
-
-    .enforcers-values span {
-      color: var(--gold);
-    }
-
-    .split {
-      display: grid;
-      grid-template-columns: minmax(0, 0.95fr) minmax(320px, 1.05fr);
-      gap: 54px;
-      align-items: center;
-    }
-
-    .split.reverse {
-      grid-template-columns: minmax(320px, 1.05fr) minmax(0, 0.95fr);
-    }
-
-    .section-heading {
-      max-width: 790px;
-      margin-bottom: 38px;
-    }
-
-    .logo-showcase {
-      min-height: 310px;
-      padding: 42px;
-      display: grid;
-      place-items: center;
-      border-radius: var(--radius);
-      background: #000000;
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-
-    .logo-showcase img {
-      width: auto;
-      height: auto;
-      max-width: 440px;
-      max-height: 440px;
-      object-fit: contain;
-      border-radius: 0;
-      box-shadow: none;
-      background: #000000;
-    }
-
-    .stats-grid,
-    .card-grid,
-    .mini-grid {
-      display: grid;
-      gap: 18px;
-    }
-
-    .stats-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      margin-top: 20px;
-    }
-
-    .stat-card,
-    .feature-card {
-      padding: 24px;
-      border-radius: var(--radius);
-      background: var(--white);
-      border: 1px solid rgba(13, 13, 13, 0.08);
-      box-shadow: 0 18px 46px rgba(0, 0, 0, 0.08);
-    }
-
-    .stat-card strong {
-      display: block;
-      font-size: 1.18rem;
-      color: var(--black);
-      margin-bottom: 8px;
-    }
-
-    .stat-card span,
-    .feature-card p {
-      color: var(--muted);
-    }
-
-    .why-section {
-      background:
-        linear-gradient(90deg, rgba(0, 87, 255, 0.06), transparent),
-        var(--white);
-      padding-top: 116px;
-    }
-
-    .why-grid {
-      display: grid;
-      grid-template-columns: 440px minmax(0, 1fr);
-      gap: 56px;
-      align-items: center;
-    }
-
-    .family-photo {
-      overflow: hidden;
-      border-radius: 30px;
-      background: #f2f2f2;
-      box-shadow: var(--shadow);
-      border: 2px solid rgba(245, 181, 0, 0.2);
-    }
-
-    .family-photo img {
-      width: 100%;
-      height: auto;
-      aspect-ratio: auto;
-      object-fit: contain;
-      object-position: center;
-      background: #f2f2f2;
-    }
-
-    .founder-line {
-      color: var(--black) !important;
-      font-weight: 900;
-      margin-top: 18px;
-    }
-
-    .card-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .feature-card {
-      min-height: 250px;
-      transition: transform 0.18s ease, box-shadow 0.18s ease;
-    }
-
-    .feature-card:hover {
-      transform: translateY(-6px);
-      box-shadow: 0 26px 64px rgba(0, 0, 0, 0.12);
-    }
-
-    .icon {
-      width: 54px;
-      height: 54px;
-      display: grid;
-      place-items: center;
-      border-radius: 16px;
-      background: linear-gradient(135deg, rgba(0, 87, 255, 0.12), rgba(245, 181, 0, 0.24));
-      font-size: 1.7rem;
-      margin-bottom: 18px;
-    }
-
-    .highlight-panel,
-    .facility-card,
-    .quote-card {
-      padding: 32px;
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-    }
-
-    .highlight-panel {
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      background: linear-gradient(135deg, #000000, #07102a);
-    }
-
-    .highlight-panel p {
-      color: rgba(255, 255, 255, 0.72);
-    }
-
-    .panel-logo {
-      width: auto;
-      height: auto;
-      max-width: 150px;
-      max-height: 150px;
-      object-fit: contain;
-      border-radius: 0;
-      box-shadow: none;
-      background: #000000;
-      margin-bottom: 18px;
-    }
-
-    .check-list {
-      list-style: none;
-      padding: 0;
-      margin: 22px 0;
-    }
-
-    .check-list li {
-      position: relative;
-      padding-left: 30px;
-      margin: 11px 0;
-      font-weight: 760;
-    }
-
-    .check-list li::before {
-      content: "✓";
-      position: absolute;
-      left: 0;
-      color: var(--gold);
-      font-weight: 1000;
-    }
-
-    .facility-card {
-      color: var(--white);
-      background:
-        radial-gradient(circle at top left, rgba(0, 87, 255, 0.16), transparent 36%),
-        var(--black);
-    }
-
-    .mini-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      margin-top: 22px;
-    }
-
-    .mini-grid span {
-      padding: 14px;
-      border-radius: 14px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      background: rgba(255, 255, 255, 0.07);
-      font-weight: 850;
-    }
-
-    .quote-card {
-      background: var(--black);
-      color: var(--white);
-    }
-
-    .quote-card p {
-      margin-top: 0;
-      font-size: 1.55rem;
-      line-height: 1.25;
-      font-weight: 950;
-      letter-spacing: -0.03em;
-    }
-
-    .quote-card span {
-      color: var(--gold);
-      font-weight: 950;
-    }
-
-    .connect-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 0.85fr) minmax(340px, 1.05fr);
-      gap: 54px;
-      align-items: start;
-    }
-
-    .interest-box {
-      display: grid;
-      gap: 8px;
-      margin-top: 26px;
-      padding: 18px;
-      border-radius: 18px;
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      background: rgba(255, 255, 255, 0.07);
-    }
-
-    .interest-box strong {
-      color: var(--gold);
-      font-size: 1.04rem;
-    }
-
-    .interest-box span {
-      color: rgba(255, 255, 255, 0.76);
-    }
-
-    .connect-form {
-      padding: 28px;
-      border-radius: var(--radius);
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      box-shadow: var(--shadow);
-    }
-
-    .connect-form label {
-      display: grid;
-      gap: 8px;
-      margin-bottom: 16px;
-      font-weight: 900;
-    }
-
-    .connect-form input,
-    .connect-form select,
-    .connect-form textarea {
-      width: 100%;
-      min-height: 48px;
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      border-radius: 14px;
-      padding: 12px 14px;
-      background: rgba(255, 255, 255, 0.94);
-      color: var(--black);
-      font: inherit;
-    }
-
-    .form-note {
-      color: rgba(255, 255, 255, 0.62);
-      font-size: 0.86rem;
-    }
-
-    .site-footer {
-      padding: 32px 0;
-      background: #070707;
-      color: var(--white);
-    }
-
-    .footer-grid {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 24px;
-    }
-
-    .footer-brand {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .footer-brand img {
-      width: auto;
-      height: auto;
-      max-width: 70px;
-      max-height: 70px;
-      object-fit: contain;
-      border-radius: 0;
-      box-shadow: none;
-      background: #000000;
-    }
-
-    .footer-brand p {
-      margin: 6px 0 0;
-      color: rgba(255, 255, 255, 0.58);
-    }
-
-    .footer-links {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
-    }
-
-    .footer-links a {
-      color: rgba(255, 255, 255, 0.72);
-      text-decoration: none;
-      font-weight: 850;
-    }
-
-    .reveal {
-      opacity: 0;
-      transform: translateY(18px);
-      transition: opacity 0.7s ease, transform 0.7s ease;
-    }
-
-    .reveal.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    @media (max-width: 1120px) {
-      .nav-links {
-        gap: 10px;
-      }
-
-      .nav-links a {
-        font-size: 0.78rem;
-      }
-
-      .brand {
-        min-width: 220px;
-      }
-    }
-
-    @media (max-width: 980px) {
-      .nav-toggle {
-        display: block;
-      }
-
-      .nav-links {
-        position: absolute;
-        top: var(--header-height);
-        left: 16px;
-        right: 16px;
-        display: none;
-        flex-direction: column;
-        align-items: stretch;
-        padding: 18px;
-        border-radius: 18px;
-        background: rgba(13, 13, 13, 0.98);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        box-shadow: var(--shadow);
-      }
-
-      .nav-links.open {
-        display: flex;
-      }
-
-      .hero {
-        min-height: auto;
-        padding: 78px 0 64px;
-      }
-
-      .split,
-      .split.reverse,
-      .why-grid,
-      .connect-grid,
-      .enforcers-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .card-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .family-photo {
-        max-width: 540px;
-      }
-
-    }
-
-    @media (max-width: 640px) {
-      :root {
-        --header-height: 72px;
-      }
-
-      .container {
-        width: min(100% - 28px, var(--max));
-      }
-
-      .section {
-        padding: 68px 0;
-      }
-
-      h1 {
-        font-size: clamp(2.5rem, 11vw, 4rem);
-        letter-spacing: -0.055em;
-      }
-
-      .navbar {
-        min-height: var(--header-height);
-      }
-
-      .brand {
-        min-width: 0;
-      }
-
-      .brand-mark {
-        height: 44px;
-      }
-
-      .brand-wordmark .heartland {
-        font-size: 0.88rem;
-      }
-
-      .brand-wordmark .athletics {
-        font-size: 0.78rem;
-      }
-
-      .brand-wordmark .group {
-        display: none;
-      }
-
-      .brand-tagline {
-        display: none;
-      }
-
-      .hero-actions .btn,
-      .button-row .btn {
-        width: 100%;
-      }
-
-      .card-grid,
-      .stats-grid,
-      .mini-grid,
-      .enforcers-statements {
-        grid-template-columns: 1fr;
-      }
-
-
-      .footer-grid {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="/assets/css/styles.css" />
+  <script src="/assets/js/main.js" defer></script>
 </head>
 
 <body>
   <header class="site-header" id="top">
     <nav class="navbar" aria-label="Main Navigation">
-      <a class="brand" href="#top">
+      <a class="brand" href="/" aria-current="page">
         <div class="brand-mark"></div>
+
         <div>
           <div class="brand-wordmark">
             <span class="heartland">Heartland</span>
             <span class="athletics">Athletics</span>
             <span class="group">Group</span>
           </div>
+
           <div class="brand-tagline">Compete. Develop. Inspire.</div>
         </div>
       </a>
 
-      <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-label="Open menu"
+        aria-expanded="false"
+      >
         <span></span>
         <span></span>
         <span></span>
       </button>
 
       <div class="nav-links">
-        <a href="#enforcers">Heartland Enforcers</a>
-        <a href="#about">About</a>
-        <a href="#why">Our Why</a>
-        <a href="#opportunities">Opportunities</a>
-        <a href="#sponsors">Sponsors</a>
-        <a href="#facilities">Facilities</a>
-        <a href="#recognition">Recognition</a>
-        <a class="nav-cta" href="#connect">Get Connected</a>
+        <a href="/" aria-current="page">Home</a>
+        <a href="/about/">About</a>
+        <a href="/programs/">Programs</a>
+        <a href="/enforcers/">Heartland Enforcers</a>
+        <a href="/partners/">Partners</a>
+        <a href="/recognition/">Recognition</a>
+        <a class="nav-cta" href="/contact/">Get Connected</a>
       </div>
     </nav>
   </header>
@@ -950,18 +67,30 @@
     <section class="hero section-dark">
       <div class="container">
         <div class="hero-inner reveal">
-          <div class="hero-badge">Featured Program • Heartland Enforcers Basketball Club</div>
+          <div class="hero-badge">
+            Heartland Athletics Group • Quincy, Illinois
+          </div>
 
           <h1>Building athletic opportunities across the Heartland.</h1>
 
           <p class="hero-lead">
-            Heartland Athletics Group creates competitive, developmental, and community-driven athletic experiences for youth and amateur athletes across multiple sports.
+            Heartland Athletics Group creates exceptional athletic experiences
+            that strengthen athletes, families, and communities through
+            competition, development, and leadership.
           </p>
 
           <div class="hero-actions">
-            <a class="btn btn-primary" href="#enforcers">Explore Heartland Enforcers</a>
-            <a class="btn btn-outline" href="#sponsors">Partner With H.A.G.</a>
-            <a class="btn btn-outline" href="#connect">Get Connected</a>
+            <a class="btn btn-primary" href="/programs/">
+              Explore Programs
+            </a>
+
+            <a class="btn btn-outline" href="/enforcers/">
+              Heartland Enforcers
+            </a>
+
+            <a class="btn btn-outline" href="/partners/">
+              Partner With H.A.G.
+            </a>
           </div>
 
           <div class="pill-row">
@@ -973,294 +102,315 @@
       </div>
     </section>
 
-    <section class="section enforcers-section" id="enforcers">
-      <div class="container enforcers-grid">
-        <div class="enforcers-image reveal">
-          <img
-            src="assets/assets/Heartland Enforcers Branding.PNG"
-            alt="Heartland Enforcers Basketball Club branding featuring boys, club, and girls crests"
-          />
-        </div>
+    <section class="section" id="about-preview">
+      <div class="container split">
+        <div class="section-copy reveal">
+          <p class="eyebrow">About H.A.G.</p>
 
-        <div class="enforcers-copy reveal">
-          <p class="eyebrow">A Heartland Athletics Group Program</p>
-          <h2>Heartland Enforcers Basketball Club</h2>
+          <h2>
+            A regional platform for athletes, families, teams, and communities.
+          </h2>
 
-          <p class="enforcers-tagline">
-            We don’t enforce people. We enforce the standard.
+          <p>
+            Heartland Athletics Group LLC was created to bring more organized,
+            accessible, and meaningful athletic opportunities to the Heartland
+            region.
           </p>
 
-          <p class="enforcers-intro">
-            Heartland Enforcers is a development-focused basketball club for boys and girls.
-            The club is built to create competitive opportunities while developing confident,
-            disciplined, accountable, and team-first athletes.
-          </p>
-
-          <div class="enforcers-statements">
-            <article class="enforcers-statement">
-              <strong>Our Mission</strong>
-              <p>
-                To develop athletes through purposeful basketball instruction, competitive
-                opportunities, accountable coaching, and a club culture centered on effort,
-                discipline, teamwork, sportsmanship, preparation, and respect.
-              </p>
-            </article>
-
-            <article class="enforcers-statement">
-              <strong>Our Vision</strong>
-              <p>
-                To build a trusted and sustainable basketball club that gives boys and girls
-                across the Tri-State region meaningful opportunities to develop, compete,
-                lead, and grow closer to home.
-              </p>
-            </article>
-          </div>
-
-          <p class="enforcers-values">
-            <span>We enforce:</span> Effort • Accountability • Discipline • Teamwork •
-            Sportsmanship • Preparation • Respect • Competitive Standards
+          <p>
+            H.A.G. is not limited to one sport, one team, one season, or one
+            type of event. We are building a year-round, multi-sport network
+            centered on athlete development, competition, leadership,
+            community partnerships, and local recognition.
           </p>
 
           <div class="button-row">
-            <a
-              class="btn btn-primary"
-              href="#connect"
-              data-interest="Heartland Enforcers Basketball Club"
-            >Learn More</a>
+            <a class="btn btn-dark" href="/about/">
+              Learn About H.A.G.
+            </a>
+
+            <a class="btn btn-blue" href="/contact/">
+              Get Connected
+            </a>
           </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="about">
-      <div class="container split">
-        <div class="section-copy reveal">
-          <p class="eyebrow">What We’re Building</p>
-
-          <h2>A regional platform for athletes, families, teams, and communities.</h2>
-
-          <p>
-            Heartland Athletics Group was created to help bring more organized, accessible, and meaningful athletic opportunities to the Heartland region. H.A.G. is not limited to one sport, one team, one season, or one type of event.
-          </p>
-
-          <p>
-            We are building a year-round, multi-sport network focused on athlete development, competition, community partnerships, and local recognition.
-          </p>
         </div>
 
         <div class="reveal">
           <div class="logo-showcase">
-            <img src="/assets/assets/hag-logo.png" alt="Heartland Athletics Group logo" />
+            <img
+              src="/assets/assets/hag-logo.png"
+              alt="Heartland Athletics Group logo"
+            />
           </div>
 
           <div class="stats-grid">
             <div class="stat-card">
               <strong>Multi-Sport</strong>
-              <span>Built to support athletes, teams, and events across different sports and seasons.</span>
+              <span>
+                Opportunities across different sports, seasons, and formats.
+              </span>
             </div>
 
             <div class="stat-card">
               <strong>Developmental</strong>
-              <span>Focused on growth, confidence, leadership, character, and athletic skill-building.</span>
+              <span>
+                Growth in skill, confidence, leadership, and character.
+              </span>
             </div>
 
             <div class="stat-card">
               <strong>Community-Driven</strong>
-              <span>Connecting local businesses, venues, coaches, families, and programs.</span>
+              <span>
+                Connecting athletes, families, coaches, venues, and businesses.
+              </span>
             </div>
 
             <div class="stat-card">
               <strong>Year-Round</strong>
-              <span>Creating opportunities beyond one season, one facility, or one event calendar.</span>
+              <span>
+                Building opportunities beyond one season or one event.
+              </span>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="section why-section" id="why">
-      <div class="container why-grid">
-        <div class="family-photo reveal">
-          <img src="/assets/assets/family-photo.jpg" alt="Family photo representing the inspiration behind Heartland Athletics Group" />
+    <section class="section enforcers-section" id="enforcers-preview">
+      <div class="container enforcers-grid">
+        <div class="enforcers-image reveal">
+          <img
+            src="/assets/assets/Heartland Enforcers Branding.PNG"
+            alt="Heartland Enforcers Basketball Club branding featuring boys, club, and girls crests"
+          />
         </div>
 
-        <div class="section-copy reveal">
-          <p class="eyebrow">Our Why</p>
+        <div class="enforcers-copy reveal">
+          <p class="eyebrow">Featured H.A.G. Program</p>
 
-          <h2>Built from family. Driven by opportunity.</h2>
+          <h2>Heartland Enforcers Basketball Club</h2>
 
-          <p>
-            Heartland Athletics Group was inspired by our own family’s experience in youth sports.
+          <p class="enforcers-tagline">
+            One Club. One Standard.
           </p>
 
-          <p>
-            As parents of children heavily involved in area athletics, we have seen firsthand how valuable sports can be for confidence, discipline, development, and community. We have also seen the need for more opportunities, stronger connections, and quality experiences for athletes and families across the region.
+          <p class="enforcers-intro">
+            Heartland Enforcers is a development-focused basketball club for
+            boys and girls. The club is built around purposeful instruction,
+            competitive opportunities, accountable coaching, and a team culture
+            centered on effort, discipline, teamwork, sportsmanship,
+            preparation, and respect.
           </p>
 
-          <p>
-            That is why H.A.G. was created. Heartland Athletics Group exists to help build competitive, developmental, and community-driven athletic opportunities for youth and amateur athletes across the Heartland.
+          <p class="enforcers-values">
+            <span>Club message:</span> We don’t enforce people. We enforce the
+            standard.
           </p>
 
-          <p>
-            H.A.G. is bigger than one team, one sport, or one season. It is about building something that serves families, supports local athletes, and strengthens the sports community throughout our area.
-          </p>
+          <div class="button-row">
+            <a class="btn btn-primary" href="/enforcers/">
+              Explore the Club
+            </a>
 
-          <p class="founder-line">
-            Founded by Justin Hawkins and inspired by family, community, and a passion for youth sports.
-          </p>
-
-          <a class="btn btn-dark" href="#connect">Join the H.A.G. Community</a>
+            <a
+              class="btn btn-outline"
+              href="/contact/?interest=Heartland%20Enforcers%20Basketball%20Club"
+              data-interest="Heartland Enforcers Basketball Club"
+            >
+              Express Interest
+            </a>
+          </div>
         </div>
       </div>
     </section>
 
-    <section class="section section-light" id="opportunities">
+    <section class="section section-light" id="programs-preview">
       <div class="container">
         <div class="section-heading reveal">
-          <p class="eyebrow">Events & Opportunities</p>
+          <p class="eyebrow">Programs &amp; Opportunities</p>
 
-          <h2>Future athletic opportunities we are actively exploring.</h2>
+          <h2>More than one team, one sport, or one season.</h2>
 
           <p>
-            H.A.G. is currently building partnerships and gathering interest for future multi-sport programming. Opportunities may grow based on facility access, community support, sponsor partnerships, and athlete interest.
+            H.A.G. is developing programs based on athlete interest, qualified
+            leadership, facility access, community support, and operational
+            readiness.
           </p>
         </div>
 
         <div class="card-grid">
           <article class="feature-card reveal">
+            <div class="icon">🏀</div>
+
+            <h3>Club Team Programming</h3>
+
+            <p>
+              Organized team opportunities focused on development,
+              accountability, culture, and meaningful competition.
+            </p>
+          </article>
+
+          <article class="feature-card reveal">
             <div class="icon">🏃</div>
-            <h3>Sport-Specific Skills Clinics</h3>
-            <p>Focused training opportunities designed around skill development, confidence, fundamentals, and competitive growth across multiple sports.</p>
+
+            <h3>Camps &amp; Clinics</h3>
+
+            <p>
+              Focused learning experiences built around fundamentals,
+              confidence, movement, and athletic growth.
+            </p>
           </article>
 
           <article class="feature-card reveal">
             <div class="icon">⚡</div>
-            <h3>Speed, Agility & Performance</h3>
-            <p>All-sport athletic development built around footwork, body control, quickness, explosiveness, and movement quality.</p>
+
+            <h3>Performance Development</h3>
+
+            <p>
+              Training centered on speed, agility, footwork, body control,
+              explosiveness, and movement quality.
+            </p>
           </article>
 
           <article class="feature-card reveal">
             <div class="icon">🏆</div>
-            <h3>Competition Events</h3>
-            <p>Future one-day events, small-sided competitions, shootouts, challenges, showcases, and community-based tournament opportunities.</p>
-          </article>
 
-          <article class="feature-card reveal">
-            <div class="icon">🤝</div>
-            <h3>Team & Coach Connections</h3>
-            <p>Helping connect families, coaches, teams, facilities, and development opportunities across the region.</p>
-          </article>
+            <h3>Competitions &amp; Tournaments</h3>
 
-          <article class="feature-card reveal">
-            <div class="icon">📣</div>
-            <h3>Local Athlete Recognition</h3>
-            <p>Highlighting area athletes, teams, coaches, and programs representing their communities the right way.</p>
+            <p>
+              Tournaments, shootouts, challenges, showcases, leagues, and other
+              organized competitive formats.
+            </p>
           </article>
 
           <article class="feature-card reveal">
             <div class="icon">🌎</div>
+
             <h3>Community Athletic Events</h3>
-            <p>Positive experiences that bring athletes, families, local businesses, facilities, and community partners together.</p>
+
+            <p>
+              Positive events that bring athletes, families, businesses,
+              facilities, volunteers, and communities together.
+            </p>
           </article>
+
+          <article class="feature-card reveal">
+            <div class="icon">📣</div>
+
+            <h3>Local Recognition</h3>
+
+            <p>
+              Celebrating athletes, teams, coaches, volunteers, and programs
+              representing the Heartland the right way.
+            </p>
+          </article>
+        </div>
+
+        <div class="button-row reveal">
+          <a class="btn btn-dark" href="/programs/">
+            Explore All Programs
+          </a>
         </div>
       </div>
     </section>
 
-    <section class="section section-dark" id="sponsors">
+    <section class="section section-dark" id="partners-preview">
       <div class="container split reverse">
         <div class="section-copy reveal">
           <p class="eyebrow">Community Partnership</p>
 
-          <h2>Partner with Heartland Athletics Group.</h2>
+          <h2>Help us build stronger athletic opportunities.</h2>
 
           <p>
-            Sponsorship support helps H.A.G. create affordable, organized, and meaningful athletic opportunities for area athletes and families across multiple sports and seasons.
+            H.A.G. works with businesses, organizations, facilities,
+            volunteers, and community supporters who believe in creating
+            quality athletic experiences for athletes and families.
           </p>
 
           <p>
-            Community partners may help support facility rentals, insurance, event operations, awards, apparel, supplies, marketing, athlete recognition, and future programming.
+            Partnerships may include financial sponsorship, facility access,
+            equipment, professional services, promotion, volunteer support, or
+            other in-kind contributions.
           </p>
 
           <div class="button-row">
-            <a class="btn btn-primary" href="#connect">Request Sponsorship Info</a>
-            <a class="btn btn-outline" href="#connect">Contact H.A.G.</a>
+            <a class="btn btn-primary" href="/partners/">
+              Explore Partnerships
+            </a>
+
+            <a
+              class="btn btn-outline"
+              href="/contact/?interest=Sponsorship%20or%20community%20partnership"
+              data-interest="Sponsorship or community partnership"
+            >
+              Start a Conversation
+            </a>
           </div>
         </div>
 
         <div class="highlight-panel reveal">
-          <img class="panel-logo" src="/assets/assets/hag-logo.png" alt="Heartland Athletics Group logo" />
+          <img
+            class="panel-logo"
+            src="/assets/assets/hag-logo.png"
+            alt="Heartland Athletics Group logo"
+          />
 
-          <h3>Sponsor Opportunities May Include</h3>
+          <h3>Partnership Opportunities</h3>
 
           <ul class="check-list">
-            <li>Founding community partner recognition</li>
-            <li>Event sponsor opportunities</li>
-            <li>Social media and website recognition</li>
-            <li>Logo placement on event materials</li>
-            <li>Giveaway and in-kind partnership options</li>
+            <li>Program and event sponsorship</li>
+            <li>Facility and venue partnerships</li>
+            <li>Equipment and supply support</li>
+            <li>Professional and in-kind services</li>
+            <li>Volunteer and community support</li>
           </ul>
 
           <p>
-            H.A.G. can provide sponsorship information upon request.
+            Every strong athletic opportunity is supported by people and
+            organizations willing to help build it.
           </p>
         </div>
       </div>
     </section>
 
-    <section class="section" id="facilities">
+    <section class="section section-light" id="recognition-preview">
       <div class="container split">
-        <div class="section-copy reveal">
-          <p class="eyebrow">Facility & Venue Partnerships</p>
-
-          <h2>Have space that could support youth athletic opportunities?</h2>
-
-          <p>
-            H.A.G. is actively connecting with gyms, schools, churches, community centers, training facilities, outdoor spaces, and local venues interested in hosting positive youth athletic programming.
-          </p>
-
-          <p>
-            We are open to starting small with clinics, training sessions, camps, challenges, small-sided competitions, leadership sessions, or other community-based athletic opportunities.
-          </p>
-
-          <a class="btn btn-dark" href="#connect">Connect About Facility Use</a>
-        </div>
-
-        <div class="facility-card reveal">
-          <h3>Possible Venue Uses</h3>
-
-          <div class="mini-grid">
-            <span>Gym rentals</span>
-            <span>Training space</span>
-            <span>Outdoor fields</span>
-            <span>Community rooms</span>
-            <span>Small events</span>
-            <span>Team programming</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section section-light" id="recognition">
-      <div class="container split reverse">
         <div class="section-copy reveal">
           <p class="eyebrow">Local Recognition</p>
 
-          <h2>Celebrating local athletes and teams doing big things.</h2>
+          <h2>Celebrating achievement, development, and positive impact.</h2>
 
           <p>
-            Heartland Athletics Group proudly recognizes area athletes, teams, coaches, and programs who are competing, developing, and representing their communities the right way.
+            H.A.G. recognizes athletes, teams, coaches, volunteers, programs,
+            and community supporters who demonstrate growth, leadership,
+            sportsmanship, commitment, and positive impact.
           </p>
 
           <p>
-            Have a team finish, athlete achievement, tournament result, school sports moment, club accomplishment, or community athletic story worth celebrating? Let us know.
+            Success is not limited to championships and statistics. Growth,
+            perseverance, teamwork, service, and leadership are also worth
+            celebrating.
           </p>
 
-          <a class="btn btn-dark" href="#connect">Submit a Shoutout</a>
+          <div class="button-row">
+            <a class="btn btn-dark" href="/recognition/">
+              Explore Recognition
+            </a>
+
+            <a
+              class="btn btn-blue"
+              href="/contact/?interest=Local%20athlete%20or%20team%20recognition"
+              data-interest="Local athlete or team recognition"
+            >
+              Submit a Shoutout
+            </a>
+          </div>
         </div>
 
         <div class="quote-card reveal">
           <p>
-            “Every sport can build confidence, leadership, discipline, teamwork, and community.”
+            “Every sport can build confidence, leadership, discipline,
+            teamwork, and community.”
           </p>
 
           <span>— Heartland Athletics Group</span>
@@ -1268,66 +418,23 @@
       </div>
     </section>
 
-    <section class="section section-dark" id="connect">
-      <div class="container connect-grid">
-        <div class="section-copy reveal">
+    <section class="page-cta">
+      <div class="container page-cta-inner">
+        <div>
           <p class="eyebrow">Get Connected</p>
 
           <h2>Be part of what H.A.G. is building.</h2>
 
           <p>
-            Whether you are a parent, athlete, coach, sponsor, facility partner, volunteer, or community supporter, submit your interest below and H.A.G. will follow up.
+            Connect with Heartland Athletics Group about programs, Heartland
+            Enforcers, sponsorships, facilities, coaching, volunteering,
+            recognition, or another community opportunity.
           </p>
-
-          <div class="interest-box">
-            <strong>Submit your interest through the form.</strong>
-            <span>H.A.G. uses website submissions to organize event interest, sponsorship inquiries, facility connections, athlete recognition, and general questions.</span>
-          </div>
         </div>
 
-        <form class="connect-form reveal" action="https://formspree.io/f/mrednprl" method="POST">
-          <input type="hidden" name="_subject" value="New H.A.G. Website Interest Submission" />
-
-          <label>
-            Name
-            <input type="text" name="name" placeholder="Your name" required />
-          </label>
-
-          <label>
-            Email
-            <input type="email" name="email" placeholder="you@example.com" required />
-          </label>
-
-          <label>
-            I’m interested in
-            <select name="interest" required>
-              <option value="">Select one</option>
-              <option value="Heartland Enforcers Basketball Club">Heartland Enforcers Basketball Club</option>
-              <option>Athlete / family updates</option>
-              <option>Multi-sport camps or clinics</option>
-              <option>Sport-specific training</option>
-              <option>Speed, agility, or performance training</option>
-              <option>Competitions, tournaments, or events</option>
-              <option>Sponsorship or community partnership</option>
-              <option>Facility or venue partnership</option>
-              <option>Coaching / team connection</option>
-              <option>Volunteer opportunities</option>
-              <option>Local athlete or team recognition</option>
-              <option>General question</option>
-            </select>
-          </label>
-
-          <label>
-            Message
-            <textarea name="message" rows="5" placeholder="Tell us how you would like to connect with H.A.G."></textarea>
-          </label>
-
-          <button class="btn btn-primary" type="submit">Send Message</button>
-
-          <p class="form-note">
-            Your submission helps H.A.G. understand community interest and build future opportunities.
-          </p>
-        </form>
+        <a class="btn btn-primary" href="/contact/">
+          Contact H.A.G.
+        </a>
       </div>
     </section>
   </main>
@@ -1335,7 +442,10 @@
   <footer class="site-footer">
     <div class="container footer-grid">
       <div class="footer-brand">
-        <img src="/assets/assets/hag-logo.png" alt="Heartland Athletics Group logo" />
+        <img
+          src="/assets/assets/hag-logo.png"
+          alt="Heartland Athletics Group logo"
+        />
 
         <div>
           <strong>Heartland Athletics Group LLC</strong>
@@ -1344,59 +454,15 @@
       </div>
 
       <div class="footer-links">
-        <a href="#enforcers">Heartland Enforcers</a>
-        <a href="#about">About</a>
-        <a href="#why">Our Why</a>
-        <a href="#sponsors">Sponsors</a>
-        <a href="#facilities">Facilities</a>
-        <a href="#connect">Contact</a>
+        <a href="/">Home</a>
+        <a href="/about/">About</a>
+        <a href="/programs/">Programs</a>
+        <a href="/enforcers/">Heartland Enforcers</a>
+        <a href="/partners/">Partners</a>
+        <a href="/recognition/">Recognition</a>
+        <a href="/contact/">Contact</a>
       </div>
     </div>
   </footer>
-
-  <script>
-    const toggle = document.querySelector(".nav-toggle");
-    const navLinks = document.querySelector(".nav-links");
-
-    if (toggle && navLinks) {
-      toggle.addEventListener("click", () => {
-        const isOpen = navLinks.classList.toggle("open");
-        toggle.setAttribute("aria-expanded", String(isOpen));
-      });
-
-      navLinks.querySelectorAll("a").forEach((link) => {
-        link.addEventListener("click", () => {
-          navLinks.classList.remove("open");
-          toggle.setAttribute("aria-expanded", "false");
-        });
-      });
-    }
-
-    const interestSelect = document.querySelector('select[name="interest"]');
-
-    document.querySelectorAll("[data-interest]").forEach((link) => {
-      link.addEventListener("click", () => {
-        if (interestSelect) {
-          interestSelect.value = link.dataset.interest;
-        }
-      });
-    });
-
-    const revealElements = document.querySelectorAll(".reveal");
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("visible");
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.15 }
-    );
-
-    revealElements.forEach((el) => observer.observe(el));
-  </script>
 </body>
 </html>

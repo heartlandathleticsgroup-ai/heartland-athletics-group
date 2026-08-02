@@ -1052,3 +1052,23 @@
     display: none;
   }
 }
+
+/* Light-section Mission and Vision cards */
+.section-light .enforcers-statement {
+  background: var(--white);
+  border-color: rgba(13, 13, 13, 0.08);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.08);
+}
+
+.section-light .enforcers-statement p {
+  color: var(--muted) !important;
+}
+
+.section-light .enforcers-statement strong {
+  color: var(--black);
+}
+
+/* Keep the active Contact button readable */
+.nav-links .nav-cta[aria-current="page"] {
+  color: var(--black);
+}

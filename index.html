@@ -354,84 +354,96 @@
       font-weight: 950;
     }
 
-    .clinic-section {
+
+    .enforcers-section {
+      color: var(--white);
       background:
-        radial-gradient(circle at top right, rgba(0, 87, 255, 0.1), transparent 32%),
-        linear-gradient(180deg, #ffffff 0%, #f5f6fa 100%);
-      border-bottom: 1px solid rgba(13, 13, 13, 0.08);
+        radial-gradient(circle at 88% 12%, rgba(245, 181, 0, 0.22), transparent 28%),
+        radial-gradient(circle at 8% 88%, rgba(0, 87, 255, 0.18), transparent 30%),
+        linear-gradient(135deg, #050505 0%, #111111 54%, #191300 100%);
+      border-bottom: 1px solid rgba(245, 181, 0, 0.18);
     }
 
-    .clinic-grid {
+    .enforcers-grid {
       display: grid;
-      grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.15fr);
-      gap: 46px;
+      grid-template-columns: minmax(360px, 1.08fr) minmax(0, 0.92fr);
+      gap: 52px;
       align-items: center;
     }
 
-    .clinic-flyer {
-      padding: 12px;
+    .enforcers-image {
+      padding: 10px;
       border-radius: 28px;
       background: #050505;
+      border: 1px solid rgba(245, 181, 0, 0.32);
       box-shadow: var(--shadow);
-      border: 2px solid rgba(0, 87, 255, 0.24);
+      overflow: hidden;
     }
 
-    .clinic-flyer img {
+    .enforcers-image img {
       width: 100%;
       height: auto;
-      border-radius: 20px;
+      border-radius: 19px;
+      object-fit: contain;
     }
 
-    .clinic-card {
-      padding: 34px;
-      border-radius: var(--radius);
-      background: var(--white);
-      border: 1px solid rgba(13, 13, 13, 0.08);
-      box-shadow: 0 18px 46px rgba(0, 0, 0, 0.1);
-    }
-
-    .clinic-card h2 {
+    .enforcers-copy h2 {
+      max-width: 650px;
       margin-bottom: 18px;
     }
 
-    .clinic-card .lead {
-      color: var(--muted);
-      font-size: 1.1rem;
-      margin-bottom: 24px;
+    .enforcers-tagline {
+      margin: 0 0 22px;
+      color: var(--gold) !important;
+      font-size: clamp(1.2rem, 2.4vw, 1.75rem);
+      font-weight: 1000;
+      letter-spacing: -0.025em;
+      text-transform: uppercase;
     }
 
-    .clinic-details {
+    .enforcers-intro {
+      max-width: 680px;
+      color: rgba(255, 255, 255, 0.78) !important;
+    }
+
+    .enforcers-statements {
       display: grid;
-      gap: 12px;
-      margin: 26px 0;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin: 28px 0 0;
     }
 
-    .clinic-detail {
-      display: grid;
-      grid-template-columns: 132px 1fr;
-      gap: 14px;
-      padding: 14px 0;
-      border-bottom: 1px solid rgba(13, 13, 13, 0.08);
+    .enforcers-statement {
+      padding: 22px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.07);
     }
 
-    .clinic-detail strong {
-      color: var(--black);
-      font-weight: 950;
+    .enforcers-statement strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--gold);
+      font-size: 0.78rem;
+      font-weight: 1000;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
     }
 
-    .clinic-detail span {
-      color: var(--muted);
-      font-weight: 720;
+    .enforcers-statement p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.82) !important;
+      font-size: 0.98rem;
     }
 
-    .clinic-note {
-      margin-top: 18px;
-      padding: 16px;
-      border-radius: 16px;
-      background: rgba(0, 87, 255, 0.08);
-      border: 1px solid rgba(0, 87, 255, 0.18);
-      color: var(--black);
+    .enforcers-values {
+      margin: 24px 0 0;
+      color: rgba(255, 255, 255, 0.74) !important;
       font-weight: 820;
+    }
+
+    .enforcers-values span {
+      color: var(--gold);
     }
 
     .split {
@@ -819,7 +831,7 @@
       .split.reverse,
       .why-grid,
       .connect-grid,
-      .clinic-grid {
+      .enforcers-grid {
         grid-template-columns: 1fr;
       }
 
@@ -831,10 +843,6 @@
         max-width: 540px;
       }
 
-      .clinic-flyer {
-        max-width: 560px;
-        margin: 0 auto;
-      }
     }
 
     @media (max-width: 640px) {
@@ -890,18 +898,11 @@
 
       .card-grid,
       .stats-grid,
-      .mini-grid {
+      .mini-grid,
+      .enforcers-statements {
         grid-template-columns: 1fr;
       }
 
-      .clinic-card {
-        padding: 24px;
-      }
-
-      .clinic-detail {
-        grid-template-columns: 1fr;
-        gap: 4px;
-      }
 
       .footer-grid {
         flex-direction: column;
@@ -933,7 +934,7 @@
       </button>
 
       <div class="nav-links">
-        <a href="#clinic">Clinic</a>
+        <a href="#enforcers">Heartland Enforcers</a>
         <a href="#about">About</a>
         <a href="#why">Our Why</a>
         <a href="#opportunities">Opportunities</a>
@@ -949,7 +950,7 @@
     <section class="hero section-dark">
       <div class="container">
         <div class="hero-inner reveal">
-          <div class="hero-badge">Now Registering • Hunter Rhodes Basketball Clinic • August 15, 2026</div>
+          <div class="hero-badge">Featured Program • Heartland Enforcers Basketball Club</div>
 
           <h1>Building athletic opportunities across the Heartland.</h1>
 
@@ -958,9 +959,9 @@
           </p>
 
           <div class="hero-actions">
-            <a class="btn btn-primary" href="https://hag.teamapp.com/clubs/950428/registration_templates/17704/registration_users/new?_detail=v1" target="_blank" rel="noopener noreferrer">Register for Clinic</a>
-            <a class="btn btn-outline" href="#clinic">Clinic Details</a>
+            <a class="btn btn-primary" href="#enforcers">Explore Heartland Enforcers</a>
             <a class="btn btn-outline" href="#sponsors">Partner With H.A.G.</a>
+            <a class="btn btn-outline" href="#connect">Get Connected</a>
           </div>
 
           <div class="pill-row">
@@ -972,66 +973,61 @@
       </div>
     </section>
 
-    <section class="section clinic-section" id="clinic">
-      <div class="container clinic-grid">
-        <div class="clinic-flyer reveal">
-          <img src="/assets/assets/hunter-rhodes-clinic-flyer.PNG?v=3" alt="Hunter Rhodes Basketball Clinic flyer" />
+    <section class="section enforcers-section" id="enforcers">
+      <div class="container enforcers-grid">
+        <div class="enforcers-image reveal">
+          <img
+            src="assets/assets/Heartland Enforcers Branding.PNG"
+            alt="Heartland Enforcers Basketball Club branding featuring boys, club, and girls crests"
+          />
         </div>
 
-        <div class="clinic-card reveal">
-          <p class="eyebrow">Featured Event</p>
+        <div class="enforcers-copy reveal">
+          <p class="eyebrow">A Heartland Athletics Group Program</p>
+          <h2>Heartland Enforcers Basketball Club</h2>
 
-          <h2>Hunter Rhodes Basketball Clinic</h2>
-
-          <p class="lead">
-            H.A.G. is proud to host the Hunter Rhodes Basketball Clinic in Quincy, Illinois. This clinic is designed to help athletes develop confidence, skill, footwork, ball handling, shooting, game IQ, and overall understanding of the game.
+          <p class="enforcers-tagline">
+            We don’t enforce people. We enforce the standard.
           </p>
 
-          <div class="clinic-details">
-            <div class="clinic-detail">
-              <strong>Date</strong>
-              <span>Saturday, August 15, 2026</span>
-            </div>
+          <p class="enforcers-intro">
+            Heartland Enforcers is a development-focused basketball club for boys and girls.
+            The club is built to create competitive opportunities while developing confident,
+            disciplined, accountable, and team-first athletes.
+          </p>
 
-            <div class="clinic-detail">
-              <strong>Location</strong>
-              <span>The Crossing 48th - Gymnasium<br>150 S. 48th St.<br>Quincy, IL 62305</span>
-            </div>
+          <div class="enforcers-statements">
+            <article class="enforcers-statement">
+              <strong>Our Mission</strong>
+              <p>
+                To develop athletes through purposeful basketball instruction, competitive
+                opportunities, accountable coaching, and a club culture centered on effort,
+                discipline, teamwork, sportsmanship, preparation, and respect.
+              </p>
+            </article>
 
-            <div class="clinic-detail">
-              <strong>Check-In</strong>
-              <span>Doors open at 7:30 AM</span>
-            </div>
-
-            <div class="clinic-detail">
-              <strong>Session 1</strong>
-              <span>Grades 4th-7th | 8:00 AM-12:00 PM</span>
-            </div>
-
-            <div class="clinic-detail">
-              <strong>Session 2</strong>
-              <span>Grades 8th-12th | 1:00 PM-5:00 PM</span>
-            </div>
-
-            <div class="clinic-detail">
-              <strong>Cost</strong>
-              <span>$85 per athlete, plus Team App transaction fee</span>
-            </div>
-
-            <div class="clinic-detail">
-              <strong>Deadline</strong>
-              <span>Registration closes August 1, 2026 at 5:00 PM</span>
-            </div>
+            <article class="enforcers-statement">
+              <strong>Our Vision</strong>
+              <p>
+                To build a trusted and sustainable basketball club that gives boys and girls
+                across the Tri-State region meaningful opportunities to develop, compete,
+                lead, and grow closer to home.
+              </p>
+            </article>
           </div>
+
+          <p class="enforcers-values">
+            <span>We enforce:</span> Effort • Accountability • Discipline • Teamwork •
+            Sportsmanship • Preparation • Respect • Competitive Standards
+          </p>
 
           <div class="button-row">
-            <a class="btn btn-blue" href="https://hag.teamapp.com/clubs/950428/registration_templates/17704/registration_users/new?_detail=v1" target="_blank" rel="noopener noreferrer">Register Now</a>
-            <a class="btn btn-dark" href="#connect">Ask a Question</a>
+            <a
+              class="btn btn-primary"
+              href="#connect"
+              data-interest="Heartland Enforcers Basketball Club"
+            >Learn More</a>
           </div>
-
-          <p class="clinic-note">
-            Spots are limited. Registration is not complete until payment is received. No refunds will be given once registration is processed unless the clinic is canceled by Heartland Athletics Group LLC.
-          </p>
         </div>
       </div>
     </section>
@@ -1306,7 +1302,7 @@
             I’m interested in
             <select name="interest" required>
               <option value="">Select one</option>
-              <option>Hunter Rhodes Basketball Clinic</option>
+              <option value="Heartland Enforcers Basketball Club">Heartland Enforcers Basketball Club</option>
               <option>Athlete / family updates</option>
               <option>Multi-sport camps or clinics</option>
               <option>Sport-specific training</option>
@@ -1348,7 +1344,7 @@
       </div>
 
       <div class="footer-links">
-        <a href="#clinic">Clinic</a>
+        <a href="#enforcers">Heartland Enforcers</a>
         <a href="#about">About</a>
         <a href="#why">Our Why</a>
         <a href="#sponsors">Sponsors</a>
@@ -1375,6 +1371,16 @@
         });
       });
     }
+
+    const interestSelect = document.querySelector('select[name="interest"]');
+
+    document.querySelectorAll("[data-interest]").forEach((link) => {
+      link.addEventListener("click", () => {
+        if (interestSelect) {
+          interestSelect.value = link.dataset.interest;
+        }
+      });
+    });
 
     const revealElements = document.querySelectorAll(".reveal");
 

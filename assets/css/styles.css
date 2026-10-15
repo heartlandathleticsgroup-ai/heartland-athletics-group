@@ -1239,3 +1239,96 @@
 .section-dark .content-card .eyebrow {
   color: var(--gold);
 }
+
+
+/* Gus Macker Community Contributor recognition */
+.contributor-section {
+  background:
+    radial-gradient(circle at 12% 20%, rgba(245, 181, 0, 0.12), transparent 26%),
+    linear-gradient(180deg, #ffffff 0%, #f5f6fa 100%);
+}
+
+.contributor-recognition {
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid rgba(13, 13, 13, 0.08);
+  background: var(--black);
+  box-shadow: var(--shadow);
+}
+
+.contributor-empty {
+  display: grid;
+  gap: 6px;
+  padding: 26px 30px;
+  color: var(--white);
+}
+
+.contributor-empty strong {
+  color: var(--gold);
+  font-size: 1.05rem;
+}
+
+.contributor-empty span {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.contributor-marquee {
+  overflow: hidden;
+  padding: 24px 0;
+  color: var(--white);
+}
+
+.contributor-track {
+  display: flex;
+  width: max-content;
+  animation: contributor-scroll 28s linear infinite;
+}
+
+.contributor-marquee:hover .contributor-track {
+  animation-play-state: paused;
+}
+
+.contributor-set {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.contributor-name {
+  padding: 0 20px;
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.contributor-divider {
+  color: var(--gold);
+  font-size: 1.15rem;
+  font-weight: 1000;
+}
+
+@keyframes contributor-scroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contributor-track {
+    width: auto;
+    flex-wrap: wrap;
+    animation: none;
+  }
+
+  .contributor-set[aria-hidden="true"] {
+    display: none;
+  }
+
+  .contributor-name {
+    padding: 8px 14px;
+  }
+}

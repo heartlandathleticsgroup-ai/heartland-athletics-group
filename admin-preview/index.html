@@ -14,7 +14,7 @@
 <script>
 'use strict';
 const config={url:'https://ouynjmqzabrvlddxjbtt.supabase.co',key:'sb_publishable_jjhyrlgShQS4setHH4cDVA_vdwWTP61'};
-const client=window.supabase?.createClient(config.url,config.key,{auth:{flowType:'pkce',autoRefreshToken:true,persistSession:true}});
+const client=window.supabase?.createClient(config.url,config.key,{auth:{flowType:'implicit',detectSessionInUrl:true,autoRefreshToken:true,persistSession:true}});
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let currentUser=null,role=null,articleRows=[],eventRows=[],spotlightRows=[],submissions=[],currentTab='articles',currentArticle=null,currentEvent=null;
 function message(m,err=false){$('message').innerHTML='<div class="notice '+(err?'error':'')+'">'+esc(m)+'</div>';setTimeout(()=>$('message').replaceChildren(),8500)}

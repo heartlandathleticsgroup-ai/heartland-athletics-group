@@ -16,7 +16,10 @@
 </style></head><body>
 <header><div style="display:flex;align-items:center;gap:14px"><img class="logo" src="../assets/assets/hag-logo.png" alt="H.A.G. official logo" onerror="this.style.display='none'"><div><h1>H.A.G. Editorial Desk</h1><small>COMPETE. DEVELOP. INSPIRE.</small></div></div><button id="signout" class="hidden">Sign out</button></header>
 <main class="wrap"><div id="message" aria-live="polite"></div>
-<section id="authPanel" class="card"><h2>Staff sign-in</h2><p>Authorized Heartland Athletics Group staff only. Enter your staff account email address to receive a one-time sign-in link.</p><div class="notice">Admin accounts must be approved and assigned a role by H.A.G. This page does not grant access to the public.</div><form id="login"><label class="field">Staff email<input type="email" name="email" autocomplete="email" required placeholder="Enter your staff email address"></label><button class="primary" type="submit">Email sign-in link</button></form><div class="auth-divider">OR SIGN IN WITH PASSWORD</div>
+<section id="authPanel" class="card"><h2>Staff sign-in</h2><p>Authorized Heartland Athletics Group staff only. Enter your staff account email address to receive a one-time sign-in link.</p><div class="notice">Admin accounts must be approved and assigned a role by H.A.G. This page does not grant access to the public.</div><form id="login"><label class="field">Staff email<input type="email" name="email" autocomplete="email" required placeholder="Enter your staff email address"></label><button class="primary" type="submit">Email sign-in link</button></form><div class="auth-divider">OR USE A PASSKEY</div>
+<div class="actions"><button type="button" id="passkeyLogin" class="blue">🔐 Sign in with Face ID, Touch ID or Passkey</button></div>
+<p class="muted">Sign in without typing your email after you have registered a passkey. Your device may use biometrics, a PIN, or a security key. H.A.G. must first enable passkeys in Supabase.</p>
+<div class="auth-divider">OR SIGN IN WITH PASSWORD</div>
 <form id="passwordLogin"><label class="field">Email<input type="email" name="email" autocomplete="username" required placeholder="Authorized staff email"></label>
 <label class="field">Password<input type="password" name="password" autocomplete="current-password" required minlength="8"></label>
 <button class="blue" type="submit">Admin Login</button></form>
@@ -47,6 +50,16 @@
 <label class="field">Confirm password<input name="confirmation" type="password" minlength="12" required autocomplete="new-password"></label>
 <button class="primary" type="submit">Set or update password</button>
 </form>
+<div class="auth-divider">PASSKEYS & DEVICE LOGIN</div>
+<p>Use Face ID, Touch ID, Windows Hello, or a device PIN to access the Editorial Desk. Register a passkey while signed in, then use the passkey login button next time.</p>
+<div class="actions"><button type="button" class="blue" id="registerPasskey">🔐 Register a passkey</button><button type="button" id="refreshPasskeys">View my passkeys</button></div>
+<div id="passkeyList" class="muted" aria-live="polite"></div>
+<p class="muted"><strong>Project setup required:</strong> Enable passkeys under
+<a target="_blank" rel="noopener noreferrer" href="https://supabase.com/dashboard/project/ouynjmqzabrvlddxjbtt/auth/passkeys">Supabase Authentication → Passkeys</a>.
+Set Display Name <code>Heartland Athletics Group</code>, RP ID <code>heartlandathleticsgroup.com</code>,
+and Allowed Origin <code>https://heartlandathleticsgroup.com</code>.
+Do not change the RP ID after registration. Supabase currently marks passkeys experimental.</p>
+<p class="muted">Passkeys still require verified H.A.G. staff permissions.</p>
 <p class="muted">The email sign-in link remains a backup. On your personal device you should stay signed in unless you sign out, clear site data, or your session expires. For shared devices, sign out when finished.</p></section>
 <section class="card"><h2>AI assistant activation</h2>
 <p>The AI drafting backend is deployed with verified staff access and a usage cap. It needs an OpenAI API key before it can generate articles.</p>
@@ -54,11 +67,11 @@
 <p class="muted">OpenAI API usage is billed separately from a ChatGPT subscription. Review your usage limits and billing before enabling. The AI assistant can create drafts but cannot approve or publish them.</p>
 </section></div></section>
 <div class="footer">H.A.G. Editorial Desk · Private staff tool · America/Chicago</div></main>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0/dist/umd/supabase.min.js"></script>
 <script>
 'use strict';
 const config={url:'https://ouynjmqzabrvlddxjbtt.supabase.co',key:'sb_publishable_jjhyrlgShQS4setHH4cDVA_vdwWTP61'};
-const client=window.supabase?.createClient(config.url,config.key,{auth:{flowType:'implicit',detectSessionInUrl:true,autoRefreshToken:true,persistSession:true}});
+const client=window.supabase?.createClient(config.url,config.key,{auth:{flowType:'implicit',detectSessionInUrl:true,autoRefreshToken:true,persistSession:true,experimental:{passkey:true}}});
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let currentUser=null,role=null,articleRows=[],eventRows=[],spotlightRows=[],submissions=[],currentTab='articles',currentArticle=null,currentEvent=null;
 function message(m,err=false){$('message').innerHTML='<div class="notice '+(err?'error':'')+'">'+esc(m)+'</div>';setTimeout(()=>$('message').replaceChildren(),8500)}

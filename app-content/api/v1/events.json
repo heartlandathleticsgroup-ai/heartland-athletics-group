@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "kind": "events",
+  "items": [
+    {
+      "id": "bags-buckets-2026",
+      "browser_id": "bags",
+      "publication_state": "published",
+      "title": "Bags & Buckets Fundraiser",
+      "date_label": "November 7, 2026",
+      "start_date": "2026-11-07",
+      "end_date_exclusive": "2026-11-08",
+      "location": "Kroc Center · Quincy, Illinois",
+      "status": "Scheduled",
+      "description": "Join the Heartland Enforcers for a community fundraiser featuring blind-draw cornhole, youth basketball activities, and a silent auction. Registration begins at 10:00 AM and bags fly at 11:00 AM. Cornhole entry is $25 per player. Registration takes place outside this app preview.",
+      "website_path": "/enforcers/"
+    },
+    {
+      "id": "gus-macker-quincy-2027",
+      "browser_id": "macker",
+      "publication_state": "published",
+      "title": "Gus Macker — Quincy 2027",
+      "date_label": "May 29–30, 2027",
+      "start_date": "2027-05-29",
+      "end_date_exclusive": "2027-05-31",
+      "location": null,
+      "status": "Planning underway",
+      "description": "The dates for Gus Macker in Quincy are set for May 29–30, 2027. H.A.G. continues event planning and partnerships. Venue details will be shared only after confirmation.",
+      "website_path": "/gus-macker/"
+    }
+  ]
+}

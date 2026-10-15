@@ -255,15 +255,15 @@ $('hagFactForm').onsubmit=async ev=>{
   }catch(e){message(e.message,true)}
 };
 
-function editArticle(id){currentArticle=articleRows.find(x=>x.id===id);if(!currentArticle)return;const f=$('articleForm');for(const name of ['id','title','category','summary','art_label','tone'])f.elements[name].value=currentArticle[name]||'';f.elements.body.value=(currentArticle.body||[]).join('\n\n');$('articleHeading').textContent='Edit News: '+currentArticle.title;renderArticleActions();previewArticle()}
-function clearArticle(){currentArticle=null;$('articleForm').reset();$('articleForm').elements.id.value='';$('articleHeading').textContent='Write a News article';$('articleActions').replaceChildren();previewArticle()}
+function editArticle(id){currentArticle=articleRows.find(x=>x.id===id);if(!currentArticle)return;const f=$('articleForm');for(const name of ['id','title','category','summary','art_label','tone','hero_image_alt','hero_image_caption','hero_image_credit'])f.elements[name].value=currentArticle[name]||'';f.elements.hero_image_rights_confirmed.checked=!!currentArticle.hero_image_rights_confirmed;f.elements.body.value=(currentArticle.body||[]).join('\n\n');$('articleHeading').textContent='Edit News: '+currentArticle.title;renderArticleActions();previewArticle();void renderArticlePhoto()}
+function clearArticle(){currentArticle=null;$('articleForm').reset();$('articleForm').elements.id.value='';$('articleHeading').textContent='Write a News article';$('articleActions').replaceChildren();previewArticle();void renderArticlePhoto()}
 function previewArticle(){let f=$('articleForm');$('articlePreview').textContent=(f.elements.title.value||'Headline')+'\n\n'+(f.elements.summary.value||'Summary')+'\n\n'+(f.elements.body.value||'Article text')}
 function renderArticleActions(){let x=currentArticle;if(!x)return;const admin=role==='admin';let buttons=[];if(x.status==='draft')buttons.push(['review','Submit for review']);if(admin&&['draft','review'].includes(x.status))buttons.push(['approved','Approve']);if(admin&&x.status==='approved'){buttons.push(['published','Publish now']);buttons.push(['schedule','Schedule (Chicago time)'])}if(admin&&x.status==='published')buttons.push(['archived','Archive']);$('articleActions').innerHTML=buttons.map(([status,label])=>'<button type="button" class="'+(status==='published'?'primary':'blue')+'" data-art-status="'+status+'">'+label+'</button>').join('');$('articleActions').querySelectorAll('button').forEach(btn=>btn.onclick=()=>btn.dataset.artStatus==='schedule'?scheduleArticle(x.id):updateStatus('hag_articles',x.id,btn.dataset.artStatus));}
 function editEvent(id){currentEvent=eventRows.find(x=>x.id===id);if(!currentEvent)return;const f=$('eventForm');for(const key of ['id','title','description','event_start','public_status','venue'])f.elements[key].value=currentEvent[key]||'';f.elements.last_day.value=dateMinus(currentEvent.event_end_exclusive);renderEventActions()}
 function clearEvent(){currentEvent=null;$('eventForm').reset();$('eventForm').elements.id.value='';$('eventActions').replaceChildren()}
 function renderEventActions(){if(!currentEvent)return;const x=currentEvent,admin=role==='admin',arr=[];if(x.status==='draft')arr.push(['review','Submit for review']);if(admin&&['draft','review'].includes(x.status))arr.push(['approved','Approve']);if(admin&&x.status==='approved')arr.push(['published','Publish now']);if(admin&&x.status==='published')arr.push(['archived','Archive']);$('eventActions').innerHTML=arr.map(([s,l])=>'<button type="button" class="blue" data-event-status="'+s+'">'+l+'</button>').join('');$('eventActions').querySelectorAll('button').forEach(b=>b.onclick=()=>updateStatus('hag_events',x.id,b.dataset.eventStatus));}
 async function scheduleArticle(id){const local=prompt('Schedule approved article in Chicago (Central) time.\\nEnter YYYY-MM-DD HH:MM (24-hour clock):');if(!local)return;if(!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(local)){message('Use YYYY-MM-DD HH:MM in Central Time',true);return}if(!confirm('Schedule this article for '+local+' America/Chicago?'))return;try{firstErr(await client.rpc('hag_schedule_article',{article_id:id,local_datetime:local}));message('Scheduled for '+local+' Central Time');await refresh();editArticle(id)}catch(e){message(e.message,true)}}
-async function updateStatus(table,id,status){if(status==='published'&&!confirm('Publish this approved content publicly?'))return;try{let changes={status,updated_at:new Date().toISOString()};if(table==='hag_articles')changes.updated_by=currentUser.id;if(status==='published')changes.published_at=new Date().toISOString();const row=firstErr(await client.from(table).update(changes).eq('id',id).select('id').single());message('Saved status: '+status);await refresh();if(table==='hag_articles')editArticle(row.id);else editEvent(row.id)}catch(e){message(e.message,true)}}
+async function updateStatus(table,id,status){if(table==='hag_articles'&&status==='archived'){await newsPhotoAction('archive',id);return}if(status==='published'&&!confirm('Publish this approved content publicly? Photographs stay private until separately approved and released.'))return;try{let changes={status,updated_at:new Date().toISOString()};if(table==='hag_articles')changes.updated_by=currentUser.id;if(status==='published')changes.published_at=new Date().toISOString();const row=firstErr(await client.from(table).update(changes).eq('id',id).select('id').single());message('Saved status: '+status);await refresh();if(table==='hag_articles')editArticle(row.id);else editEvent(row.id)}catch(e){message(e.message,true)}}
 $('login').onsubmit=async ev=>{ev.preventDefault();const email=ev.target.elements.email.value.trim();const btn=ev.target.querySelector('[type=submit]');if(btn){btn.disabled=true;btn.textContent='Requesting sign-in link…'}try{if(!client)throw Error('Supabase sign-in library failed to load. Refresh the page.');firstErr(await client.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:location.origin+location.pathname}}));message('Sign-in link requested. If it does not arrive, the Supabase Auth email provider may need to be configured. Do not request it repeatedly.')}catch(e){message('Unable to send sign-in link: '+e.message,true)}finally{if(btn){btn.disabled=false;btn.textContent='Email sign-in link'}}};
 
 $('passwordLogin').onsubmit=async ev=>{
@@ -366,8 +366,93 @@ $('aiWriter').onsubmit=async ev=>{
  finally{btn.disabled=false;btn.textContent='✦ Generate News draft'}
 };
 
+
+async function renderArticlePhoto(){
+ const preview=$('hagPhotoPreview'), info=$('hagPhotoStatus');
+ $('hagUploadPhoto').disabled=!currentArticle;
+ const canPublish=role==='admin'&&currentArticle?.status==='published'&&
+   new Date(currentArticle.published_at).getTime()<=Date.now()&&!!currentArticle.hero_image_private_path;
+ $('hagPublishPhoto').disabled=!canPublish;
+ $('hagRemovePhoto').disabled=!(role==='admin'&&currentArticle?.hero_image_url);
+ if(!currentArticle){
+   info.textContent='Save a News article as a draft first, then select it from the editorial queue to upload a private photo.';
+   preview.replaceChildren();return;
+ }
+ info.textContent='Article status: '+currentArticle.status+
+   (currentArticle.hero_image_url?' · Approved photo is PUBLIC':
+   currentArticle.hero_image_private_path?' · Photo is PRIVATE (not public)':' · No photo attached');
+ const id=currentArticle.id;
+ let url=currentArticle.hero_image_url||'';
+ if(!url&&currentArticle.hero_image_private_path){
+   const temp=await client.storage.from('hag-news-drafts').createSignedUrl(currentArticle.hero_image_private_path,120);
+   if(temp.error){preview.textContent='Private preview unavailable: '+temp.error.message;return}
+   url=temp.data.signedUrl;
+ }
+ if(currentArticle?.id!==id)return;
+ preview.replaceChildren();
+ if(url){
+   const image=document.createElement('img');
+   image.src=url;image.alt=currentArticle.hero_image_alt||'Article photograph';
+   image.className='hag-image-preview';image.loading='lazy';
+   preview.append(image);
+   if(currentArticle.hero_image_credit||currentArticle.hero_image_caption){
+     const p=document.createElement('p');p.className='muted';
+     p.textContent=[currentArticle.hero_image_caption,currentArticle.hero_image_credit].filter(Boolean).join(' · ');
+     preview.append(p);
+   }
+ }
+}
+$('hagUploadPhoto').onclick=async event=>{
+ const btn=event.currentTarget,article=currentArticle,file=$('hagNewsPhotoFile').files[0],form=$('articleForm');
+ if(!article){message('Save the article as a draft and select it before uploading.',true);return}
+ if(!file){message('Choose a JPG, PNG, or WebP image.',true);return}
+ const allowed={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'};
+ const ext=allowed[file.type];
+ if(!ext||file.size>6291456||file.size<100){message('Select a JPG, PNG, or WebP image under 6 MB.',true);return}
+ const alt=form.elements.hero_image_alt.value.trim(),caption=form.elements.hero_image_caption.value.trim();
+ const credit=form.elements.hero_image_credit.value.trim();
+ if(alt.length<8){message('Write a descriptive image alternative text (8+ characters).',true);return}
+ if(!form.elements.hero_image_rights_confirmed.checked){message('Confirm photo rights and guardian permission where applicable before upload.',true);return}
+ if(!confirm('Upload this photo privately to the selected H.A.G. article? It will NOT become public until an administrator approves its release.'))return;
+ btn.disabled=true;
+ try{
+   const name=currentUser.id+'/'+article.id+'/'+crypto.randomUUID()+'.'+ext;
+   firstErr(await client.storage.from('hag-news-drafts').upload(name,file,{contentType:file.type,upsert:false}));
+   firstErr(await client.from('hag_articles').update({
+     hero_image_private_path:name,hero_image_alt:alt,hero_image_caption:caption||null,
+     hero_image_credit:credit||null,hero_image_rights_confirmed:true,
+     updated_by:currentUser.id,updated_at:new Date().toISOString()
+   }).eq('id',article.id).select('id').single());
+   message('Photo uploaded privately and attached to the article. A publisher must explicitly release it.');
+   await refresh();editArticle(article.id);
+ }catch(e){message('Unable to attach photo: '+e.message,true)}
+ finally{btn.disabled=false;void renderArticlePhoto()}
+};
+async function newsPhotoAction(action,id){
+ const articleId=id||currentArticle?.id;
+ if(!articleId){message('Select a saved News article first.',true);return}
+ const prompts={
+   publish:'Make this photo publicly accessible? Verify permission, photo attribution and any guardian consents before proceeding.',
+   remove:'Remove this photograph from the public article? Its private original will remain available to staff.',
+   archive:'Archive this News article and remove its published photograph?'
+ };
+ if(!confirm(prompts[action]))return;
+ try{
+   const res=await client.functions.invoke('hag-news-photo',{body:{action,articleId}});
+   if(res.error){
+     let info=res.error.message||'Photo operation failed';
+     if(res.error.context?.json){try{const body=await res.error.context.json();if(body.error)info=body.error}catch{}}
+     throw Error(info);
+   }
+   message(res.data.message||'Photo action completed.');
+   await refresh();if(action==='archive')clearArticle();else editArticle(articleId);
+ }catch(e){message('Photo action failed: '+e.message,true)}
+}
+$('hagPublishPhoto').onclick=()=>newsPhotoAction('publish');
+$('hagRemovePhoto').onclick=()=>newsPhotoAction('remove');
+
 $('signout').onclick=signOut;
-$('articleForm').onsubmit=async ev=>{ev.preventDefault();const f=ev.target;let x={title:f.elements.title.value.trim(),category:f.elements.category.value,summary:f.elements.summary.value.trim(),body:f.elements.body.value.split(/\n\s*\n/).map(t=>t.trim()).filter(Boolean),art_label:f.elements.art_label.value.trim()||null,tone:f.elements.tone.value,updated_by:currentUser.id,updated_at:new Date().toISOString()};if(!x.body.length){message('Article body required',true);return}try{if(currentArticle){if(!['draft','review'].includes(currentArticle.status)&&role!=='admin')throw Error('Editors cannot modify approved/published stories');firstErr(await client.from('hag_articles').update(x).eq('id',currentArticle.id).select('id').single());}else{x.slug=slug(x.title);x.created_by=currentUser.id;x.status='draft';firstErr(await client.from('hag_articles').insert(x).select('id').single());}message('Draft saved');clearArticle();await refresh()}catch(e){message(e.message,true)}};
+$('articleForm').onsubmit=async ev=>{ev.preventDefault();const f=ev.target;let x={title:f.elements.title.value.trim(),category:f.elements.category.value,summary:f.elements.summary.value.trim(),body:f.elements.body.value.split(/\n\s*\n/).map(t=>t.trim()).filter(Boolean),art_label:f.elements.art_label.value.trim()||null,tone:f.elements.tone.value,hero_image_alt:f.elements.hero_image_alt.value.trim()||null,hero_image_caption:f.elements.hero_image_caption.value.trim()||null,hero_image_credit:f.elements.hero_image_credit.value.trim()||null,hero_image_rights_confirmed:f.elements.hero_image_rights_confirmed.checked,updated_by:currentUser.id,updated_at:new Date().toISOString()};if(!x.body.length){message('Article body required',true);return}try{if(currentArticle){if(!['draft','review'].includes(currentArticle.status)&&role!=='admin')throw Error('Editors cannot modify approved/published stories');firstErr(await client.from('hag_articles').update(x).eq('id',currentArticle.id).select('id').single());}else{x.slug=slug(x.title);x.created_by=currentUser.id;x.status='draft';firstErr(await client.from('hag_articles').insert(x).select('id').single());}message('Draft saved');clearArticle();await refresh()}catch(e){message(e.message,true)}};
 $('eventForm').onsubmit=async ev=>{ev.preventDefault();const f=ev.target;if(f.elements.last_day.value<f.elements.event_start.value){message('Last day cannot precede first day',true);return}const x={title:f.elements.title.value.trim(),description:f.elements.description.value.trim(),event_start:f.elements.event_start.value,event_end_exclusive:datePlus(f.elements.last_day.value),public_status:f.elements.public_status.value.trim(),venue:f.elements.venue.value.trim()||null,updated_at:new Date().toISOString(),timezone:'America/Chicago'};try{if(currentEvent){if(!['draft','review'].includes(currentEvent.status)&&role!=='admin')throw Error('Editors cannot modify approved/published events');firstErr(await client.from('hag_events').update(x).eq('id',currentEvent.id).select('id').single());}else{x.slug=slug(x.title);x.created_by=currentUser.id;x.status='draft';firstErr(await client.from('hag_events').insert(x).select('id').single());}message('Event saved');clearEvent();await refresh()}catch(e){message(e.message,true)}};
 $('articleForm').addEventListener('input',previewArticle);$('articleClear').onclick=clearArticle;$('eventClear').onclick=clearEvent;$('spotlightSearch').oninput=renderLists;
 if(!client){message('Supabase JavaScript library could not load.',true)}else{client.auth.onAuthStateChange((_event)=>{setTimeout(()=>void checkAccess(),0)});void checkAccess()}

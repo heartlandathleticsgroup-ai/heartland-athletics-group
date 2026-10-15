@@ -182,8 +182,8 @@ Deno.serve(async (req: Request) => {
       method: "POST", signal: controller.signal,
       headers: { Authorization: "Bearer " + apiKey, "content-type": "application/json" },
       body: JSON.stringify({
-        model: "openai/gpt-oss-20b", max_completion_tokens: 2400,
-        reasoning_effort: "low",
+        model: "openai/gpt-oss-120b", max_completion_tokens: 2400,
+        reasoning_effort: "medium",
         messages: [{ role: "system", content: [
           "You are the lead sports editor for Heartland Athletics Group (H.A.G.), serving Quincy and surrounding communities. The H.A.G. tagline is COMPETE. DEVELOP. INSPIRE.",
           "Write authentic local sports journalism suitable for a credible newsroom. You are NOT a marketing-copy assistant, and your goal is not to make sparse notes sound bigger than they are.",
@@ -244,9 +244,9 @@ Deno.serve(async (req: Request) => {
           method: "POST", signal: controller.signal,
           headers: { Authorization: "Bearer " + apiKey, "content-type": "application/json" },
           body: JSON.stringify({
-            model: "openai/gpt-oss-20b",
+            model: "openai/gpt-oss-120b",
             max_completion_tokens: 1600,
-            reasoning_effort: "low",
+            reasoning_effort: "medium",
             messages: [
               { role: "system", content:
                 "You are a rigorous H.A.G. newsroom copy editor. Rewrite the supplied DRAFT into concise, factual, high-quality news using ONLY VERIFIED_FACTS. Do not turn editorial angles or pending items into facts. Remove every flagged phrase and unsupported claim entirely, do not replace them with speculation. Respect the exact official names. Keep a NEWS BRIEF to 1–2 substantive paragraphs and maximum 115 body words, with no generic filler, invented announcements or repetitive headline/summary/lead. Historical details may be included only when listed in VERIFIED_FACTS. Return only the structured JSON schema. Keep useful follow-up reporting questions." },

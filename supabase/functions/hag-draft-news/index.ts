@@ -50,6 +50,48 @@ function editorialChecks(draft: {title: string, summary: string, body: string[]}
   return [...new Set(warnings)].slice(0,8);
 }
 
+
+function editorialWords(value: string): string[] {
+  return value.toLowerCase().replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(w=>w.length>3);
+}
+function editorialOverlap(a: string,b: string): number {
+  const aWords=editorialWords(a),bWords=new Set(editorialWords(b));
+  return aWords.length ? aWords.filter(w=>bWords.has(w)).length/aWords.length : 0;
+}
+function splitNewsSentences(text:string): string[] {
+  return (text.match(/[^.!?]+(?:[.!?]+(?=\s|$)|$)/g)||[])
+    .map(v=>v.trim()).filter(Boolean);
+}
+function deduplicateNewsBrief(draft:{
+  title:string;summary:string;body:string[];follow_up_questions?:string[]
+}, format:string):{draft:typeof draft;changed:boolean} {
+  if(format!=="brief" || !draft.body.length) return {draft,changed:false};
+  const body=draft.body.map(p=>p.trim()).filter(Boolean);
+  if(!body.length)return {draft,changed:false};
+  let summary=draft.summary.trim();
+  if(editorialOverlap(summary,body[0])<=0.65)return {draft,changed:false};
+
+  const firstParagraphSentences=splitNewsSentences(body[0]);
+  let remainder="";
+  if(firstParagraphSentences.length>=2){
+    // Use the first factual sentence as a short deck; remove it from the article body.
+    summary=firstParagraphSentences[0];
+    remainder=firstParagraphSentences.slice(1).join(" ");
+  }else if(body.length>=2){
+    // One-sentence lead and separate context; never render the lead twice.
+    summary=body[0];
+  }else{
+    // Insufficient independent facts to create both an excerpt and a separate article.
+    return {draft,changed:false};
+  }
+  const remaining = [...(remainder?[remainder]:[]),...body.slice(1)]
+    .filter(p=>p.length>=15).slice(0,2);
+  if(!remaining.length||editorialOverlap(summary,remaining[0])>0.68){
+    return {draft,changed:false};
+  }
+  return {draft:{...draft,summary,body:remaining},changed:true};
+}
+
 const outputSchema = {
   type: "object", additionalProperties: false,
   properties: {
@@ -100,6 +142,13 @@ Deno.serve(async (req: Request) => {
   const confirmedFacts = verifiedBackground ? points + "\nVerified background: " + verifiedBackground : points;
   const pendingDetails = typeof input.pendingDetails === "string" ? input.pendingDetails.trim().slice(0, 1000) : "";
   const editorialBoundaries = typeof input.editorialBoundaries === "string" ? input.editorialBoundaries.trim().slice(0, 1000) : "";
+  // An unverified historical claim belongs in verified background, not only the preferred angle.
+  const angleHistory = /\b(?:\d{1,3}[\s-]+years?\b|tradition\b|before\s+(?:its\s+)?departure\b)/i.test(storyAngle);
+  const historyNotInFacts = angleHistory && !verifiedBackground &&
+    !/\b(?:\d{1,3}[\s-]+years?\b|tradition\b|before\s+(?:its\s+)?departure\b)/i.test(points);
+  if (historyNotInFacts) {
+    return respond({ error: "Your story angle mentions historical claims. Please enter those details under Verified history or background and confirm their accuracy, or remove them from the angle. This prevents the assistant from treating unverified history as fact." }, 422, origin);
+  }
   if (points.length < 35 || points.length > 6000) {
     return respond({ error: "Provide 35–6,000 characters of factual focal points." }, 400, origin);
   }
@@ -181,6 +230,9 @@ Deno.serve(async (req: Request) => {
       throw Error("Unexpected AI response format");
     }
     let revisionPerformed = false;
+    let briefDeduplicated = false;
+    const normalizedInitial = deduplicateNewsBrief(draft,format);
+    if(normalizedInitial.changed){draft=normalizedInitial.draft;briefDeduplicated=true}
     const originalWarnings = editorialChecks(draft, confirmedFacts, format);
     if (originalWarnings.length) {
       try {
@@ -222,6 +274,8 @@ Deno.serve(async (req: Request) => {
         }
       } catch (_repairError) { /* Keep flagged draft blocked for editorial review. */ }
     }
+    const normalizedFinal = deduplicateNewsBrief(draft,format);
+    if(normalizedFinal.changed){draft=normalizedFinal.draft;briefDeduplicated=true}
     const trimmedDraft = {
       title: draft.title.slice(0, 200),
       summary: draft.summary.slice(0, 1200),
@@ -232,7 +286,7 @@ Deno.serve(async (req: Request) => {
       draft.follow_up_questions.filter((q: unknown) => typeof q === "string")
         .slice(0, 3).map((q: string) => q.slice(0, 220)) : [];
     return respond({ draft: { ...trimmedDraft, reporting_questions: reportingQuestions },
-      format, quality_warnings: qualityWarnings, ready_for_editor: qualityWarnings.length === 0, automatically_revised: revisionPerformed,
+      format, quality_warnings: qualityWarnings, ready_for_editor: qualityWarnings.length === 0, automatically_revised: revisionPerformed, brief_deduplicated: briefDeduplicated,
       notice: "AI-created draft only; editorial checks flag common problems but cannot prove every claim. Verify facts, quotes, event terminology and guardian permissions." }, 200, origin);
   } catch (_error) {
     return respond({ error: "Groq AI draft generation failed or timed out. Try again later." }, 502, origin);

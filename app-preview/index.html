@@ -109,6 +109,19 @@ button{font:inherit;cursor:pointer}button:focus-visible,a:focus-visible,input:fo
 .install-tips{font-size:12px;line-height:1.6;color:#586478;margin-top:8px}
 .network-notice{font-size:12px;background:#fff0c0;color:#3a2a00;padding:9px 13px;font-weight:750;border-bottom:1px solid #d9c286;text-align:center}
 .network-notice[hidden]{display:none}
+
+.hag-interest-box{background:#fff;border:1px solid #dce5f1;border-radius:16px;padding:16px;margin:10px 0 20px}
+.hag-interest-box label{display:block;font-size:12px;font-weight:800;color:#283348;margin:13px 0}
+.hag-interest-box input,.hag-interest-box select,.hag-interest-box textarea{display:block;width:100%;background:#fff;border:1px solid #cbd5e3;border-radius:9px;margin:6px 0 0;padding:12px;font-size:14px;color:#152238}
+.hag-interest-box textarea{min-height:85px;resize:vertical}
+.hag-interest-box .checkboxline{display:flex;gap:10px;align-items:flex-start;font-weight:550;line-height:1.45}
+.hag-interest-box .checkboxline input{width:18px;height:18px;flex:none;margin:2px 0 0}
+.hag-interest-box button[type=submit]{background:var(--blue);border:0;padding:13px;border-radius:10px;color:#fff;width:100%;font-size:13px;font-weight:900}
+.hag-interest-box button[disabled]{opacity:.6;cursor:wait}
+.hag-interest-state{font-size:12px;line-height:1.5;font-weight:700;margin:11px 0}
+.hag-interest-state.error{color:#b42318}
+.hag-interest-state.success{color:#165b30}
+.hag-registration-note{background:#fdf1d4;border:1px solid #e7d2a1;border-radius:12px;padding:13px;color:#4d3b16;font-size:12px;line-height:1.5;margin:12px 0}
 </style></head><body>
 <div class="previewbar"><div><strong>Heartland Athletics Group</strong><br><span>Installable app preview · Phase 4</span></div><span class="tag">APP PREVIEW</span></div>
 <div class="phone" id="phone"><div id="networkNotice" class="network-notice" role="status" hidden>Offline preview — News and event details may not be current.</div><main id="viewport" class="viewport" aria-live="polite"></main><nav id="tabs" class="tabs" aria-label="Main navigation"></nav><div class="toast" id="toast" role="status"></div></div>
@@ -144,7 +157,7 @@ const badge=(v)=>`<span class="badge ${v==='Planning underway'?'gold':''}">${v}<
 const e=(x)=>String(x).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const titleBar=(sub)=>`<header class="mast"><div class="brandline"><img alt="Official Heartland Athletics Group badge" src="${LOGO}"><div class="brandword"><span>Heartland</span><span>Athletics</span><span>Group</span><small>${sub||'COMPETE. DEVELOP. INSPIRE.'}</small></div><button class="bell" onclick="preferences()" aria-label="Notification interests">${svg('bell')}</button></div></header>`;
 const sect=(label,action='')=>`<div class="sectiontitle"><h2>${label}</h2>${action}</div>`;
-const eventCard=(x)=>`<article class="card">${badge(x.status)}<h3>${x.title}</h3><p><b style="color:#111">${x.date}</b></p>${x.location?`<p>${x.location}</p>`:''}<button class="cardbtn" onclick="showEvent('${x.id}')">View event details <span>→</span></button></article>`;
+const eventCard=(x)=>`<article class="card">${badge(x.status)}<h3>${e(x.title)}</h3><p><b style="color:#111">${e(x.date)}</b></p>${x.location?`<p>${e(x.location)}</p>`:''}${x.registrationUrl?'<span class="badge gold">Registration open ↗</span>':''}<button class="cardbtn" onclick="showEvent('${x.id}')">View event details <span>→</span></button></article>`;
 const art=(s)=>s.photo?`<div class="newsphoto hag-photo"><img src="${e(s.photo)}" alt="${e(s.photoAlt||s.title)}" loading="lazy" decoding="async"></div>`:`<div class="newsphoto ${s.tone}"><div class="graphicword">${e(s.art).replaceAll('\n','<br>')}</div><span class="icon">${svg(s.category==='Events'?'calendar':s.category==='Programs'?'trophy':'news')}</span></div>`;
 const storyCard=(s)=>`<article class="story">${art(s)}<div class="storyinside"><div class="byline"><span>${e(s.category)} · ${s.published?'PUBLISHED':s.sample?'CONTENT EXAMPLE':'EDITORIAL PREVIEW'}</span><span>${state.savedStories.has(s.id)?'★ SAVED':''}</span></div><h3>${e(s.title)}</h3><p>${e(s.deck)}</p><div class="storyactions"><button class="primary" onclick="showStory('${s.id}')">Read story →</button><button aria-label="${state.savedStories.has(s.id)?'Remove saved story':'Save story'}" onclick="saveStory('${s.id}')">${state.savedStories.has(s.id)?'★ Saved':'☆ Save'}</button></div></div></article>`;
 let deferredHagInstall=null;
@@ -189,7 +202,7 @@ const socialLinks=()=>'<div class="connect-social">'+HAG_SOCIALS.map(x=>'<a href
 const contactTeaser=()=>'<div class="connect-card"><h3>Connect with H.A.G.</h3><p>Find official updates, ask a question, or reach out about an event.</p><button onclick="contactView()">Contact & social links →</button></div>';
 const intro=(title,text)=>`<div class="minihero"><span class="micro">HEARTLAND ATHLETICS GROUP</span><h1>${e(title)}</h1><p>${e(text)}</p></div>`;
 const demoAlert=()=>state.alert?`<div class="alert"><strong>PREVIEW NOTICE</strong> This is how a pinned announcement could appear. <button onclick="toggleAlert()" aria-label="Dismiss preview banner">×</button></div>`:'';
-function render(scroll=true){let html=titleBar();if(state.view.startsWith('event:')){const x=events.find(z=>z.id===state.view.split(':')[1]);html+=`<div class="section"><button class="back" onclick="back()">← Back to Events</button>${badge(x.status)}<h1 class="detailTitle">${x.title}</h1><p class="muted"><strong>${x.date}</strong></p>${x.location?`<p class="muted">${x.location}</p>`:''}<p class="detailBody">${x.description}</p><div class="splitactions"><button class="${state.savedEvents.has(x.id)?'saved':''}" onclick="saveEvent('${x.id}')">${state.savedEvents.has(x.id)?'★ Saved':'☆ Save event'}</button><button onclick="shareEvent('${x.id}')">${svg('share')} Share</button></div><button class="fullbtn" onclick="chooseCalendar('${x.id}')">${svg('calendar')} Add to Calendar</button><p class="fine">Select Google, Outlook or Apple Calendar to save this event. No unconfirmed Gus Macker venue is included.</p><hr class="divider"><button class="cardbtn" onclick="openSite('${x.id==='bags'?'/enforcers/':'/gus-macker/'}')">View H.A.G. webpage <span>↗</span></button></div>`;
+function render(scroll=true){let html=titleBar();if(state.view.startsWith('event:')){const x=events.find(z=>z.id===state.view.split(':')[1]);html+=`<div class="section"><button class="back" onclick="back()">← Back to Events</button>${badge(x.status)}<h1 class="detailTitle">${x.title}</h1><p class="muted"><strong>${x.date}</strong></p>${x.location?`<p class="muted">${x.location}</p>`:''}<p class="detailBody">${e(x.description)}</p>${x.registrationUrl?`<button class="fullbtn" onclick="registerForEvent('${x.id}')">↗ ${e(x.registrationLabel||'Register on official event site')}</button><p class="fine">Registration happens on the organizer-approved external site, not inside the H.A.G. app.</p>`:`<div class="hag-registration-note">Registration through this app is not open for this event. Use official announcements for verified registration details.</div>`}<div class="splitactions"><button class="${state.savedEvents.has(x.id)?'saved':''}" onclick="saveEvent('${x.id}')">${state.savedEvents.has(x.id)?'★ Saved':'☆ Save event'}</button><button onclick="shareEvent('${x.id}')">${svg('share')} Share</button></div><button class="fullbtn" onclick="chooseCalendar('${x.id}')">${svg('calendar')} Add to Calendar</button><p class="fine">Select Google, Outlook or Apple Calendar to save this event. Venue is included only when confirmed.</p><button class="cardbtn" onclick="showInterest('${x.id==='macker'?'gus-macker-2027':x.id==='bags'?'enforcers':'other-events'}')">Ask H.A.G. to contact me about updates →</button><p class="fine">This is an interest request, not event registration or a mailing-list signup.</p><hr class="divider"><button class="cardbtn" onclick="openSite('${x.id==='bags'?'/enforcers/':'/gus-macker/'}')">View H.A.G. webpage <span>↗</span></button></div>`;
 }else if(state.view.startsWith('story:')){const s=stories.find(z=>z.id===state.view.split(':')[1]);html+=`<div class="section"><button class="back" onclick="back()">← Back to News</button>${art(s)}${s.photo&&(s.photoCaption||s.photoCredit)?`<div class="hag-article-caption">${e([s.photoCaption,s.photoCredit].filter(Boolean).join(" · "))}</div>`:""}<div style="margin-top:16px"><span class="badge dark">${s.category} · ${s.published?'PUBLISHED':s.sample?'SAMPLE CONTENT':'EDITORIAL PREVIEW'}</span></div><h1 class="detailTitle">${e(s.title)}</h1><p style="font-size:15px;font-weight:750;color:#3d4552;line-height:1.5">${e(s.deck)}</p>${s.body.map(p=>`<p class="detailBody">${e(p)}</p>`).join('')}<div class="splitactions"><button class="${state.savedStories.has(s.id)?'saved':''}" onclick="saveStory('${s.id}')">${state.savedStories.has(s.id)?'★ Saved':'☆ Save story'}</button><button onclick="shareStory('${s.id}')">${svg('share')} Share</button></div>${s.link?`<button class="fullbtn" onclick="showEvent('${s.link}')">View related event →</button>`:''}<p class="fine">${s.published?'Approved public H.A.G. news article.':'Editorial preview only—not an official published announcement.'}</p></div>`;
 }else if(state.view==='contact'){
  html+=intro('Connect with H.A.G.','Official social accounts and direct contact with Heartland Athletics Group.');
@@ -208,6 +221,23 @@ function render(scroll=true){let html=titleBar();if(state.view.startsWith('event
  '<label>Message<textarea name="message" required minlength="5" maxlength="5000" placeholder="How can we help?"></textarea></label>'+
  '<button type="submit">Send message ↗</button><p>Submission opens a separate confirmation page. Please do not include private health information or sensitive information about children.</p></form>'+
  '<p class="fine">You can also use the <a href="https://www.heartlandathleticsgroup.com/contact/" target="_blank" rel="noopener noreferrer">original H.A.G. website contact form ↗</a>.</p></section>';
+}else if(state.view==='interest'){
+ const selected=hagInterestTopic;
+ html+=intro('Stay connected with H.A.G.','Request a personal follow-up about an event or program.');
+ html+='<div class="section"><button class="back" onclick="back()">← Back</button>'+
+ '<div class="hag-registration-note"><strong>Important:</strong> This is not a tournament registration, ticket purchase, waitlist reservation, or automatic notification subscription. Adults may ask H.A.G. to follow up manually.</div>'+
+ '<form id="hagInterestForm" class="hag-interest-box" onsubmit="submitHagInterest(event)">'+
+ '<label>What are you interested in?<select name="topic" required>'+
+ [['gus-macker-2027','Gus Macker Quincy 2027'],['enforcers','Heartland Enforcers'],['camps','Camps and clinics'],['other-events','Other H.A.G. events']].map(t=>'<option value="'+t[0]+'" '+(selected===t[0]?'selected':'')+'>'+t[1]+'</option>').join('')+'</select></label>'+
+ '<label>Your name<input name="contactName" required minlength="2" maxlength="120" autocomplete="name" placeholder="Your name"></label>'+
+ '<label>Your email<input name="email" type="email" required maxlength="254" autocomplete="email" placeholder="you@example.com"></label>'+
+ '<label>Message (optional)<textarea name="notes" maxlength="700" placeholder="What would you like to know? Please do not include private information about minors."></textarea></label>'+
+ '<div style="position:absolute;left:-9999px;opacity:0" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>'+
+ '<label class="checkboxline"><input name="adultConfirmed" type="checkbox" required> I am at least 18 years old and am submitting my own contact information.</label>'+
+ '<label class="checkboxline"><input name="contactConsent" type="checkbox" required> I agree H.A.G. may contact me directly by email about this request. This does not enroll me in promotional emails.</label>'+
+ '<button type="submit">Send interest request</button>'+
+ '<div id="hagInterestStatus" class="hag-interest-state" role="status" aria-live="polite"></div>'+
+ '<p class="fine">Your name, email and message will be kept in a private H.A.G. staff inbox for follow-up. Contact info@heartlandathleticsgroup.com to request removal.</p></form></div>';
 }else if(state.view==='saved'){const savedEv=events.filter(x=>state.savedEvents.has(x.id)),savedSt=stories.filter(x=>state.savedStories.has(x.id));html+=intro('Saved items','Your bookmarked events and articles in this browser.')+`<div class="section"><button class="back" onclick="back()">← Back</button>${sect('Saved events')}${savedEv.length?savedEv.map(eventCard).join(''):'<p class="muted">No saved events yet.</p>'}${sect('Saved stories')}${savedSt.length?savedSt.map(storyCard).join(''):'<p class="muted">No saved stories yet.</p>'}</div>`;
 }else if(state.view==='preferences'){html+=intro('Your interests','Select the public H.A.G. news you want to follow. This preview saves choices in your browser.');html+=`<div class="section"><button class="back" onclick="back()">← Back</button>${sect('Choose your topics')}<p class="muted">Notifications are not sent by this prototype. Your selection demonstrates future topic-based alerts.</p>${topics.map(t=>`<button class="topic" onclick="toggleTopic('${t[0]}')" aria-pressed="${state.topics.has(t[0])}"><span><b>${t[1]}</b><small>${t[2]}</small></span><span class="toggle ${state.topics.has(t[0])?'on':''}" aria-hidden="true"></span></button>`).join('')}<p class="fine">${state.topics.size} of ${topics.length} topics selected · Stored locally in this browser.</p></div>`;
 }else{switch(state.tab){case'home':{let sl=slides[state.slide];html+=`<section class="hero"><div class="micro">WELCOME TO H.A.G.</div><h1>Compete. Develop. Inspire.</h1><p class="hint">Local opportunities. Regional impact. Your connection to everything happening through H.A.G.</p><div class="hero-search"><label for="homeSearchInput">Search H.A.G.</label><div class="hero-search-box"><span class="hero-search-icon" aria-hidden="true">⌕</span><input id="homeSearchInput" class="hero-search-input" type="search" autocomplete="off" value="${e(state.homeSearch)}" placeholder="Events, news, programs, names..." aria-controls="homeSearchResults" oninput="updateHomeSearch(this.value)"><button type="button" class="hero-search-clear" onclick="clearHomeSearch()">Clear</button></div><div class="home-search-hints"><button onclick="chooseHomeSearch('Gus Macker')">Gus Macker</button><button onclick="chooseHomeSearch('Enforcers')">Enforcers</button><button onclick="chooseHomeSearch('Camps')">Camps & clinics</button></div></div></section><div id="homeSearchResults" class="home-search-results" role="region" aria-live="polite">${homeResultsMarkup(state.homeSearch)}</div>${demoAlert()}<section class="section">${sect('In the spotlight','<span class="swipehint">Swipe to explore ↔</span>')}<div class="showcase ${sl.tone}" id="showcase" tabindex="0" aria-label="Featured announcement ${state.slide+1} of ${slides.length}"><div class="courtlines"></div><div class="showbody"><span class="pill">${sl.pill}</span><h3>${sl.title}</h3><p class="sub">${sl.date}</p><button class="cta" onclick="activateSlide()">${sl.cta} <span class="arr">→</span></button></div></div><div class="cnav"><div class="cdots">${slides.map((x,i)=>`<button aria-label="Show featured item ${i+1}" class="dot ${i===state.slide?'active':''}" onclick="setSlide(${i})"></button>`).join('')}<span class="progress">${state.slide+1} / ${slides.length}</span></div><div class="switchers"><button class="roundbtn" onclick="setSlide(${(state.slide+slides.length-1)%slides.length})" aria-label="Previous feature">‹</button><button class="roundbtn" onclick="setSlide(${(state.slide+1)%slides.length})" aria-label="Next feature">›</button></div></div></section><section class="section">${sect('Explore H.A.G.')}<div class="quicklinks">${[['calendar','Events','events'],['trophy','Programs','programs'],['news','News','news'],['mail','Connect','contact']].map(t=>`<button class="quick" onclick="${t[2]==='contact'?'contactView()':`go('${t[2]}')`}"><span class="icon">${svg(t[0])}</span><b>${t[1]} →</b></button>`).join('')}</div></section><section class="section">${sect('Upcoming events','<button class="textbtn" onclick="go(\'events\')">View all →</button>')}${events.map(eventCard).join('')}</section><section class="section">${sect('From H.A.G. News','<button class="textbtn" onclick="go(\'news\')">All stories →</button>')}${storyCard(stories[0])}</section><section class="section">${sect('Stay connected')}${contactTeaser()}</section>`;break;}
@@ -215,7 +245,7 @@ case'events':html+=intro('Events & experiences','Discover public activities, sav
 case'programs':html+=intro('Programs & opportunities','Creating exceptional athletic experiences across the Heartland.');html+=`<div class="section">${sect('Find your opportunity')}${[['Camps & clinics','Skill development, specialized instruction, and future registration opportunities.','/programs/'],['Heartland Enforcers','Basketball development, competition, leadership, and club standards.','/enforcers/'],['Community experiences','Public athletic initiatives, partnerships and local programming.','/about/']].map((p,i)=>`<article class="card"><span class="badge ${i===1?'gold':''}">${i===0?'DEVELOP':i===1?'COMPETE':'INSPIRE'}</span><h3>${p[0]}</h3><p>${p[1]}</p><button class="cardbtn" onclick="openSite('${p[2]}')">Learn more ↗</button></article>`).join('')}<p class="fine">Online camp and clinic registrations will be added after the secure registration system is connected.</p></div>`;break;
 case'news':{let filtered=stories.filter(x=>(state.filter==='All'||x.category===state.filter)&&((x.title+' '+x.deck+' '+x.category).toLowerCase().includes(state.search.toLowerCase())));html+=intro('H.A.G. News','News, event updates, community recognition and public program stories.');html+=`<div class="section"><div class="newslead"><span style="color:#0057ff">${svg('news')}</span><span><strong>Official stories, all in one place</strong><small>${publishedNewsPresent?'Approved public H.A.G. news':'Editorial previews until official news is published.'}</small></span></div><label class="formlabel" for="searchStories">Search H.A.G. News</label><input class="search" id="searchStories" value="${e(state.search)}" oninput="setSearch(this.value)" placeholder="Search stories..." autocomplete="off"><div class="filterbar">${['All','Events','Programs','Community','Enforcers'].map(x=>`<button class="chip ${state.filter===x?'active':''}" onclick="setFilter('${x}')">${x}</button>`).join('')}</div><div id="newsResults">${filtered.length?filtered.map(storyCard).join(''):'<div class="noresults">No matching stories. Try another category or search term.</div>'}</div><p class="fine">${publishedNewsPresent?'Approved public posts from the H.A.G. News feed.':'Editorial previews only. Official News publishing is not yet active.'}</p></div>`;break;}
 case'spotlights':html+=intro('Player Spotlight Archive','Every approved H.A.G. athlete spotlight stays searchable here.');html+='<div class="section">'+sect('Featured athletes')+'<label class="formlabel" for="spotlightSearch">Search by name, team or sport</label><input class="search" id="spotlightSearch" oninput="filterSpotlights(this.value)" placeholder="Search athlete spotlights..." autocomplete="off"><div id="spotlightResults">'+spotlightList()+'</div><p class="fine">Only consent-verified and approved public athlete spotlights are displayed.</p></div>';break;
-case'more':html+=intro('Connect with H.A.G.','Connect with us and customize your experience.');html+=`<div class="section">${sect('Install on your phone')}<article class="card"><h3>Heartland Athletics Group App</h3><p>Keep H.A.G. programs, official events, News, and contact information a tap away.</p><button class="cardbtn" onclick="installHagApp()">${hagAppInstalled?'Installed on this device ✓':deferredHagInstall?'Install H.A.G. app ↗':'How to add H.A.G. to my home screen →'}</button><p class="fine">Web app preview; native app store release and push notifications are not yet available.</p></article>${sect('Get in touch')}${contactTeaser()}${socialLinks()}${sect('Athlete recognition')}<article class="card"><h3>Player Spotlight Archive</h3><p>Search published player spotlights by athlete, team or sport.</p><button class="cardbtn" onclick="go('spotlights')">Explore spotlights <span>→</span></button></article>${sect('Your experience')}<article class="card"><h3>Notification interests</h3><p>Choose the H.A.G. topics you want to follow.</p><button class="cardbtn" onclick="preferences()">Manage interests <span>→</span></button></article><article class="card"><h3>Saved events & stories</h3><p>${state.savedEvents.size} events saved · ${state.savedStories.size} articles saved in this browser.</p><button class="cardbtn" onclick="savedView()">View saved items <span>→</span></button></article>${sect('Staff access')}<article class="card"><h3>H.A.G. Admin Login</h3><p>Authorized staff can securely manage official News, events, and player spotlight approvals. Returning admins can sign in with a password or an email link.</p><button class="cardbtn" onclick="openSite('/admin-preview/')">Admin Login & Editorial Desk <span>↗</span></button><p class="fine">Staff only. Access requires an approved Supabase account.</p></article>${sect('About the organization')}<article class="card"><h3>Heartland Athletics Group</h3><p>COMPETE. DEVELOP. INSPIRE. Athletic opportunities centered on competition, development and community.</p><button class="cardbtn" onclick="openSite('/')">Visit official website <span>↗</span></button><button class="cardbtn" onclick="openSite('/partners/')">Partners & recognition <span>↗</span></button><button class="cardbtn" onclick="openSite('/contact/')">Get in touch <span>↗</span></button></article>${sect('Design preview controls')}<article class="card"><h3>Pinned announcement example</h3><p>Toggle a sample homepage notice to see how event updates could be displayed. It is not a real announcement.</p><button class="cardbtn" onclick="toggleAlert()">${state.alert?'Hide':'Show'} sample homepage notice <span>→</span></button></article></div>`;break;
+case'more':html+=intro('Connect with H.A.G.','Connect with us and customize your experience.');html+=`<div class="section">${sect('Install on your phone')}<article class="card"><h3>Heartland Athletics Group App</h3><p>Keep H.A.G. programs, official events, News, and contact information a tap away.</p><button class="cardbtn" onclick="installHagApp()">${hagAppInstalled?'Installed on this device ✓':deferredHagInstall?'Install H.A.G. app ↗':'How to add H.A.G. to my home screen →'}</button><p class="fine">Web app preview; native app store release and push notifications are not yet available.</p></article>${sect('Get in touch')}${contactTeaser()}<article class="card"><h3>Request event or program updates</h3><p>Adults can request a personal follow-up from H.A.G. This is not registration or an automated alert subscription.</p><button class="cardbtn" onclick="showInterest()">Send interest request →</button></article>${socialLinks()}${sect('Athlete recognition')}<article class="card"><h3>Player Spotlight Archive</h3><p>Search published player spotlights by athlete, team or sport.</p><button class="cardbtn" onclick="go('spotlights')">Explore spotlights <span>→</span></button></article>${sect('Your experience')}<article class="card"><h3>Notification interests</h3><p>Choose the H.A.G. topics you want to follow.</p><button class="cardbtn" onclick="preferences()">Manage interests <span>→</span></button></article><article class="card"><h3>Saved events & stories</h3><p>${state.savedEvents.size} events saved · ${state.savedStories.size} articles saved in this browser.</p><button class="cardbtn" onclick="savedView()">View saved items <span>→</span></button></article>${sect('Staff access')}<article class="card"><h3>H.A.G. Admin Login</h3><p>Authorized staff can securely manage official News, events, and player spotlight approvals. Returning admins can sign in with a password or an email link.</p><button class="cardbtn" onclick="openSite('/admin-preview/')">Admin Login & Editorial Desk <span>↗</span></button><p class="fine">Staff only. Access requires an approved Supabase account.</p></article>${sect('About the organization')}<article class="card"><h3>Heartland Athletics Group</h3><p>COMPETE. DEVELOP. INSPIRE. Athletic opportunities centered on competition, development and community.</p><button class="cardbtn" onclick="openSite('/')">Visit official website <span>↗</span></button><button class="cardbtn" onclick="openSite('/partners/')">Partners & recognition <span>↗</span></button><button class="cardbtn" onclick="openSite('/contact/')">Get in touch <span>↗</span></button></article>${sect('Design preview controls')}<article class="card"><h3>Pinned announcement example</h3><p>Toggle a sample homepage notice to see how event updates could be displayed. It is not a real announcement.</p><button class="cardbtn" onclick="toggleAlert()">${state.alert?'Hide':'Show'} sample homepage notice <span>→</span></button></article></div>`;break;
 }}
 html+=`<div class="footer">Heartland Athletics Group · Phase 4 installable app preview<br>Registration, payments and push notifications are not yet connected.</div>`;
 document.getElementById('viewport').innerHTML=html;
@@ -277,6 +307,47 @@ function showEvent(id){state.view='event:'+id;render()}
 function showStory(id){state.tab='news';state.view='story:'+id;render()}
 function preferences(){state.view='preferences';render()}
 function contactView(){state.view='contact';render()}
+let hagInterestTopic='gus-macker-2027';
+function showInterest(topic='gus-macker-2027'){
+ hagInterestTopic=['gus-macker-2027','enforcers','camps','other-events'].includes(topic)?topic:'other-events';
+ state.view='interest';render();
+}
+async function submitHagInterest(ev){
+ ev.preventDefault();
+ const form=ev.currentTarget,button=form.querySelector('[type=submit]'),status=document.getElementById('hagInterestStatus');
+ if(!form.reportValidity())return;
+ button.disabled=true;status.className='hag-interest-state';status.textContent='Submitting your request…';
+ try{
+  const body={topic:form.elements.topic.value,contactName:form.elements.contactName.value.trim(),
+   email:form.elements.email.value.trim(),notes:form.elements.notes.value.trim(),
+   website:form.elements.website.value,adultConfirmed:form.elements.adultConfirmed.checked,
+   contactConsent:form.elements.contactConsent.checked};
+  const res=await fetch('https://ouynjmqzabrvlddxjbtt.supabase.co/functions/v1/hag-interest-request',{
+   method:'POST',headers:{'content-type':'application/json','apikey':'sb_publishable_jjhyrlgShQS4setHH4cDVA_vdwWTP61'},
+   body:JSON.stringify(body)
+  });
+  const result=await res.json();
+  if(!res.ok||!result.ok)throw Error(result.error||'Unable to send your request. Please try later.');
+  form.querySelector('input[name=contactName]').value='';
+  form.querySelector('input[name=email]').value='';
+  form.querySelector('textarea[name=notes]').value='';
+  form.elements.adultConfirmed.checked=false;form.elements.contactConsent.checked=false;
+  status.className='hag-interest-state success';status.textContent=result.message||'H.A.G. received your request.';
+ }catch(error){
+  status.className='hag-interest-state error';
+  status.textContent=(error.message||'Unable to send request.')+' You can email info@heartlandathleticsgroup.com.';
+ }finally{button.disabled=false}
+}
+function registerForEvent(id){
+ const x=events.find(event=>event.id===id);
+ if(!x||!x.registrationUrl){toast('Official registration is not available through the app yet.');return}
+ try{
+  const url=new URL(x.registrationUrl);
+  if(url.protocol!=='https:'||url.username||url.password)throw Error('Unapproved destination');
+  window.open(url.href,'_blank','noopener,noreferrer');
+ }catch{toast('Registration link is not valid. Contact H.A.G.')}
+}
+
 function setSlide(i){state.slide=i;let cur=document.getElementById('viewport').scrollTop;render(false);document.getElementById('viewport').scrollTop=cur}
 function activateSlide(){let id=slides[state.slide].id;if(id==='programs')go('programs');else showEvent(id)}
 function setFilter(t){state.filter=t;render(false)}
@@ -407,7 +478,8 @@ async function hagPublicRows(table,columns,order='published_at.desc'){
 async function loadApprovedSupabaseContent(){
  const result=await Promise.allSettled([
   hagPublicRows('hag_articles','id,slug,category,title,summary,body,art_label,tone,published_at,hero_image_url,hero_image_alt,hero_image_caption,hero_image_credit'),
-  hagPublicRows('hag_spotlight_archive','id,athlete_name,team_name,sport,bio,photo_url,featured_week_start,published_at,featured_this_week')
+  hagPublicRows('hag_spotlight_archive','id,athlete_name,team_name,sport,bio,photo_url,featured_week_start,published_at,featured_this_week'),
+  hagPublicRows('hag_events','id,slug,title,description,event_start,event_end_exclusive,venue,public_status,registration_url,registration_label,registration_state,registration_verified,published_at','event_start.asc')
  ]);
  let changed=false;
  if(result[0].status==='fulfilled'&&result[0].value.length){
@@ -428,6 +500,36 @@ async function loadApprovedSupabaseContent(){
      published:x.published_at
    }));
    if(approvedSpotlights.length)changed=true;
+ }
+ if(result[2].status==='fulfilled'){
+  const dateLabel=(start,end)=>{
+    const begin=new Date(start+'T00:00:00Z'),last=new Date(end+'T00:00:00Z');
+    last.setUTCDate(last.getUTCDate()-1);
+    const fmt=x=>x.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric',timeZone:'UTC'});
+    if(start===end)return fmt(begin);
+    if(start===last.toISOString().slice(0,10))return fmt(begin);
+    if(begin.getUTCMonth()===last.getUTCMonth()&&begin.getUTCFullYear()===last.getUTCFullYear())
+      return begin.toLocaleDateString('en-US',{month:'long',day:'numeric',timeZone:'UTC'}).replace(/ (\d+),/, ' $1–'+last.getUTCDate()+',');
+    return fmt(begin)+' – '+fmt(last);
+  };
+  for(const ev of result[2].value){
+    const alias=/gus-macker/i.test(ev.slug)?'macker':/bags.*buckets/i.test(ev.slug)?'bags':ev.id;
+    const possibleUrl=ev.registration_state==='open'&&ev.registration_verified?ev.registration_url:null;
+    let registrationUrl=null;
+    if(possibleUrl){
+      try{const parsed=new URL(possibleUrl);
+       if(parsed.protocol==='https:'&&!parsed.username&&!parsed.password)registrationUrl=parsed.href;
+      }catch{}
+    }
+    const obj={id:alias,title:ev.title,description:ev.description,date:dateLabel(ev.event_start,ev.event_end_exclusive),
+      start:ev.event_start.replaceAll('-',''),end:ev.event_end_exclusive.replaceAll('-',''),
+      location:ev.venue||undefined,status:ev.public_status,registrationUrl,
+      registrationLabel:ev.registration_label||'Register on official event site',source:'supabase'};
+    const idx=events.findIndex(x=>x.id===alias);
+    if(idx>=0)events[idx]=obj;else events.push(obj);
+    changed=true;
+  }
+  if(changed)events.sort((a,b)=>a.start.localeCompare(b.start));
  }
  if(changed){const v=document.getElementById('viewport'),offset=v?.scrollTop||0;render(false);if(v)v.scrollTop=offset}
 }

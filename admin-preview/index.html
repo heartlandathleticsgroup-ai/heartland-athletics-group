@@ -22,6 +22,12 @@
 .hag-photo-panel .notice{margin:10px 0}
 .hag-fact-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
 @media(max-width:650px){.hag-fact-grid{grid-template-columns:1fr}}
+ 
+.hag-optional-ai{margin:0 0 18px;border:1px solid #dce3ec;border-radius:14px;background:#f3f6fa;overflow:hidden}
+.hag-optional-ai>summary{padding:15px 20px;cursor:pointer;color:#283951;font-weight:800;font-size:14px}
+.hag-optional-ai[open]>summary{border-bottom:1px solid #dce3ec}
+.hag-optional-ai .ai-editor{margin:0;border-radius:0;border-left:0}
+.hag-direct-news{background:#f9fbff;border-left:4px solid #0057ff;margin-bottom:14px}
 </style></head><body>
 <header><div style="display:flex;align-items:center;gap:14px"><img class="logo" src="../assets/assets/hag-logo.png" alt="H.A.G. official logo" onerror="this.style.display='none'"><div><h1>H.A.G. Editorial Desk</h1><small>COMPETE. DEVELOP. INSPIRE.</small></div></div><button id="signout" class="hidden">Sign out</button></header>
 <main class="wrap"><div id="message" aria-live="polite"></div>
@@ -35,6 +41,8 @@
 <p class="muted">Use a verified email link the first time, then open <strong>Settings → Account security</strong> to create a password. This device stays signed in while your secure session remains valid. Sign out on shared devices.</p></section>
 <section id="appPanel" class="hidden"><div class="notice">Administrative content is stored securely in Supabase. Only published, approved content is visible to the public. All schedule times use <b>America/Chicago</b>.</div><div class="tabs" id="tabs"></div>
 <div id="articlesPanel" class="view">
+<section class="card hag-direct-news"><h2>Publish H.A.G. News</h2><p>Write your article yourself or paste a finished draft from another source using the Headline, Summary and Full Article fields below. Review the facts, save a draft, and approve before publishing. <strong>No AI is required.</strong></p></section>
+<details class="hag-optional-ai" id="hagOptionalAI"><summary>Optional AI Writing Assistant (expand only if needed)</summary>
 <section class="card ai-editor" aria-labelledby="aiHeading">
 <h2 id="aiHeading">✦ AI News Writing Assistant</h2>
 <p>Write H.A.G. news with a real editorial angle—not generic announcements. Supply <strong>what happened, why it matters, and what readers should know next</strong>. The resulting draft always requires your review.</p>
@@ -79,7 +87,7 @@
 <button class="blue" type="submit" id="aiGenerateBtn">✦ Generate News draft</button></form>
 <p class="ai-note">AI drafts may make mistakes. Your submitted focal points are sent to GroqCloud only when you request a draft. Do not submit private information about minors. Verify facts, quotes, and permissions before approving. Up to 20 drafts per staff member every 24 hours. Groq free-plan usage limits apply; the service must be activated with a server-side key. Nothing publishes automatically.</p>
 <div id="aiResult" aria-live="polite"></div>
-</section>
+</section></details>
 <div class="two"><section class="card"><h2 id="articleHeading">Write a News article</h2><form id="articleForm"><input type="hidden" name="id"><div class="grid"><label class="field">Headline<input name="title" required minlength="4" maxlength="200" placeholder="New announcement"></label><label class="field">Category<select name="category"><option>Events</option><option>Programs</option><option>Community</option><option>Enforcers</option></select></label></div><label class="field">Short summary<input name="summary" required minlength="10" maxlength="1200"></label><label class="field">Full article (paragraphs separated by blank lines)<textarea name="body" required></textarea></label>
 <section class="hag-photo-panel">
 <h3>Article photo</h3>

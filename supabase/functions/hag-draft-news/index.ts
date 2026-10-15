@@ -64,6 +64,17 @@ Deno.serve(async (req: Request) => {
     error: "AI drafting is not yet activated. A project owner must set the OPENAI_API_KEY Edge Function secret in Supabase."
   }, 503, origin);
 
+  // Limit AI model charges; log only request time and user identity, never prompts.
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const usage = await supabase.from("hag_ai_draft_requests").select("id", { count: "exact", head: true })
+    .eq("staff_user_id", user.id).gte("requested_at", cutoff);
+  if (usage.error) return respond({ error: "Unable to verify AI request limits." }, 503, origin);
+  if ((usage.count ?? 0) >= 20) return respond({
+    error: "Daily AI drafting limit reached (20 drafts per rolling 24 hours). Try again tomorrow."
+  }, 429, origin);
+  const claim = await supabase.from("hag_ai_draft_requests").insert({ staff_user_id: user.id });
+  if (claim.error) return respond({ error: "Unable to reserve AI draft generation." }, 503, origin);
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 23000);
   try {

@@ -123,7 +123,7 @@ Deno.serve(async (req: Request) => {
   if (claim.error) return respond({ error: "Unable to reserve AI draft generation." }, 503, origin);
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 23000);
+  const timer = setTimeout(() => controller.abort(), 45000);
   try {
     const result = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST", signal: controller.signal,
@@ -175,10 +175,52 @@ Deno.serve(async (req: Request) => {
     if (!result.ok) return respond({ error: "Groq AI could not generate the draft. Confirm the Groq API key and free-plan quota." }, 502, origin);
     const raw = response.choices?.[0]?.message?.content;
     if (typeof raw !== "string" || !raw.trim()) throw Error("No article content returned");
-    const draft = JSON.parse(raw);
+    let draft = JSON.parse(raw);
     if (typeof draft.title !== "string" || typeof draft.summary !== "string" ||
         !Array.isArray(draft.body) || draft.body.some((p: unknown) => typeof p !== "string")) {
       throw Error("Unexpected AI response format");
+    }
+    let revisionPerformed = false;
+    const originalWarnings = editorialChecks(draft, confirmedFacts, format);
+    if (originalWarnings.length) {
+      try {
+        const repairResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST", signal: controller.signal,
+          headers: { Authorization: "Bearer " + apiKey, "content-type": "application/json" },
+          body: JSON.stringify({
+            model: "openai/gpt-oss-20b",
+            max_completion_tokens: 1600,
+            reasoning_effort: "low",
+            messages: [
+              { role: "system", content:
+                "You are a rigorous H.A.G. newsroom copy editor. Rewrite the supplied DRAFT into concise, factual, high-quality news using ONLY VERIFIED_FACTS. Do not turn editorial angles or pending items into facts. Remove every flagged phrase and unsupported claim entirely, do not replace them with speculation. Respect the exact official names. Keep a NEWS BRIEF to 1–2 substantive paragraphs and maximum 115 body words, with no generic filler, invented announcements or repetitive headline/summary/lead. Historical details may be included only when listed in VERIFIED_FACTS. Return only the structured JSON schema. Keep useful follow-up reporting questions." },
+              { role: "user", content: JSON.stringify({
+                VERIFIED_FACTS: confirmedFacts,
+                STORY_ANGLE_NOT_FACT: storyAngle,
+                PENDING_NOT_CONFIRMED: pendingDetails,
+                DO_NOT_SAY: editorialBoundaries,
+                FORMAT: format,
+                EDITORIAL_WARNINGS_TO_FIX: originalWarnings,
+                DRAFT_TO_REVISE: draft
+              }) }
+            ],
+            response_format: { type: "json_schema",
+              json_schema: { name: "hag_news_draft", strict: true, schema: outputSchema } }
+          })
+        });
+        if (repairResponse.ok) {
+          const repairJson = await repairResponse.json();
+          const repairedText = repairJson.choices?.[0]?.message?.content;
+          if (typeof repairedText === "string") {
+            const revised = JSON.parse(repairedText);
+            if (typeof revised.title === "string" && typeof revised.summary === "string" &&
+                Array.isArray(revised.body) && revised.body.every((p: unknown) => typeof p === "string")) {
+              draft = revised;
+              revisionPerformed = true;
+            }
+          }
+        }
+      } catch (_repairError) { /* Keep flagged draft blocked for editorial review. */ }
     }
     const trimmedDraft = {
       title: draft.title.slice(0, 200),
@@ -190,7 +232,7 @@ Deno.serve(async (req: Request) => {
       draft.follow_up_questions.filter((q: unknown) => typeof q === "string")
         .slice(0, 3).map((q: string) => q.slice(0, 220)) : [];
     return respond({ draft: { ...trimmedDraft, reporting_questions: reportingQuestions },
-      format, quality_warnings: qualityWarnings,
+      format, quality_warnings: qualityWarnings, ready_for_editor: qualityWarnings.length === 0, automatically_revised: revisionPerformed,
       notice: "AI-created draft only; editorial checks flag common problems but cannot prove every claim. Verify facts, quotes, event terminology and guardian permissions." }, 200, origin);
   } catch (_error) {
     return respond({ error: "Groq AI draft generation failed or timed out. Try again later." }, 502, origin);

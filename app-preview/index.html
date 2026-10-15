@@ -601,5 +601,7 @@ window.addEventListener('online',updateHagNetworkNotice);
 window.addEventListener('offline',updateHagNetworkNotice);
 updateHagNetworkNotice();
 render();
+const interestDeepLink=new URLSearchParams(location.search).get('interest');
+if(['gus-macker-2027','enforcers','camps','other-events'].includes(interestDeepLink||''))showInterest(interestDeepLink);
 void reloadPublicFeed().then(loadApprovedSupabaseContent);
 </script></body></html>

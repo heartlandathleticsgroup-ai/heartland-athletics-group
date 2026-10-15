@@ -1220,3 +1220,22 @@
     grid-column: auto;
   }
 }
+
+
+/* Keep white content cards readable inside dark sections */
+.section-dark .content-card {
+  color: var(--black);
+}
+
+.section-dark .content-card h2,
+.section-dark .content-card h3 {
+  color: var(--black);
+}
+
+.section-dark .content-card p {
+  color: var(--muted);
+}
+
+.section-dark .content-card .eyebrow {
+  color: var(--gold);
+}

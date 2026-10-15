@@ -46,7 +46,7 @@
 <input type="checkbox" name="backgroundVerified" style="width:18px;height:18px;flex:none;margin-top:2px">
 <span>I have verified this historical information and approve using it as a factual source in the draft.</span>
 </label>
-<p class="ai-note">A story angle tells the AI what to emphasize, but it does not establish a historical fact. Enter confirmed history here to let the AI use it in the headline and article.</p></div>
+<p class="ai-note">A story angle sets the theme; it does not verify history. For example, a 31-year tradition or the year a tournament last took place must be included here as verified historical background before the AI can assert it. If you have not verified it, leave it out of published copy.</p></div>
 <div class="ai-fields">
 <label class="field">Still pending / unconfirmed (optional)
 <textarea name="pendingDetails" maxlength="1000" rows="3" placeholder="Example: Exact venue has not been announced; team registration is not yet open."></textarea></label>
@@ -169,6 +169,14 @@ $('aiWriter').onsubmit=async ev=>{
    form.elements.backgroundVerified.focus();
    return;
  }
+ const angle=form.elements.storyAngle.value.trim();
+ const mentionsUnverifiedHistory=/\b(?:\d{1,3}[\s-]+years?\b|tradition\b|before\s+(?:its\s+)?departure\b)/i.test(angle) &&
+ !/\b(?:\d{1,3}[\s-]+years?\b|tradition\b|before\s+(?:its\s+)?departure\b)/i.test(points);
+ if(mentionsUnverifiedHistory && !background){
+   message('Your story angle contains history, but the verified history field is empty. Move confirmed history to Verified history or background and check the verification box.',true);
+   form.elements.verifiedBackground.focus();
+   return;
+ }
  if(form.elements.format.value==='article' && points.length<450){
    message('A full article needs at least 450 characters of substantive confirmed reporting. Choose News brief or add specific verified details.',true);
    return;
@@ -189,12 +197,15 @@ $('aiWriter').onsubmit=async ev=>{
   const warnings=Array.isArray(result.data?.quality_warnings)?result.data.quality_warnings.filter(x=>typeof x==='string'):[];
   const ready=result.data?.ready_for_editor===true && warnings.length===0;
   const automaticallyRevised=result.data?.automatically_revised===true;
+  const briefDeduplicated=result.data?.brief_deduplicated===true;
   aiDraft={title:draft.title,summary:draft.summary,body:draft.body,category:form.elements.category.value,
     questions:Array.isArray(draft.reporting_questions)?draft.reporting_questions:[],warnings,ready};
   $('aiResult').innerHTML=(warnings.length?'<div class="notice error"><strong>Editorial quality check: revisions needed</strong><ul>'+
     warnings.map(x=>'<li>'+esc(x)+'</li>').join('')+
     '</ul><p>This is a warning—not a verified factual assessment. Fix flagged language before using this as an official article.</p></div>':
-    '<div class="notice">'+(automaticallyRevised?'Draft revised automatically to address quality warnings. ':'')+'AI-generated draft; verify all facts before publication.</div>')+
+    '<div class="notice">'+(briefDeduplicated?'Repeated summary/lead removed from the News brief. ':'')+
+      (automaticallyRevised?'AI draft revised automatically. ':'')+
+      'Review all facts before publication.</div>')+
    '<div class="ai-preview"><h3>'+esc(draft.title)+'</h3><p><strong>'+esc(draft.summary)+'</strong></p>'+
    draft.body.map(x=>'<p>'+esc(x)+'</p>').join('')+'</div>'+ 
    (aiDraft.questions.length?'<div class="card" style="margin-top:13px"><strong>To make this story stronger</strong><p class="muted">Reporting details worth verifying before publication—not part of the article:</p><ul>'+aiDraft.questions.map(q=>'<li>'+esc(q)+'</li>').join('')+'</ul></div>':'')+

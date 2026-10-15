@@ -24,6 +24,17 @@ button{font:inherit;cursor:pointer}button:focus-visible,a:focus-visible,input:fo
 .tabs{display:grid;grid-template-columns:repeat(5,1fr);flex-shrink:0;background:white;border-top:1px solid #e0e4eb;box-shadow:0 -3px 14px #0c20430b}.tab{height:66px;border:0;border-top:3px solid transparent;background:white;color:#697184;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;font-weight:800;font-size:10px}.tab.active{color:var(--blue);border-top-color:var(--gold)}.tab svg{width:21px;height:21px}
 @media(max-width:540px){body{background:#0d0d0d}.phone{width:100%;height:100dvh;max-height:none;min-height:0;margin:0;border:0;border-radius:0;box-shadow:none}.previewbar,.note{display:none}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
+
+/* Calendar choices for public browser preview */
+.calendar-shade{position:fixed;inset:0;background:rgba(7,11,22,.7);z-index:99999;display:flex;justify-content:center;align-items:flex-end;padding:16px}
+.calendar-panel{width:min(100%,430px);border-radius:22px;background:#fff;padding:24px;box-shadow:0 22px 80px rgba(0,0,0,.25);max-height:85vh;overflow-y:auto}
+.calendar-panel h2{font-size:22px;margin:0 0 7px;color:#0d0d0d}
+.calendar-panel p{font-size:14px;color:#566071;line-height:1.5}
+.calendar-choice{width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between;background:#f6f7fa;border:1px solid #dfe4ed;border-radius:13px;padding:14px 16px;font-weight:800;margin-top:10px;color:#11151f}
+.calendar-choice:active{transform:scale(.99)}
+.calendar-choice small{display:block;font-size:12px;color:#5e6674;font-weight:500;margin-top:3px}
+.calendar-cancel{background:#101010;color:#fff;width:100%;padding:13px 16px;border:0;border-radius:12px;font-weight:800;margin-top:14px}
+@media(min-width:520px){.calendar-shade{align-items:center}}
 </style></head><body>
 <div class="previewbar"><div><strong>Heartland Athletics Group</strong><br><span>Mobile app · Interactive V1.2 preview</span></div><span class="tag">DESIGN PROTOTYPE</span></div>
 <div class="phone" id="phone"><main id="viewport" class="viewport" aria-live="polite"></main><nav id="tabs" class="tabs" aria-label="Main navigation"></nav><div class="toast" id="toast" role="status"></div></div>
@@ -56,7 +67,7 @@ const art=(s)=>`<div class="newsphoto ${s.tone}"><div class="graphicword">${s.ar
 const storyCard=(s)=>`<article class="story">${art(s)}<div class="storyinside"><div class="byline"><span>${e(s.category)} · ${s.sample?'CONTENT EXAMPLE':'EDITORIAL PREVIEW'}</span><span>${state.savedStories.has(s.id)?'★ SAVED':''}</span></div><h3>${e(s.title)}</h3><p>${e(s.deck)}</p><div class="storyactions"><button class="primary" onclick="showStory('${s.id}')">Read story →</button><button aria-label="${state.savedStories.has(s.id)?'Remove saved story':'Save story'}" onclick="saveStory('${s.id}')">${state.savedStories.has(s.id)?'★ Saved':'☆ Save'}</button></div></div></article>`;
 const intro=(title,text)=>`<div class="minihero"><span class="micro">HEARTLAND ATHLETICS GROUP</span><h1>${e(title)}</h1><p>${e(text)}</p></div>`;
 const demoAlert=()=>state.alert?`<div class="alert"><strong>PREVIEW NOTICE</strong> This is how a pinned announcement could appear. <button onclick="toggleAlert()" aria-label="Dismiss preview banner">×</button></div>`:'';
-function render(scroll=true){let html=titleBar();if(state.view.startsWith('event:')){const x=events.find(z=>z.id===state.view.split(':')[1]);html+=`<div class="section"><button class="back" onclick="back()">← Back to Events</button>${badge(x.status)}<h1 class="detailTitle">${x.title}</h1><p class="muted"><strong>${x.date}</strong></p>${x.location?`<p class="muted">${x.location}</p>`:''}<p class="detailBody">${x.description}</p><div class="splitactions"><button class="${state.savedEvents.has(x.id)?'saved':''}" onclick="saveEvent('${x.id}')">${state.savedEvents.has(x.id)?'★ Saved':'☆ Save event'}</button><button onclick="shareEvent('${x.id}')">${svg('share')} Share</button></div><button class="fullbtn" onclick="calendarEvent('${x.id}')">${svg('calendar')} Add dates to calendar</button><p class="fine">Calendar download uses the published event dates; no unconfirmed Gus Macker venue is included.</p><hr class="divider"><button class="cardbtn" onclick="openSite('${x.id==='bags'?'/enforcers/':'/gus-macker/'}')">View H.A.G. webpage <span>↗</span></button></div>`;
+function render(scroll=true){let html=titleBar();if(state.view.startsWith('event:')){const x=events.find(z=>z.id===state.view.split(':')[1]);html+=`<div class="section"><button class="back" onclick="back()">← Back to Events</button>${badge(x.status)}<h1 class="detailTitle">${x.title}</h1><p class="muted"><strong>${x.date}</strong></p>${x.location?`<p class="muted">${x.location}</p>`:''}<p class="detailBody">${x.description}</p><div class="splitactions"><button class="${state.savedEvents.has(x.id)?'saved':''}" onclick="saveEvent('${x.id}')">${state.savedEvents.has(x.id)?'★ Saved':'☆ Save event'}</button><button onclick="shareEvent('${x.id}')">${svg('share')} Share</button></div><button class="fullbtn" onclick="chooseCalendar('${x.id}')">${svg('calendar')} Add to Calendar</button><p class="fine">Select Google, Outlook or Apple Calendar to save this event. No unconfirmed Gus Macker venue is included.</p><hr class="divider"><button class="cardbtn" onclick="openSite('${x.id==='bags'?'/enforcers/':'/gus-macker/'}')">View H.A.G. webpage <span>↗</span></button></div>`;
 }else if(state.view.startsWith('story:')){const s=stories.find(z=>z.id===state.view.split(':')[1]);html+=`<div class="section"><button class="back" onclick="back()">← Back to News</button>${art(s)}<div style="margin-top:16px"><span class="badge dark">${s.category} · ${s.sample?'SAMPLE CONTENT':'EDITORIAL PREVIEW'}</span></div><h1 class="detailTitle">${e(s.title)}</h1><p style="font-size:15px;font-weight:750;color:#3d4552;line-height:1.5">${e(s.deck)}</p>${s.body.map(p=>`<p class="detailBody">${e(p)}</p>`).join('')}<div class="splitactions"><button class="${state.savedStories.has(s.id)?'saved':''}" onclick="saveStory('${s.id}')">${state.savedStories.has(s.id)?'★ Saved':'☆ Save story'}</button><button onclick="shareStory('${s.id}')">${svg('share')} Share</button></div>${s.link?`<button class="fullbtn" onclick="showEvent('${s.link}')">View related event →</button>`:''}<p class="fine">Prototype article. H.A.G. News publishing is not live.</p></div>`;
 }else if(state.view==='saved'){const savedEv=events.filter(x=>state.savedEvents.has(x.id)),savedSt=stories.filter(x=>state.savedStories.has(x.id));html+=intro('Saved items','Your bookmarked events and articles in this browser.')+`<div class="section"><button class="back" onclick="back()">← Back</button>${sect('Saved events')}${savedEv.length?savedEv.map(eventCard).join(''):'<p class="muted">No saved events yet.</p>'}${sect('Saved stories')}${savedSt.length?savedSt.map(storyCard).join(''):'<p class="muted">No saved stories yet.</p>'}</div>`;
 }else if(state.view==='preferences'){html+=intro('Your interests','Select the public H.A.G. news you want to follow. This preview saves choices in your browser.');html+=`<div class="section"><button class="back" onclick="back()">← Back</button>${sect('Choose your topics')}<p class="muted">Notifications are not sent by this prototype. Your selection demonstrates future topic-based alerts.</p>${topics.map(t=>`<button class="topic" onclick="toggleTopic('${t[0]}')" aria-pressed="${state.topics.has(t[0])}"><span><b>${t[1]}</b><small>${t[2]}</small></span><span class="toggle ${state.topics.has(t[0])?'on':''}" aria-hidden="true"></span></button>`).join('')}<p class="fine">${state.topics.size} of ${topics.length} topics selected · Stored locally in this browser.</p></div>`;
@@ -87,7 +98,59 @@ function saveStory(t){state.savedStories.has(t)?state.savedStories.delete(t):sta
 function toggleAlert(){state.alert=!state.alert;persist('alert',state.alert);let y=document.getElementById('viewport').scrollTop;render(false);document.getElementById('viewport').scrollTop=y;toast('Sample announcement '+(state.alert?'enabled':'hidden'))}
 function toast(t){let el=document.getElementById('toast');el.textContent=t;el.classList.add('show');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>el.classList.remove('show'),2400)}
 function savedView(){state.view='saved';render()}
-function calendarEvent(id){let x=events.find(x=>x.id===id);let lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Heartland Athletics Group//Event Preview//EN','BEGIN:VEVENT','UID:'+id+'@heartlandathleticsgroup.com','DTSTAMP:20261015T120000Z','DTSTART;VALUE=DATE:'+x.start,'DTEND;VALUE=DATE:'+x.end,'SUMMARY:'+x.title.replaceAll(',','\\,'),'DESCRIPTION:'+x.description.replaceAll('\n',' ').replaceAll(',','\\,')];if(x.location)lines.push('LOCATION:'+x.location.replaceAll(',','\\,'));lines.push('END:VEVENT','END:VCALENDAR');let blob=new Blob([lines.join('\r\n')],{type:'text/calendar;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=id+'.ics';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast('Calendar file downloaded')}
+
+function calendarIso(d){return d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8)}
+function calendarUrl(x,provider){
+  const details=x.description+' Learn more: '+SITE+(x.id==='macker'?'/gus-macker/':'/enforcers/');
+  if(provider==='google'){
+    const q=new URLSearchParams({action:'TEMPLATE',text:x.title,dates:x.start+'/'+x.end,details:details});
+    if(x.location)q.set('location',x.location);
+    return 'https://calendar.google.com/calendar/render?'+q.toString();
+  }
+  if(provider==='outlook'){
+    const q=new URLSearchParams({path:'/calendar/action/compose',rru:'addevent',subject:x.title,startdt:calendarIso(x.start),enddt:calendarIso(x.end),allday:'true',body:details});
+    if(x.location)q.set('location',x.location);
+    return 'https://outlook.live.com/calendar/0/deeplink/compose?'+q.toString();
+  }
+  return '';
+}
+function closeCalendar(){
+  document.getElementById('calendar-picker')?.remove();
+}
+function chooseCalendar(id){
+  const x=events.find(z=>z.id===id);
+  if(!x)return;
+  closeCalendar();
+  const overlay=document.createElement('div');
+  overlay.className='calendar-shade';
+  overlay.id='calendar-picker';
+  overlay.setAttribute('role','dialog');
+  overlay.setAttribute('aria-modal','true');
+  overlay.setAttribute('aria-label','Choose calendar');
+  overlay.innerHTML='<div class="calendar-panel"><h2>Save to your calendar</h2><p>'+e(x.title)+' · '+e(x.date)+'</p>'+
+    '<button class="calendar-choice" data-provider="google">Google Calendar <span>↗</span></button>'+
+    '<button class="calendar-choice" data-provider="outlook">Outlook Calendar <span>↗</span></button>'+
+    '<button class="calendar-choice" data-provider="apple">Apple Calendar <small>Download .ics file to import</small></button>'+
+    '<button class="calendar-cancel" data-provider="cancel">Cancel</button></div>';
+  overlay.addEventListener('click',event=>{if(event.target===overlay)closeCalendar()});
+  overlay.querySelectorAll('[data-provider]').forEach(btn=>btn.addEventListener('click',()=>{
+    const provider=btn.dataset.provider;
+    if(provider==='google'||provider==='outlook'){
+      const url=calendarUrl(x,provider);
+      window.open(url,'_blank','noopener,noreferrer');
+      closeCalendar();
+    } else if(provider==='apple'){
+      closeCalendar();
+      calendarEvent(id);
+    } else closeCalendar();
+  }));
+  document.body.appendChild(overlay);
+  const closeOnEscape=event=>{if(event.key==='Escape'){closeCalendar();document.removeEventListener('keydown',closeOnEscape)}};
+  document.addEventListener('keydown',closeOnEscape,{once:true});
+  overlay.querySelector('.calendar-choice')?.focus();
+}
+
+function calendarEvent(id){let x=events.find(x=>x.id===id);let lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Heartland Athletics Group//Event Preview//EN','BEGIN:VEVENT','UID:'+id+'@heartlandathleticsgroup.com','DTSTAMP:20261015T120000Z','DTSTART;VALUE=DATE:'+x.start,'DTEND;VALUE=DATE:'+x.end,'SUMMARY:'+x.title.replaceAll(',','\\,'),'DESCRIPTION:'+x.description.replaceAll('\n',' ').replaceAll(',','\\,')];if(x.location)lines.push('LOCATION:'+x.location.replaceAll(',','\\,'));lines.push('END:VEVENT','END:VCALENDAR');let blob=new Blob([lines.join('\r\n')],{type:'text/calendar;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=id+'.ics';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast('Apple Calendar file downloaded. Open it to import the event.')}
 async function shareText(t){if(navigator.share){try{await navigator.share({text:t});return}catch{}}try{await navigator.clipboard.writeText(t);toast('Details copied to clipboard')}catch{toast('Sharing unavailable in this browser')}}
 function shareEvent(id){let x=events.find(x=>x.id===id);shareText(`${x.title} — ${x.date}. More at ${SITE}${id==='macker'?'/gus-macker/':'/enforcers/'}`)}
 function shareStory(id){let s=stories.find(x=>x.id===id);shareText(`H.A.G. app editorial preview: ${s.title} — ${s.deck}. Official website: ${SITE}`)}

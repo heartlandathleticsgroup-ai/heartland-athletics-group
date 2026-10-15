@@ -28,16 +28,23 @@
 <div id="articlesPanel" class="view">
 <section class="card ai-editor" aria-labelledby="aiHeading">
 <h2 id="aiHeading">✦ AI News Writing Assistant</h2>
-<p>Turn your factual focal points into a polished H.A.G. News draft. The result goes into the article editor for review—<strong>never directly to publication</strong>.</p>
+<p>Write H.A.G. news with a real editorial angle—not generic announcements. Supply <strong>what happened, why it matters, and what readers should know next</strong>. The resulting draft always requires your review.</p>
 <form id="aiWriter">
-<label class="field">Focal points (facts, names, dates, quotes you have permission to publish)
-<textarea name="points" required minlength="35" maxlength="6000" placeholder="What happened? Who was involved? Include confirmed dates, locations, achievements, organizers, and the key message. Do not include private information about minors."></textarea></label>
+<label class="field">Confirmed focal points (the verified facts)
+<textarea name="points" required minlength="35" maxlength="6000" placeholder="Example: Dates are May 29–30, 2027. H.A.G. is organizing Gus Macker Quincy. Partnership development is underway. Venue is not yet announced. State only confirmed facts and approved quotes."></textarea></label>
+<div class="ai-fields">
+<label class="field">Why this story matters (optional)
+<input name="storyAngle" maxlength="600" placeholder="Why should Quincy-area families care?"></label>
+<label class="field">Who should read it? (optional)
+<input name="audience" maxlength="180" placeholder="Local athletes, families, sponsors…"></label>
+</div>
+<p class="ai-note">Tip: The strongest articles have a distinctive, verified detail or reason this matters—not just a date and an organization name. If the details are thin, the assistant will keep the article short and suggest what to confirm next.</p>
 <div class="ai-fields">
 <label class="field">News category<select name="category"><option>Events</option><option>Programs</option><option>Community</option><option>Enforcers</option></select></label>
 <label class="field">Writing style<select name="tone"><option>Professional</option><option>Community-focused</option><option>Energetic</option><option>Press release</option></select></label>
 </div>
 <button class="blue" type="submit" id="aiGenerateBtn">✦ Generate professional article draft</button></form>
-<p class="ai-note">AI drafts may make mistakes. Your focal points are sent to OpenAI only when you request a draft. Do not submit private information about minors. Verify facts, quotes, and permissions before approving. Up to 20 drafts per staff member every 24 hours. Groq free-plan usage limits apply; the service must be activated with a server-side key. Nothing publishes automatically.</p>
+<p class="ai-note">AI drafts may make mistakes. Your submitted focal points are sent to GroqCloud only when you request a draft. Do not submit private information about minors. Verify facts, quotes, and permissions before approving. Up to 20 drafts per staff member every 24 hours. Groq free-plan usage limits apply; the service must be activated with a server-side key. Nothing publishes automatically.</p>
 <div id="aiResult" aria-live="polite"></div>
 </section>
 <div class="two"><section class="card"><h2 id="articleHeading">Write a News article</h2><form id="articleForm"><input type="hidden" name="id"><div class="grid"><label class="field">Headline<input name="title" required minlength="4" maxlength="200" placeholder="New announcement"></label><label class="field">Category<select name="category"><option>Events</option><option>Programs</option><option>Community</option><option>Enforcers</option></select></label></div><label class="field">Short summary<input name="summary" required minlength="10" maxlength="1200"></label><label class="field">Full article (paragraphs separated by blank lines)<textarea name="body" required></textarea></label><div class="grid"><label class="field">Artwork title<input name="art_label" maxlength="60" placeholder="H.A.G. NEWS"></label><label class="field">Accent<select name="tone"><option>blue</option><option>gold</option><option>charcoal</option></select></label></div><div class="actions"><button class="primary" type="submit">Save draft</button><button id="articleClear" type="button">Clear</button></div></form><div class="actions" id="articleActions"></div></section><section class="card"><h2>Preview and queue</h2><div id="articlePreview" class="preview muted">Select or write an article to preview it.</div><h3>Editorial stories</h3><div id="articleList"></div></section></div></div>
@@ -140,7 +147,7 @@ $('aiWriter').onsubmit=async ev=>{
  $('aiResult').textContent='Preparing your draft. This can take a few moments.';
  try{
   const result=await client.functions.invoke('hag-draft-news',{body:{
-   points:points,category:form.elements.category.value,tone:form.elements.tone.value
+   points:points,category:form.elements.category.value,tone:form.elements.tone.value,storyAngle:form.elements.storyAngle.value.trim(),audience:form.elements.audience.value.trim()
   }});
   if(result.error){
    let info=result.error.message||'Generation failed';
@@ -149,10 +156,11 @@ $('aiWriter').onsubmit=async ev=>{
   }
   const draft=result.data?.draft;
   if(!draft||typeof draft.title!=='string'||typeof draft.summary!=='string'||!Array.isArray(draft.body))throw Error('Unexpected response from AI service.');
-  aiDraft={title:draft.title,summary:draft.summary,body:draft.body,category:form.elements.category.value};
+  aiDraft={title:draft.title,summary:draft.summary,body:draft.body,category:form.elements.category.value,questions:Array.isArray(draft.reporting_questions)?draft.reporting_questions:[]};
   $('aiResult').innerHTML='<div class="notice">AI-generated draft; fact-check before publication.</div>'+
    '<div class="ai-preview"><h3>'+esc(draft.title)+'</h3><p><strong>'+esc(draft.summary)+'</strong></p>'+
-   draft.body.map(x=>'<p>'+esc(x)+'</p>').join('')+'</div>'+
+   draft.body.map(x=>'<p>'+esc(x)+'</p>').join('')+'</div>'+ 
+   (aiDraft.questions.length?'<div class="card" style="margin-top:13px"><strong>To make this story stronger</strong><p class="muted">Reporting details worth verifying before publication—not part of the article:</p><ul>'+aiDraft.questions.map(q=>'<li>'+esc(q)+'</li>').join('')+'</ul></div>':'')+
    '<div class="actions"><button type="button" id="aiUseDraft" class="primary">Use draft in News editor →</button></div>';
   $('aiUseDraft').onclick=()=>{
     if(!confirm('Replace the current News editor fields with this AI draft? Any unsaved editor changes will be lost.'))return;

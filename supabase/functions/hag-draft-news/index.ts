@@ -16,6 +16,40 @@ const respond = (body: unknown, status: number, origin: string) => new Response(
 );
 const tones = new Set(["Professional", "Community-focused", "Energetic", "Press release"]);
 const categories = new Set(["Events", "Programs", "Community", "Enforcers"]);
+function editorialChecks(draft: {title: string, summary: string, body: string[]}, confirmed: string, format: string): string[] {
+  const warnings: string[] = [];
+  const text = [draft.title, draft.summary, ...draft.body].join(" ");
+  const grounded = confirmed.toLowerCase();
+  const unsupported = [
+    [/\\bbasketball bash\\b/i, "Invented or unofficial event nickname: basketball bash"],
+    [/\\bfostering camaraderie\\b/i, "Generic promotional filler rather than a reported fact"],
+    [/\\blaying the groundwork\\b/i, "Generic filler: laying the groundwork"],
+    [/\\bfriendly rivalry\\b/i, "Unsupported promotional description: friendly rivalry"],
+    [/\\bspirited competition\\b/i, "Generic promotional language: spirited competition"],
+    [/\\bcommunity.centric\\b/i, "Generic marketing phrase: community-centric"],
+    [/\\bfamily.friendly atmosphere\\b/i, "Unsupported atmosphere claim"],
+    [/\\bcontinues? (?:its|H\\.A\\.G\\.'s) commitment\\b/i, "Unsubstantiated organizational commitment claim"],
+    [/\\b(?:has not released|have not been disclosed|no other operational details|ticketing details|ticketing or registration processes)\\b/i, "Unsupported claim about missing information or ticketing"],
+    [/\\b(?:has announced|announces|is excited to announce)\\b/i, "Unverified announcement claim"],
+    [/\\b(?:arrangements are finalized|once arrangements are finalized)\\b/i, "Implies unverified arrangements or timelines"]
+  ] as const;
+  for (const [pattern, warning] of unsupported) {
+    const found = text.match(pattern);
+    if (found && !grounded.includes(found[0].toLowerCase())) warnings.push(warning);
+  }
+  const wordCount = draft.body.join(" ").trim().split(/\\s+/).filter(Boolean).length;
+  if (format === "brief" && draft.body.length > 2) warnings.push("News brief contains more than two paragraphs. Condense it.");
+  if (format === "brief" && wordCount > 125) warnings.push("News brief is too long for the supplied facts; reduce to 115 words or less.");
+  if (draft.body.some(p => p.length < 15)) warnings.push("An article paragraph is unusually short; check for fragmented writing.");
+  const normalized = (value:string) => value.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\\s+/).filter(w=>w.length>3);
+  const deck = normalized(draft.summary), lead=normalized(draft.body[0]||"");
+  if (deck.length && lead.length) {
+    const leadSet = new Set(lead);
+    if (deck.filter(w=>leadSet.has(w)).length / deck.length > 0.65) warnings.push("Summary repeats most of the lead instead of adding useful context.");
+  }
+  return [...new Set(warnings)].slice(0,8);
+}
+
 const outputSchema = {
   type: "object", additionalProperties: false,
   properties: {
@@ -57,12 +91,16 @@ Deno.serve(async (req: Request) => {
   const points = typeof input.points === "string" ? input.points.trim() : "";
   const tone = typeof input.tone === "string" && tones.has(input.tone) ? input.tone : "Professional";
   const category = typeof input.category === "string" && categories.has(input.category) ? input.category : "Community";
+  const format = input.format === "article" ? "article" : "brief";
   const storyAngle = typeof input.storyAngle === "string" ? input.storyAngle.trim().slice(0, 600) : "";
   const audience = typeof input.audience === "string" ? input.audience.trim().slice(0, 180) : "";
   const pendingDetails = typeof input.pendingDetails === "string" ? input.pendingDetails.trim().slice(0, 1000) : "";
   const editorialBoundaries = typeof input.editorialBoundaries === "string" ? input.editorialBoundaries.trim().slice(0, 1000) : "";
   if (points.length < 35 || points.length > 6000) {
     return respond({ error: "Provide 35–6,000 characters of factual focal points." }, 400, origin);
+  }
+  if (format === "article" && points.length < 450) {
+    return respond({ error: "A full article needs more reporting. Please add at least 450 characters of specific, confirmed facts or choose News brief instead. More generic wording will not substitute for reporting." }, 422, origin);
   }
   const apiKey = Deno.env.get("GROQ_API_KEY");
   if (!apiKey) return respond({
@@ -103,18 +141,19 @@ Deno.serve(async (req: Request) => {
           "Your first sentence must convey the genuinely newsworthy supported fact and when relevant the location/date. Do not repeat the same lead in the deck and first paragraph.",
           "Avoid corporate padding and generic claims: 'laying the groundwork', 'spirited competition', 'fostering camaraderie', 'family engagement', 'bringing communities together', 'showcase', 'gearing up', 'community-centric', 'more details as plans solidify'. If a phrase adds no distinct verified information, cut it.",
           "Headline should be clear, specific and credible—never clickbait, no invented naming. Summary adds context, not a paraphrase of the headline.",
-          "When there is only a confirmed date and broad planning status, make it a crisp 65–110 word NEWS BRIEF with 1–2 substantive paragraphs; do not expand artificially to 3+ paragraphs.",
-          "When there are multiple genuinely substantive facts, produce a 150–300 word article in 3–5 paragraphs. Choose length based on factual density, not on sounding important.",
+          "NEWS BRIEF mode is the DEFAULT and MUST contain only 1 or 2 paragraphs, with a maximum of 115 words across the body. For sparse notes, 35–70 words is better than padding. State the principal verifiable development without another paragraph restating it.",
+          "FULL ARTICLE mode is allowed only when the notes contain substantive specific reporting; write up to 3–5 short paragraphs grounded in those facts. No padding to fill the target length.",
           "Style Professional = polished, concise news; Community-focused = warm and specific; Energetic = brisk and vivid but factual; Press release = official H.A.G. tone ONLY when an announcement or release is appropriate. All must follow the same factual limits.",
           "Use exact quotations only when attribution and publication permission are supplied. Do not fabricate speaker remarks or attach quotes to minors.",
           "Do not publish private information about minors, addresses, guardian contacts, medical details or identifying information not explicitly intended for public release.",
           "Think through factual claims against supplied notes before producing final JSON. If unsupported, remove the phrase, not merely soften it. Don't make the article sound like an advertisement.",
           "Give 2–3 targeted questions that would genuinely improve the reader's understanding: specific verified historical context, confirmed features of the format, community implications, or permission-cleared firsthand perspectives.",
           "Do NOT ask repeatedly about something the editor has ALREADY marked pending or explicitly unconfirmed; ask what substance could be verified instead. These questions are internal to staff, never included in body.",
-          "Deliver exactly JSON: title (4–110 chars), summary (15–250 chars), body (1–5 purposeful paragraphs), follow_up_questions (2–3 concise actionable editor questions).",
+          "Deliver exactly JSON: title (4–110 chars), summary (15–200 chars), body (for brief 1–2 paragraphs; for full article 2–5 short paragraphs), follow_up_questions (2–3 concise actionable editor questions).",
           "It is a draft only. H.A.G. must review every fact and explicitly approve before publication."
         ].join(" ") }, { role: "user", content:
-          "Category: " + category + "\nTone: " + tone +
+          "Category: " + category + "\nTone: " + tone + 
+          "\nDELIVERY FORMAT (strict): " + (format === "brief" ? "NEWS BRIEF. One to two short paragraphs, maximum 115 body words, no fabricated extra details. Avoid repeating the deck." : "FULL ARTICLE. Three to five short, specific paragraphs only if facts support them.") +
           "\nReaders: " + (audience || "Quincy-area athletes, families and community members") +
           "\nPreferred story angle (NOT PROOF): " + (storyAngle || "Choose strongest supported news angle") +
           "\nCONFIRMED, PUBLICLY SHAREABLE FACTS:\n" + points +
@@ -136,13 +175,18 @@ Deno.serve(async (req: Request) => {
         !Array.isArray(draft.body) || draft.body.some((p: unknown) => typeof p !== "string")) {
       throw Error("Unexpected AI response format");
     }
+    const trimmedDraft = {
+      title: draft.title.slice(0, 200),
+      summary: draft.summary.slice(0, 1200),
+      body: draft.body.slice(0, 8).map((p: string) => p.slice(0, 3000))
+    };
+    const qualityWarnings = editorialChecks(trimmedDraft, points, format);
     const reportingQuestions = Array.isArray(draft.follow_up_questions) ?
       draft.follow_up_questions.filter((q: unknown) => typeof q === "string")
         .slice(0, 3).map((q: string) => q.slice(0, 220)) : [];
-    return respond({ draft: { title: draft.title.slice(0, 200), summary: draft.summary.slice(0, 1200),
-      body: draft.body.slice(0, 8).map((p: string) => p.slice(0, 3000)),
-      reporting_questions: reportingQuestions },
-      notice: "AI-created draft. Verify all facts and any guardian permissions before publishing." }, 200, origin);
+    return respond({ draft: { ...trimmedDraft, reporting_questions: reportingQuestions },
+      format, quality_warnings: qualityWarnings,
+      notice: "AI-created draft only; editorial checks flag common problems but cannot prove every claim. Verify facts, quotes, event terminology and guardian permissions." }, 200, origin);
   } catch (_error) {
     return respond({ error: "Groq AI draft generation failed or timed out. Try again later." }, 502, origin);
   } finally { clearTimeout(timer); }

@@ -333,12 +333,13 @@ $('aiWriter').onsubmit=async ev=>{
   const ready=result.data?.ready_for_editor===true && warnings.length===0;
   const automaticallyRevised=result.data?.automatically_revised===true;
   const briefDeduplicated=result.data?.brief_deduplicated===true;
+  const briefFormatted=result.data?.brief_formatted===true;
   aiDraft={title:draft.title,summary:draft.summary,body:draft.body,category:form.elements.category.value,
     questions:Array.isArray(draft.reporting_questions)?draft.reporting_questions:[],warnings,ready};
   $('aiResult').innerHTML=(warnings.length?'<div class="notice error"><strong>Editorial quality check: revisions needed</strong><ul>'+
     warnings.map(x=>'<li>'+esc(x)+'</li>').join('')+
     '</ul><p>This is a warning—not a verified factual assessment. Fix flagged language before using this as an official article.</p></div>':
-    '<div class="notice">'+(briefDeduplicated?'Repeated summary/lead removed from the News brief. ':'')+
+    '<div class="notice">'+(briefFormatted?'News brief condensed into one paragraph. ':'')+(briefDeduplicated?'Repeated summary/lead removed. ':'')+
       (automaticallyRevised?'AI draft revised automatically. ':'')+
       'Review all facts before publication.</div>')+
    '<div class="ai-preview"><h3>'+esc(draft.title)+'</h3><p><strong>'+esc(draft.summary)+'</strong></p>'+

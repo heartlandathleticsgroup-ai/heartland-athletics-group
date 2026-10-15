@@ -1,0 +1,24 @@
+{
+  "name": "Heartland Athletics Group",
+  "short_name": "H.A.G.",
+  "description": "Heartland Athletics Group events, programs, approved News, and community connections.",
+  "id": "/app-preview/",
+  "start_url": "/app-preview/",
+  "scope": "/app-preview/",
+  "display": "standalone",
+  "display_override": [
+    "standalone"
+  ],
+  "orientation": "portrait-primary",
+  "background_color": "#0D0D0D",
+  "theme_color": "#0D0D0D",
+  "lang": "en-US",
+  "icons": [
+    {
+      "src": "/app-preview/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

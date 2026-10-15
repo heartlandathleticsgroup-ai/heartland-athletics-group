@@ -139,7 +139,8 @@ function render(scroll=true){let html=titleBar();if(state.view.startsWith('event
 case'events':html+=intro('Events & experiences','Discover public activities, save dates and explore what is coming up.');html+=`<div class="section">${sect('Upcoming events')}<div class="filterbar">${['All','Scheduled','Planning underway'].map(x=>`<button class="chip ${state.filter===x?'active':''}" onclick="setFilter('${x}')">${x}</button>`).join('')}</div>${events.filter(x=>state.filter==='All'||x.status===state.filter).map(eventCard).join('')}</div>`;break;
 case'programs':html+=intro('Programs & opportunities','Creating exceptional athletic experiences across the Heartland.');html+=`<div class="section">${sect('Find your opportunity')}${[['Camps & clinics','Skill development, specialized instruction, and future registration opportunities.','/programs/'],['Heartland Enforcers','Basketball development, competition, leadership, and club standards.','/enforcers/'],['Community experiences','Public athletic initiatives, partnerships and local programming.','/about/']].map((p,i)=>`<article class="card"><span class="badge ${i===1?'gold':''}">${i===0?'DEVELOP':i===1?'COMPETE':'INSPIRE'}</span><h3>${p[0]}</h3><p>${p[1]}</p><button class="cardbtn" onclick="openSite('${p[2]}')">Learn more ↗</button></article>`).join('')}<p class="fine">Online camp and clinic registrations will be added after the secure registration system is connected.</p></div>`;break;
 case'news':{let filtered=stories.filter(x=>(state.filter==='All'||x.category===state.filter)&&((x.title+' '+x.deck+' '+x.category).toLowerCase().includes(state.search.toLowerCase())));html+=intro('H.A.G. News','News, event updates, community recognition and public program stories.');html+=`<div class="section"><div class="newslead"><span style="color:#0057ff">${svg('news')}</span><span><strong>Official stories, all in one place</strong><small>${publishedNewsPresent?'Approved public H.A.G. news':'Editorial previews until official news is published.'}</small></span></div><label class="formlabel" for="searchStories">Search H.A.G. News</label><input class="search" id="searchStories" value="${e(state.search)}" oninput="setSearch(this.value)" placeholder="Search stories..." autocomplete="off"><div class="filterbar">${['All','Events','Programs','Community','Enforcers'].map(x=>`<button class="chip ${state.filter===x?'active':''}" onclick="setFilter('${x}')">${x}</button>`).join('')}</div><div id="newsResults">${filtered.length?filtered.map(storyCard).join(''):'<div class="noresults">No matching stories. Try another category or search term.</div>'}</div><p class="fine">${publishedNewsPresent?'Approved public posts from the H.A.G. News feed.':'Editorial previews only. Official News publishing is not yet active.'}</p></div>`;break;}
-case'more':html+=intro('Connect with H.A.G.','Connect with us and customize your experience.');html+=`<div class="section">${sect('Get in touch')}${contactTeaser()}${socialLinks()}${sect('Your experience')}<article class="card"><h3>Notification interests</h3><p>Choose the H.A.G. topics you want to follow.</p><button class="cardbtn" onclick="preferences()">Manage interests <span>→</span></button></article><article class="card"><h3>Saved events & stories</h3><p>${state.savedEvents.size} events saved · ${state.savedStories.size} articles saved in this browser.</p><button class="cardbtn" onclick="savedView()">View saved items <span>→</span></button></article>${sect('About the organization')}<article class="card"><h3>Heartland Athletics Group</h3><p>COMPETE. DEVELOP. INSPIRE. Athletic opportunities centered on competition, development and community.</p><button class="cardbtn" onclick="openSite('/')">Visit official website <span>↗</span></button><button class="cardbtn" onclick="openSite('/partners/')">Partners & recognition <span>↗</span></button><button class="cardbtn" onclick="openSite('/contact/')">Get in touch <span>↗</span></button></article>${sect('Design preview controls')}<article class="card"><h3>Pinned announcement example</h3><p>Toggle a sample homepage notice to see how event updates could be displayed. It is not a real announcement.</p><button class="cardbtn" onclick="toggleAlert()">${state.alert?'Hide':'Show'} sample homepage notice <span>→</span></button></article></div>`;break;
+case'spotlights':html+=intro('Player Spotlight Archive','Every approved H.A.G. athlete spotlight stays searchable here.');html+='<div class="section">'+sect('Featured athletes')+'<label class="formlabel" for="spotlightSearch">Search by name, team or sport</label><input class="search" id="spotlightSearch" oninput="filterSpotlights(this.value)" placeholder="Search athlete spotlights..." autocomplete="off"><div id="spotlightResults">'+spotlightList()+'</div><p class="fine">Only consent-verified and approved public athlete spotlights are displayed.</p></div>';break;
+case'more':html+=intro('Connect with H.A.G.','Connect with us and customize your experience.');html+=`<div class="section">${sect('Get in touch')}${contactTeaser()}${socialLinks()}${sect('Athlete recognition')}<article class="card"><h3>Player Spotlight Archive</h3><p>Search published player spotlights by athlete, team or sport.</p><button class="cardbtn" onclick="go('spotlights')">Explore spotlights <span>→</span></button></article>${sect('Your experience')}<article class="card"><h3>Notification interests</h3><p>Choose the H.A.G. topics you want to follow.</p><button class="cardbtn" onclick="preferences()">Manage interests <span>→</span></button></article><article class="card"><h3>Saved events & stories</h3><p>${state.savedEvents.size} events saved · ${state.savedStories.size} articles saved in this browser.</p><button class="cardbtn" onclick="savedView()">View saved items <span>→</span></button></article>${sect('About the organization')}<article class="card"><h3>Heartland Athletics Group</h3><p>COMPETE. DEVELOP. INSPIRE. Athletic opportunities centered on competition, development and community.</p><button class="cardbtn" onclick="openSite('/')">Visit official website <span>↗</span></button><button class="cardbtn" onclick="openSite('/partners/')">Partners & recognition <span>↗</span></button><button class="cardbtn" onclick="openSite('/contact/')">Get in touch <span>↗</span></button></article>${sect('Design preview controls')}<article class="card"><h3>Pinned announcement example</h3><p>Toggle a sample homepage notice to see how event updates could be displayed. It is not a real announcement.</p><button class="cardbtn" onclick="toggleAlert()">${state.alert?'Hide':'Show'} sample homepage notice <span>→</span></button></article></div>`;break;
 }}
 html+=`<div class="footer">Heartland Athletics Group · V1.2 interactive prototype<br>Registration, publishing and push notification services are not connected.</div>`;
 document.getElementById('viewport').innerHTML=html;
@@ -161,7 +162,8 @@ function homeMatches(query){
   const index=[
     ...events.map(x=>({type:'Event',id:x.id,title:x.title,summary:x.date,body:[x.title,x.date,x.status,x.description,x.location||''].join(' ')})),
     ...stories.map(x=>({type:'News',id:x.id,title:x.title,summary:x.deck,body:[x.title,x.deck,x.category,...x.body].join(' ')})),
-    ...homePrograms.map(x=>({type:'Program',id:x.id,title:x.title,summary:x.summary,body:[x.title,x.summary].join(' ')}))
+    ...homePrograms.map(x=>({type:'Program',id:x.id,title:x.title,summary:x.summary,body:[x.title,x.summary].join(' ')})),
+    ...approvedSpotlights.map(x=>({type:'Spotlight',id:x.id,title:x.name,summary:x.team+' · '+x.sport,body:[x.name,x.team,x.sport,x.bio].join(' ')}))
   ];
   return index.filter(item=>words.every(w=>item.body.toLocaleLowerCase().includes(w))).slice(0,12);
 }
@@ -187,11 +189,13 @@ function clearHomeSearch(){
   chooseHomeSearch('');
 }
 function openHomeResult(type,id){
+  if(type==='Spotlight'){go('spotlights');const inp=document.getElementById('spotlightSearch');const hit=approvedSpotlights.find(x=>x.id===id);if(inp&&hit){inp.value=hit.name;filterSpotlights(hit.name)}return}
   if(type==='Event')showEvent(id);
   else if(type==='News')showStory(id);
   else go('programs');
 }
 
+function filterSpotlights(q){const el=document.getElementById('spotlightResults');if(!el)return;const lower=q.trim().toLowerCase(),filtered=approvedSpotlights.filter(s=>(s.name+' '+s.team+' '+s.sport+' '+s.bio).toLowerCase().includes(lower));el.innerHTML=filtered.length?filtered.map(s=>'<article class="card"><span class="badge '+(s.featured?'gold':'')+'">'+(s.featured?'Athlete of the Week':'Athlete Spotlight')+'</span><h3>'+e(s.name)+'</h3><p>'+e(s.team)+' · '+e(s.sport)+'</p><p>'+e(s.bio)+'</p></article>').join(''):'<div class="noresults">No matching approved athlete spotlight yet.</div>'}
 function go(t){state.tab=t;state.view='';state.filter='All';state.search='';render()}
 function back(){state.view='';render()}
 function showEvent(id){state.view='event:'+id;render()}
@@ -314,6 +318,48 @@ async function reloadPublicFeed(){
  if(changed){const vp=document.getElementById('viewport'),scroll=vp?.scrollTop||0;render(false);if(vp)vp.scrollTop=scroll;}
 }
 
+
+/* Phase 3: Public Supabase-only read feeds protected by row-level security. */
+const HAG_PUBLIC_API='https://ouynjmqzabrvlddxjbtt.supabase.co/rest/v1';
+const HAG_PUBLIC_KEY='sb_publishable_jjhyrlgShQS4setHH4cDVA_vdwWTP61';
+let approvedSpotlights=[];
+async function hagPublicRows(table,columns,order='published_at.desc'){
+ const url=HAG_PUBLIC_API+'/'+table+'?select='+encodeURIComponent(columns)+'&order='+encodeURIComponent(order)+'&limit=80';
+ const r=await fetch(url,{headers:{'apikey':HAG_PUBLIC_KEY,'Accept':'application/json'},cache:'no-store'});
+ if(!r.ok)throw Error('Unable to retrieve published public content');
+ const json=await r.json();if(!Array.isArray(json))throw Error('Unexpected public data');return json;
+}
+async function loadApprovedSupabaseContent(){
+ const result=await Promise.allSettled([
+  hagPublicRows('hag_articles','id,slug,category,title,summary,body,art_label,tone,published_at'),
+  hagPublicRows('hag_spotlight_archive','id,athlete_name,team_name,sport,bio,photo_url,featured_week_start,published_at,featured_this_week')
+ ]);
+ let changed=false;
+ if(result[0].status==='fulfilled'&&result[0].value.length){
+   stories.splice(0,stories.length,...result[0].value.map(a=>({
+     id:a.id,category:a.category,title:a.title,deck:a.summary,
+     body:Array.isArray(a.body)?a.body:[],art:a.art_label||'H.A.G.\\nNEWS',
+     tone:['blue','gold','charcoal'].includes(a.tone)?a.tone:'blue',
+     published:true
+   })));
+   publishedNewsPresent=true;changed=true;
+ }
+ if(result[1].status==='fulfilled'){
+   approvedSpotlights=result[1].value.map(x=>({
+     id:x.id,name:x.athlete_name,team:x.team_name,sport:x.sport,bio:x.bio,
+     photo:x.photo_url,week:x.featured_week_start,featured:x.featured_this_week,
+     published:x.published_at
+   }));
+   if(approvedSpotlights.length)changed=true;
+ }
+ if(changed){const v=document.getElementById('viewport'),offset=v?.scrollTop||0;render(false);if(v)v.scrollTop=offset}
+}
+const spotlightList=()=>approvedSpotlights.length?approvedSpotlights.map(s=>
+ '<article class="card"><span class="badge '+(s.featured?'gold':'')+'">'+(s.featured?'Athlete of the Week':'Athlete Spotlight')+'</span>'+
+ '<h3>'+e(s.name)+'</h3><p>'+e(s.team)+' · '+e(s.sport)+'</p>'+
+ '<p>'+e(s.bio)+'</p></article>').join(''):
+ '<div class="noresults">No published player spotlights yet. H.A.G. only publishes submissions with verified guardian permission.</div>';
+
 render();
-void reloadPublicFeed();
+void reloadPublicFeed().then(loadApprovedSupabaseContent);
 </script></body></html>

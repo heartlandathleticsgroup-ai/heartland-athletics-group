@@ -94,6 +94,10 @@ Deno.serve(async (req: Request) => {
   const format = input.format === "article" ? "article" : "brief";
   const storyAngle = typeof input.storyAngle === "string" ? input.storyAngle.trim().slice(0, 600) : "";
   const audience = typeof input.audience === "string" ? input.audience.trim().slice(0, 180) : "";
+  const verifiedBackground = typeof input.verifiedBackground === "string" ? input.verifiedBackground.trim().slice(0, 1500) : "";
+  const backgroundVerified = input.backgroundVerified === true;
+  if (verifiedBackground && !backgroundVerified) return respond({ error: "Confirm that historical background is verified and approved for publication before using it as a factual source." }, 422, origin);
+  const confirmedFacts = verifiedBackground ? points + "\nVerified background: " + verifiedBackground : points;
   const pendingDetails = typeof input.pendingDetails === "string" ? input.pendingDetails.trim().slice(0, 1000) : "";
   const editorialBoundaries = typeof input.editorialBoundaries === "string" ? input.editorialBoundaries.trim().slice(0, 1000) : "";
   if (points.length < 35 || points.length > 6000) {
@@ -157,6 +161,7 @@ Deno.serve(async (req: Request) => {
           "\nReaders: " + (audience || "Quincy-area athletes, families and community members") +
           "\nPreferred story angle (NOT PROOF): " + (storyAngle || "Choose strongest supported news angle") +
           "\nCONFIRMED, PUBLICLY SHAREABLE FACTS:\n" + points +
+          "\nVERIFIED HISTORICAL CONTEXT (editor-confirmed; may be used in story lead):\n" + (verifiedBackground || "None provided") +
           "\nCURRENTLY PENDING / NOT YET CONFIRMED (do not present as finalized):\n" + (pendingDetails || "No additional details were provided") +
           "\nDO NOT SAY / DO NOT ASSUME:\n" + (editorialBoundaries || "Anything unsupported by confirmed facts")
         }],
@@ -180,7 +185,7 @@ Deno.serve(async (req: Request) => {
       summary: draft.summary.slice(0, 1200),
       body: draft.body.slice(0, 8).map((p: string) => p.slice(0, 3000))
     };
-    const qualityWarnings = editorialChecks(trimmedDraft, points, format);
+    const qualityWarnings = editorialChecks(trimmedDraft, confirmedFacts, format);
     const reportingQuestions = Array.isArray(draft.follow_up_questions) ?
       draft.follow_up_questions.filter((q: unknown) => typeof q === "string")
         .slice(0, 3).map((q: string) => q.slice(0, 220)) : [];

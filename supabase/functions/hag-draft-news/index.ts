@@ -98,6 +98,7 @@ Deno.serve(async (req: Request) => {
           "Build paragraphs in this order where material permits: what is happening and when; why it matters, supported by the supplied notes; what is known next and what remains unconfirmed.",
           "Avoid repetition across headline, summary and body. Do not repeat dates or nearly identical sentences unnecessarily. No filler such as 'showcase the spirit of community' unless backed by specific factual detail.",
           "Use active voice, readable natural language, diverse sentence lengths, and selective vivid wording. No corporate jargon, generic boilerplate, exaggeration or manufactured drama.",
+          "Use writing style deliberately: Professional = engaging impartial news reporting; Community-focused = accessible and warm without hype; Energetic = dynamic verbs without overclaiming; Press release = polished organizational announcement only when a public announcement is confirmed.",
           "Use H.A.G.'s values or tagline sparingly and only if directly relevant. Don't shoehorn branding into every paragraph.",
           "CRITICAL: Quality over length. If focal points are sparse, produce a crisp 90–140 word story, generally 2 short paragraphs, rather than padding it. With rich input, use 3–5 purposeful paragraphs.",
           "Never invent quotes. If the notes include an explicitly confirmed quotation, reproduce accurately with attribution; otherwise use no quotations.",
@@ -107,10 +108,10 @@ Deno.serve(async (req: Request) => {
           "Deliver JSON with title (4–110 chars), summary (15–250 chars), body (array of 2–5 short paragraphs), follow_up_questions (array of 2–3 strings).",
           "This is a draft only; H.A.G. must fact-check, edit, approve, and publish it."
         ].join(" ") }, { role: "user", content:
-          "Category: " + category + "\\nTone: " + tone +
-          "\\nIntended readers: " + (audience || "Quincy-area families, athletes and community members") +
-          "\\nStory angle requested (not proof): " + (storyAngle || "Identify the strongest verified news angle") +
-          "\\nCONFIRMED FACTUAL FOCAL POINTS:\\n" + points
+          "Category: " + category + "\nTone: " + tone +
+          "\nIntended readers: " + (audience || "Quincy-area families, athletes and community members") +
+          "\nStory angle requested (not proof): " + (storyAngle || "Identify the strongest verified news angle") +
+          "\nCONFIRMED FACTUAL FOCAL POINTS:\n" + points
         }],
         response_format: { type: "json_schema",
           json_schema: { name: "hag_news_draft", strict: true, schema: outputSchema }

@@ -122,7 +122,7 @@ button{font:inherit;cursor:pointer}button:focus-visible,a:focus-visible,input:fo
 .hag-interest-state.error{color:#b42318}
 .hag-interest-state.success{color:#165b30}
 .hag-registration-note{background:#fdf1d4;border:1px solid #e7d2a1;border-radius:12px;padding:13px;color:#4d3b16;font-size:12px;line-height:1.5;margin:12px 0}
-</style></head><body>
+.hag-update-row{border:1px solid #dbe3f0;background:#fff;border-radius:16px;padding:15px;margin:10px 0}.hag-update-row.unread{border-left:4px solid var(--blue)}.hag-update-row h3{font-size:15px;line-height:1.3;margin:6px 0}.hag-update-row p{font-size:13px;line-height:1.5;color:#47546b}.hag-update-row .meta{font-size:11px;color:#67748a}.hag-update-actions{display:flex;gap:10px;justify-content:space-between;margin-top:14px}.hag-update-actions button{border:1px solid #ced8e8;background:#f1f5fd;color:#1246a0;border-radius:10px;padding:9px 12px;font-weight:800;font-size:12px}.hag-unread-counter{display:inline-flex;align-items:center;justify-content:center;background:#f5b500;color:#16191f;border-radius:30px;font-size:10px;min-width:18px;height:18px;margin-left:4px;padding:0 4px}.hag-update-empty{text-align:center;padding:20px 16px;background:#f3f6fb;border-radius:13px;color:#465671;font-size:13px}</style></head><body>
 <div class="previewbar"><div><strong>Heartland Athletics Group</strong><br><span>Installable app preview · Phase 4</span></div><span class="tag">APP PREVIEW</span></div>
 <div class="phone" id="phone"><div id="networkNotice" class="network-notice" role="status" hidden>Offline preview — News and event details may not be current.</div><main id="viewport" class="viewport" aria-live="polite"></main><nav id="tabs" class="tabs" aria-label="Main navigation"></nav><div class="toast" id="toast" role="status"></div></div>
 <p class="note">Installable website preview for phone testing. Official News and event information are shown when available. Push notifications, payments and registrations are not enabled. This is not yet an App Store or Google Play release.</p>
@@ -151,11 +151,12 @@ const topics=[['major','Major H.A.G. announcements','Organization-wide news'],['
 const icons={home:'<path d="m3 10 9-7 9 7v10H4V10"/><path d="M9 20v-7h6v7"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/>',trophy:'<path d="M8 4h8v7a4 4 0 0 1-8 0V4Zm0 2H4v3a4 4 0 0 0 4 4m8-7h4v3a4 4 0 0 1-4 4M12 15v5m-5 0h10"/>',news:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h4M8 18h8"/>',menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 9h18c0-1-3-2-3-9M10 21h4"/>',arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>',bookmark:'<path d="M6 4h12v17l-6-4-6 4V4z"/>',share:'<circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/><path d="m8 11 8-5M8 13l8 5"/>',flash:'<path d="m13 2-9 12h7l-1 8 10-13h-7z"/>'};
 const svg=(id)=>`<svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${icons[id]||icons.arrow}</svg>`;
 const load=(name,fallback)=>{try{const v=localStorage.getItem('hag12_'+name);return v===null?fallback:JSON.parse(v)}catch{return fallback}};
-let state={tab:'home',view:'',filter:'All',search:'',homeSearch:'',slide:0,savedEvents:new Set(load('events',[])),savedStories:new Set(load('stories',[])),topics:new Set(load('topics',['major','community','clinics','macker'])),alert:load('alert',false)};
+let state={tab:'home',view:'',filter:'All',search:'',homeSearch:'',slide:0,savedEvents:new Set(load('events',[])),savedStories:new Set(load('stories',[])),topics:new Set(load('topics',['major','community','clinics','macker'])),readUpdates:new Set(load('updatesRead',[])),updatesShowAll:false,alert:load('alert',false)};
+let hagUpdates=[];
 const persist=(k,v)=>{try{localStorage.setItem('hag12_'+k,JSON.stringify(v))}catch{}};
 const badge=(v)=>`<span class="badge ${v==='Planning underway'?'gold':''}">${e(v)}</span>`;
 const e=(x)=>String(x).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
-const titleBar=(sub)=>`<header class="mast"><div class="brandline"><img alt="Official Heartland Athletics Group badge" src="${LOGO}"><div class="brandword"><span>Heartland</span><span>Athletics</span><span>Group</span><small>${sub||'COMPETE. DEVELOP. INSPIRE.'}</small></div><button class="bell" onclick="preferences()" aria-label="Notification interests">${svg('bell')}</button></div></header>`;
+const titleBar=(sub)=>`<header class="mast"><div class="brandline"><img alt="Official Heartland Athletics Group badge" src="${LOGO}"><div class="brandword"><span>Heartland</span><span>Athletics</span><span>Group</span><small>${sub||'COMPETE. DEVELOP. INSPIRE.'}</small></div><button class="bell" onclick="showUpdates()" aria-label="Read H.A.G. updates">${svg('bell')}${hagUnreadCount()?`<span class="hag-unread-counter">${hagUnreadCount()}</span>`:''}</button></div></header>`;
 const sect=(label,action='')=>`<div class="sectiontitle"><h2>${label}</h2>${action}</div>`;
 const eventCard=(x)=>`<article class="card">${badge(x.status)}<h3>${e(x.title)}</h3><p><b style="color:#111">${e(x.date)}</b></p>${x.location?`<p>${e(x.location)}</p>`:''}${x.registrationUrl?'<span class="badge gold">Registration open ↗</span>':''}<button class="cardbtn" onclick="showEvent('${x.id}')">View event details <span>→</span></button></article>`;
 const art=(s)=>s.photo?`<div class="newsphoto hag-photo"><img src="${e(s.photo)}" alt="${e(s.photoAlt||s.title)}" loading="lazy" decoding="async"></div>`:`<div class="newsphoto ${s.tone}"><div class="graphicword">${e(s.art).replaceAll('\n','<br>')}</div><span class="icon">${svg(s.category==='Events'?'calendar':s.category==='Programs'?'trophy':'news')}</span></div>`;
@@ -305,6 +306,27 @@ function go(t){state.tab=t;state.view='';state.filter='All';state.search='';rend
 function back(){state.view='';render()}
 function showEvent(id){state.view='event:'+id;render()}
 function showStory(id){state.tab='news';state.view='story:'+id;render()}
+
+function hagUnreadCount(){
+ return hagUpdates.filter(x=>state.topics.has(x.topic)&&!state.readUpdates.has(x.id)).length;
+}
+function showUpdates(){state.view='updates';render()}
+function toggleUpdateAll(){state.updatesShowAll=!state.updatesShowAll;render(false)}
+function readHagUpdate(id){state.readUpdates.add(id);persist('updatesRead',[...state.readUpdates].slice(-250));render(false)}
+function openHagUpdate(id){
+ const item=hagUpdates.find(x=>x.id===id);if(!item)return;
+ state.readUpdates.add(id);persist('updatesRead',[...state.readUpdates].slice(-250));
+ go(['home','events','programs','news','more'].includes(item.app_section)?item.app_section:'home');
+}
+async function refreshHagUpdates(){
+ const view=document.getElementById('viewport'),offset=view?.scrollTop||0;
+ try{
+  const updated=await hagPublicRows('hag_app_updates','id,title,message,topic,app_section,published_at','published_at.desc');
+  hagUpdates=updated.filter(x=>x&&typeof x.id==='string'&&typeof x.title==='string'&&typeof x.message==='string');
+  render(false);if(view)view.scrollTop=offset;toast('Official H.A.G. updates refreshed');
+ }catch{toast('Could not refresh. Check your internet connection.')}
+}
+
 function preferences(){state.view='preferences';render()}
 function contactView(){state.view='contact';render()}
 let hagInterestTopic='gus-macker-2027';
@@ -479,7 +501,8 @@ async function loadApprovedSupabaseContent(){
  const result=await Promise.allSettled([
   hagPublicRows('hag_articles','id,slug,category,title,summary,body,art_label,tone,published_at,hero_image_url,hero_image_alt,hero_image_caption,hero_image_credit'),
   hagPublicRows('hag_spotlight_archive','id,athlete_name,team_name,sport,bio,photo_url,featured_week_start,published_at,featured_this_week'),
-  hagPublicRows('hag_public_events','id,slug,title,description,event_start,event_end_exclusive,venue,public_status,registration_url,registration_label,registration_state,registration_verified,published_at','event_start.asc')
+  hagPublicRows('hag_public_events','id,slug,title,description,event_start,event_end_exclusive,venue,public_status,registration_url,registration_label,registration_state,registration_verified,published_at','event_start.asc'),
+  hagPublicRows('hag_app_updates','id,title,message,topic,app_section,published_at','published_at.desc')
  ]);
  let changed=false;
  if(result[0].status==='fulfilled'&&result[0].value.length){
@@ -530,6 +553,10 @@ async function loadApprovedSupabaseContent(){
     changed=true;
   }
   if(changed)events.sort((a,b)=>a.start.localeCompare(b.start));
+ }
+ if(result[3].status==='fulfilled'){
+  hagUpdates=result[3].value.filter(x=>x&&typeof x.id==='string'&&typeof x.title==='string'&&typeof x.message==='string');
+  changed=true;
  }
  if(changed){const v=document.getElementById('viewport'),offset=v?.scrollTop||0;render(false);if(v)v.scrollTop=offset}
 }

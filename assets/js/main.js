@@ -91,3 +91,62 @@ const currentYear = document.querySelector("[data-current-year]");
 if (currentYear) {
   currentYear.textContent = new Date().getFullYear();
 }
+
+
+const contributorMarquee = document.querySelector("[data-contributor-marquee]");
+const contributorTrack = document.querySelector("[data-contributor-track]");
+const contributorEmpty = document.querySelector("[data-contributor-empty]");
+
+if (contributorMarquee && contributorTrack) {
+  fetch("/assets/data/gus-macker-contributors.json", { cache: "no-store" })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Contributor data could not be loaded.");
+      }
+
+      return response.json();
+    })
+    .then((contributors) => {
+      const names = Array.isArray(contributors)
+        ? [...new Set(contributors.map((name) => String(name).trim()).filter(Boolean))]
+        : [];
+
+      if (!names.length) {
+        return;
+      }
+
+      const buildSet = (hidden = false) => {
+        const set = document.createElement("div");
+        set.className = "contributor-set";
+
+        if (hidden) {
+          set.setAttribute("aria-hidden", "true");
+        }
+
+        names.forEach((name) => {
+          const nameItem = document.createElement("span");
+          nameItem.className = "contributor-name";
+          nameItem.textContent = name;
+          set.appendChild(nameItem);
+
+          const divider = document.createElement("span");
+          divider.className = "contributor-divider";
+          divider.setAttribute("aria-hidden", "true");
+          divider.textContent = "•";
+          set.appendChild(divider);
+        });
+
+        return set;
+      };
+
+      contributorTrack.replaceChildren(buildSet(false), buildSet(true));
+      contributorMarquee.hidden = false;
+
+      if (contributorEmpty) {
+        contributorEmpty.hidden = true;
+      }
+    })
+    .catch(() => {
+      // Keep the friendly empty-state message visible if the list cannot load.
+    });
+}

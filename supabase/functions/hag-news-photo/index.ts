@@ -59,6 +59,12 @@ Deno.serve(async req=>{
  if(downloadError||!blob)return reply(origin,{error:"Private photo missing or inaccessible"},404);
  if(blob.size>6291456||blob.size<100||!contentType)
   return reply(origin,{error:"Photo must be a valid supported image under 6 MB"},422);
+ const magic=new Uint8Array(await blob.slice(0,16).arrayBuffer());
+ const isJpeg=magic[0]===0xff&&magic[1]===0xd8&&magic[2]===0xff;
+ const isPng=magic[0]===0x89&&magic[1]===0x50&&magic[2]===0x4e&&magic[3]===0x47&&magic[4]===0x0d&&magic[5]===0x0a;
+ const isWebp=String.fromCharCode(...magic.slice(0,4))==="RIFF"&&String.fromCharCode(...magic.slice(8,12))==="WEBP";
+ if(!((contentType==="image/jpeg"&&isJpeg)||(contentType==="image/png"&&isPng)||(contentType==="image/webp"&&isWebp)))
+  return reply(origin,{error:"The uploaded file does not match its declared image format."},422);
  const destination=id+"/hero-"+crypto.randomUUID()+"."+suffix;
  const upload=await admin.storage.from("hag-news-public").upload(destination,blob,{contentType,upsert:false,cacheControl:"3600"});
  if(upload.error)return reply(origin,{error:"Unable to publish the photo"},502);

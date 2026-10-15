@@ -28,7 +28,7 @@ const outputSchema = {
 
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin") || "";
-  if (req.method === "OPTIONS") return respond({}, 204, origin);
+  if (req.method === "OPTIONS") return respond({ ok: true }, 200, origin);
   if (req.method !== "POST") return respond({ error: "Method not allowed." }, 405, origin);
   if (!allowedOrigins.has(origin)) return respond({ error: "Origin not allowed." }, 403, origin);
 

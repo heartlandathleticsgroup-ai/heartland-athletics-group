@@ -21,9 +21,10 @@ const outputSchema = {
   properties: {
     title: { type: "string" },
     summary: { type: "string" },
-    body: { type: "array", items: { type: "string" } }
+    body: { type: "array", items: { type: "string" } },
+    follow_up_questions: { type: "array", items: { type: "string" } }
   },
-  required: ["title", "summary", "body"]
+  required: ["title", "summary", "body", "follow_up_questions"]
 };
 
 Deno.serve(async (req: Request) => {
@@ -56,6 +57,8 @@ Deno.serve(async (req: Request) => {
   const points = typeof input.points === "string" ? input.points.trim() : "";
   const tone = typeof input.tone === "string" && tones.has(input.tone) ? input.tone : "Professional";
   const category = typeof input.category === "string" && categories.has(input.category) ? input.category : "Community";
+  const storyAngle = typeof input.storyAngle === "string" ? input.storyAngle.trim().slice(0, 600) : "";
+  const audience = typeof input.audience === "string" ? input.audience.trim().slice(0, 180) : "";
   if (points.length < 35 || points.length > 6000) {
     return respond({ error: "Provide 35–6,000 characters of factual focal points." }, 400, origin);
   }
@@ -82,21 +85,32 @@ Deno.serve(async (req: Request) => {
       method: "POST", signal: controller.signal,
       headers: { Authorization: "Bearer " + apiKey, "content-type": "application/json" },
       body: JSON.stringify({
-        model: "openai/gpt-oss-20b", max_completion_tokens: 1700,
+        model: "openai/gpt-oss-20b", max_completion_tokens: 2400,
         reasoning_effort: "low",
         messages: [{ role: "system", content: [
-          "You are H.A.G. News Assistant, editorial support for Heartland Athletics Group and Heartland Enforcers Basketball Club.",
-          "Write a compelling, polished, accurate public news article based ONLY on supplied focal points.",
-          "NEVER invent names, scores, quotes, awards, dates, prices, locations, sponsorships or affiliations.",
-          "When vital information is missing, do not fill in fictional details; write around missing details.",
-          "Use professional, community-oriented sports communications; no hypey manufactured quotes.",
-          "Keep title 4–110 characters, summary 15–250 characters, and body 2–5 paragraphs.",
-          "Do not include private contact info or sensitive identifying information about minors that may appear in notes.",
-          "If athlete details are included, use only clearly public, guardian-approved details.",
-          "The output is a DRAFT; H.A.G. staff must verify factual accuracy and approve it before publication.",
-          "Return exactly the requested structured output."
+          "You are the senior newsroom editor for Heartland Athletics Group (H.A.G.), a community sports organization whose tagline is COMPETE. DEVELOP. INSPIRE.",
+          "Craft PUBLICATION-QUALITY sports news that sounds like a confident, experienced local sports reporter: specific, credible, compelling, human, and clean.",
+          "Ground every factual statement in the supplied notes. Do not invent details, schedules, prior history, crowd sizes, sponsors, registrations, achievements, motives, quotations, endorsements or organizational announcements.",
+          "Interpret 'story angle' as a lens for presentation, NOT proof that a claim is true; only assert supplied, verified factual information.",
+          "Use the strongest concrete fact or newsworthy development as the lead. Avoid generic leads like 'X is gearing up' or 'X is excited to announce'. Do not say 'has announced' unless the notes confirm a public announcement.",
+          "Write a headline that carries the distinct news angle, not just the organization name. Make it clear and interesting without clickbait.",
+          "A summary (deck) should add why readers should care without simply restating the headline or first sentence.",
+          "Build paragraphs in this order where material permits: what is happening and when; why it matters, supported by the supplied notes; what is known next and what remains unconfirmed.",
+          "Avoid repetition across headline, summary and body. Do not repeat dates or nearly identical sentences unnecessarily. No filler such as 'showcase the spirit of community' unless backed by specific factual detail.",
+          "Use active voice, readable natural language, diverse sentence lengths, and selective vivid wording. No corporate jargon, generic boilerplate, exaggeration or manufactured drama.",
+          "Use H.A.G.'s values or tagline sparingly and only if directly relevant. Don't shoehorn branding into every paragraph.",
+          "CRITICAL: Quality over length. If focal points are sparse, produce a crisp 90–140 word story, generally 2 short paragraphs, rather than padding it. With rich input, use 3–5 purposeful paragraphs.",
+          "Never invent quotes. If the notes include an explicitly confirmed quotation, reproduce accurately with attribution; otherwise use no quotations.",
+          "Never imply a venue, ticket price, sponsor, team count or registration details have been finalized unless the focal points confirm it.",
+          "Do not include private contact information, medical records, or sensitive information about children in the output.",
+          "Return 2–3 concise, practical reporting questions about missing details that would make THIS story more substantive. Questions are for editors only and must not appear in the article body.",
+          "Deliver JSON with title (4–110 chars), summary (15–250 chars), body (array of 2–5 short paragraphs), follow_up_questions (array of 2–3 strings).",
+          "This is a draft only; H.A.G. must fact-check, edit, approve, and publish it."
         ].join(" ") }, { role: "user", content:
-          "Category: " + category + "\nTone: " + tone + "\nApproved factual focal points:\n" + points
+          "Category: " + category + "\\nTone: " + tone +
+          "\\nIntended readers: " + (audience || "Quincy-area families, athletes and community members") +
+          "\\nStory angle requested (not proof): " + (storyAngle || "Identify the strongest verified news angle") +
+          "\\nCONFIRMED FACTUAL FOCAL POINTS:\\n" + points
         }],
         response_format: { type: "json_schema",
           json_schema: { name: "hag_news_draft", strict: true, schema: outputSchema }
@@ -113,8 +127,12 @@ Deno.serve(async (req: Request) => {
         !Array.isArray(draft.body) || draft.body.some((p: unknown) => typeof p !== "string")) {
       throw Error("Unexpected AI response format");
     }
+    const reportingQuestions = Array.isArray(draft.follow_up_questions) ?
+      draft.follow_up_questions.filter((q: unknown) => typeof q === "string")
+        .slice(0, 3).map((q: string) => q.slice(0, 220)) : [];
     return respond({ draft: { title: draft.title.slice(0, 200), summary: draft.summary.slice(0, 1200),
-      body: draft.body.slice(0, 8).map((p: string) => p.slice(0, 3000)) },
+      body: draft.body.slice(0, 8).map((p: string) => p.slice(0, 3000)),
+      reporting_questions: reportingQuestions },
       notice: "AI-created draft. Verify all facts and any guardian permissions before publishing." }, 200, origin);
   } catch (_error) {
     return respond({ error: "Groq AI draft generation failed or timed out. Try again later." }, 502, origin);

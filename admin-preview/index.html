@@ -62,7 +62,7 @@ Do not change the RP ID after registration. Supabase currently marks passkeys ex
 <p class="muted">Passkeys still require verified H.A.G. staff permissions.</p>
 <p class="muted">The email sign-in link remains a backup. On your personal device you should stay signed in unless you sign out, clear site data, or your session expires. For shared devices, sign out when finished.</p></section>
 <section class="card"><h2>AI assistant activation</h2>
-<p>The AI drafting backend is deployed with verified staff access and a usage cap. It needs an OpenAI API key before it can generate articles.</p>
+<p>The AI drafting backend now uses GroqCloud GPT-OSS 20B with verified staff access and a 20-draft daily limit. A Groq free-plan API key is needed before it can generate articles.</p>
 <p class="muted">In your <a href="https://supabase.com/dashboard/project/ouynjmqzabrvlddxjbtt" target="_blank" rel="noopener noreferrer">H.A.G. Supabase project</a>, choose <strong>Edge Functions → Secrets</strong> and add a secret named <code>OPENAI_API_KEY</code> with a key from your <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI API account</a>. Keys must only be saved in Supabase Secrets—not in this website, in your article notes, in GitHub, or in chat.</p>
 <p class="muted">OpenAI API usage is billed separately from a ChatGPT subscription. Review your usage limits and billing before enabling. The AI assistant can create drafts but cannot approve or publish them.</p>
 </section></div></section>

@@ -115,6 +115,12 @@ if (contributorMarquee && contributorTrack) {
         return;
       }
 
+      const repeatCount = names.length < 6 ? Math.ceil(6 / names.length) : 1;
+      const displayNames = Array.from(
+        { length: repeatCount },
+        () => names
+      ).flat();
+
       const buildSet = (hidden = false) => {
         const set = document.createElement("div");
         set.className = "contributor-set";
@@ -123,7 +129,7 @@ if (contributorMarquee && contributorTrack) {
           set.setAttribute("aria-hidden", "true");
         }
 
-        names.forEach((name) => {
+        displayNames.forEach((name) => {
           const nameItem = document.createElement("span");
           nameItem.className = "contributor-name";
           nameItem.textContent = name;

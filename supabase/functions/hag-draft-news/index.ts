@@ -59,8 +59,12 @@ function editorialOverlap(a: string,b: string): number {
   return aWords.length ? aWords.filter(w=>bWords.has(w)).length/aWords.length : 0;
 }
 function splitNewsSentences(text:string): string[] {
-  return (text.match(/[^.!?]+(?:[.!?]+(?=\s|$)|$)/g)||[])
-    .map(v=>v.trim()).filter(Boolean);
+  const masked=text.replace(/\bH\.A\.G\./g,"HAG_ABBREV")
+    .replace(/\bU\.S\./g,"US_ABBREV").replace(/\bDr\./g,"DR_ABBREV");
+  return (masked.match(/[^.!?]+(?:[.!?]+(?=\s|$)|$)/g)||[])
+    .map(v=>v.trim().replaceAll("HAG_ABBREV","H.A.G.")
+      .replaceAll("US_ABBREV","U.S.").replaceAll("DR_ABBREV","Dr."))
+    .filter(Boolean);
 }
 function deduplicateNewsBrief(draft:{
   title:string;summary:string;body:string[];follow_up_questions?:string[]

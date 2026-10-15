@@ -148,6 +148,7 @@ Deno.serve(async (req: Request) => {
   const points = typeof input.points === "string" ? input.points.trim() : "";
   const tone = typeof input.tone === "string" && tones.has(input.tone) ? input.tone : "Professional";
   const category = typeof input.category === "string" && categories.has(input.category) ? input.category : "Community";
+  const factTopic = typeof input.factTopic === "string" ? input.factTopic.trim().slice(0,120) : "";
   const format = input.format === "article" ? "article" : "brief";
   const storyAngle = typeof input.storyAngle === "string" ? input.storyAngle.trim().slice(0, 600) : "";
   const audience = typeof input.audience === "string" ? input.audience.trim().slice(0, 180) : "";
@@ -170,6 +171,19 @@ Deno.serve(async (req: Request) => {
   if (format === "article" && points.length < 450) {
     return respond({ error: "A full article needs more reporting. Please add at least 450 characters of specific, confirmed facts or choose News brief instead. More generic wording will not substitute for reporting." }, 422, origin);
   }
+
+  // Only administrator-approved, explicitly public facts are supplied to the AI.
+  let libraryContext = "";
+  if(factTopic){
+    const library = await supabase.from("hag_editorial_facts").select("fact_text")
+      .eq("topic",factTopic).eq("status","approved").eq("public_use_approved",true)
+      .order("verified_at",{ascending:false}).limit(12);
+    if(library.error)return respond({error:"Could not load approved H.A.G. facts."},503,origin);
+    libraryContext=(library.data||[]).map((f:{fact_text:string})=>f.fact_text).join("\n").slice(0,6500);
+  }
+  const fullFacts = libraryContext ? confirmedFacts+"\nAPPROVED FACT LIBRARY ("+factTopic+"):\n"+libraryContext : confirmedFacts;
+  const checkedBackground = verifiedBackground+"\n"+libraryContext;
+
   const apiKey = Deno.env.get("GROQ_API_KEY");
   if (!apiKey) return respond({
     error: "Groq free AI drafting is not yet activated. A project owner must set GROQ_API_KEY in Supabase Edge Function secrets."
@@ -229,6 +243,7 @@ Deno.serve(async (req: Request) => {
           "\nReaders: " + (audience || "Quincy-area athletes, families and community members") +
           "\nPreferred story angle (NOT PROOF): " + (storyAngle || "Choose strongest supported news angle") +
           "\nCONFIRMED, PUBLICLY SHAREABLE FACTS:\n" + points +
+          "\nADMIN-APPROVED H.A.G. FACT LIBRARY FOR THIS TOPIC:\n" + (libraryContext||"No library topic selected") +
           "\nVERIFIED HISTORICAL CONTEXT (editor-confirmed; may be used in story lead):\n" + (verifiedBackground || "None provided") +
           "\nCURRENTLY PENDING / NOT YET CONFIRMED (do not present as finalized):\n" + (pendingDetails || "No additional details were provided") +
           "\nDO NOT SAY / DO NOT ASSUME:\n" + (editorialBoundaries || "Anything unsupported by confirmed facts")
@@ -252,7 +267,7 @@ Deno.serve(async (req: Request) => {
     let briefDeduplicated = false;
     const normalizedInitial = deduplicateNewsBrief(draft,format);
     if(normalizedInitial.changed){draft=normalizedInitial.draft;briefDeduplicated=true}
-    const originalWarnings = editorialChecks(draft, confirmedFacts, format, verifiedBackground);
+    const originalWarnings = editorialChecks(draft, fullFacts, format, checkedBackground);
     if (originalWarnings.length) {
       try {
         const repairResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -266,7 +281,7 @@ Deno.serve(async (req: Request) => {
               { role: "system", content:
                 "You are a rigorous H.A.G. newsroom copy editor. Rewrite the supplied DRAFT into concise, factual, high-quality news using ONLY VERIFIED_FACTS. If verified history establishes a long-standing event RETURN, it is the headline or deck angle; never bury it. Never write that H.A.G. announced anything when notes only say future details will be announced. Do not ask which venue is secured if it is marked TBD. Do not turn editorial angles or pending items into facts. Remove every flagged phrase and unsupported claim entirely, do not replace them with speculation. Respect the exact official names. Keep a NEWS BRIEF to 1–2 substantive paragraphs and maximum 115 body words, with no generic filler, invented announcements or repetitive headline/summary/lead. Historical details may be included only when listed in VERIFIED_FACTS. Return only the structured JSON schema. Keep useful follow-up reporting questions." },
               { role: "user", content: JSON.stringify({
-                VERIFIED_FACTS: confirmedFacts,
+                VERIFIED_FACTS: fullFacts,
                 STORY_ANGLE_NOT_FACT: storyAngle,
                 PENDING_NOT_CONFIRMED: pendingDetails,
                 DO_NOT_SAY: editorialBoundaries,
@@ -300,7 +315,7 @@ Deno.serve(async (req: Request) => {
       summary: draft.summary.slice(0, 1200),
       body: draft.body.slice(0, 8).map((p: string) => p.slice(0, 3000))
     };
-    const qualityWarnings = editorialChecks(trimmedDraft, confirmedFacts, format, verifiedBackground);
+    const qualityWarnings = editorialChecks(trimmedDraft, fullFacts, format, checkedBackground);
     const allQuestions = Array.isArray(draft.follow_up_questions) ?
       draft.follow_up_questions.filter((q: unknown) => typeof q === "string")
         .map((q: string) => q.slice(0, 220)) : [];

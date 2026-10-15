@@ -53,7 +53,7 @@
 <label class="field">Do not say or imply (optional)
 <textarea name="editorialBoundaries" maxlength="1000" rows="3" placeholder="Example: Do not call it a basketball bash, do not invent sponsors or quotes, do not say an unconfirmed venue is finalized."></textarea></label>
 </div>
-<p class="ai-note">Tip: Distinguish verified facts from unknowns. Use these fields to keep drafts factual, avoid invented event names, and get useful reporting questions instead of generic filler.</p>
+<p class="ai-note">Tip: The AI now checks for duplicate summary/body copy and attempts to remove it before showing a brief. Put historical facts in Verified history, not just Why this story matters. New facts—not extra adjectives—make an article newsworthy.</p>
 <div class="ai-fields">
 <label class="field">News category<select name="category"><option>Events</option><option>Programs</option><option>Community</option><option>Enforcers</option></select></label>
 <label class="field">Writing style<select name="tone"><option>Professional</option><option>Community-focused</option><option>Energetic</option><option>Press release</option></select></label>
@@ -89,7 +89,7 @@ Do not change the RP ID after registration. Supabase currently marks passkeys ex
 <p class="muted">Passkeys still require verified H.A.G. staff permissions.</p>
 <p class="muted">The email sign-in link remains a backup. On your personal device you should stay signed in unless you sign out, clear site data, or your session expires. For shared devices, sign out when finished.</p></section>
 <section class="card"><h2>AI assistant activation</h2>
-<p>The AI drafting backend now uses GroqCloud GPT-OSS 20B with verified staff access and a 20-draft daily limit. A Groq free-plan API key is needed before it can generate articles.</p>
+<p>The AI drafting backend now uses GroqCloud GPT-OSS 120B with verified staff access and a 20-draft daily limit. A Groq free-plan API key is needed before it can generate articles.</p>
 <p class="muted">In your <a href="https://supabase.com/dashboard/project/ouynjmqzabrvlddxjbtt" target="_blank" rel="noopener noreferrer">H.A.G. Supabase project</a>, choose <strong>Edge Functions → Secrets</strong> and add a secret named <code>GROQ_API_KEY</code> with a key from your <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">GroqCloud account</a>. Keys must only be saved in Supabase Secrets—not in this website, in your article notes, in GitHub, or in chat.</p>
 <p class="muted">GroqCloud Free Plan usage is free within its rate limits. Check your Groq plan before enabling paid billing. The AI assistant can create drafts but cannot approve or publish them.</p>
 </section></div></section>

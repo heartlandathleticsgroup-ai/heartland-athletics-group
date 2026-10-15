@@ -21,27 +21,27 @@ function editorialChecks(draft: {title: string, summary: string, body: string[]}
   const text = [draft.title, draft.summary, ...draft.body].join(" ");
   const grounded = confirmed.toLowerCase();
   const unsupported = [
-    [/\\bbasketball bash\\b/i, "Invented or unofficial event nickname: basketball bash"],
-    [/\\bfostering camaraderie\\b/i, "Generic promotional filler rather than a reported fact"],
-    [/\\blaying the groundwork\\b/i, "Generic filler: laying the groundwork"],
-    [/\\bfriendly rivalry\\b/i, "Unsupported promotional description: friendly rivalry"],
-    [/\\bspirited competition\\b/i, "Generic promotional language: spirited competition"],
-    [/\\bcommunity.centric\\b/i, "Generic marketing phrase: community-centric"],
-    [/\\bfamily.friendly atmosphere\\b/i, "Unsupported atmosphere claim"],
-    [/\\bcontinues? (?:its|H\\.A\\.G\\.'s) commitment\\b/i, "Unsubstantiated organizational commitment claim"],
-    [/\\b(?:has not released|have not been disclosed|no other operational details|ticketing details|ticketing or registration processes)\\b/i, "Unsupported claim about missing information or ticketing"],
-    [/\\b(?:has announced|announces|is excited to announce)\\b/i, "Unverified announcement claim"],
-    [/\\b(?:arrangements are finalized|once arrangements are finalized)\\b/i, "Implies unverified arrangements or timelines"]
+    [/\bbasketball bash\b/i, "Invented or unofficial event nickname: basketball bash"],
+    [/\bfostering camaraderie\b/i, "Generic promotional filler rather than a reported fact"],
+    [/\blaying the groundwork\b/i, "Generic filler: laying the groundwork"],
+    [/\bfriendly rivalry\b/i, "Unsupported promotional description: friendly rivalry"],
+    [/\bspirited competition\b/i, "Generic promotional language: spirited competition"],
+    [/\bcommunity.centric\b/i, "Generic marketing phrase: community-centric"],
+    [/\bfamily.friendly atmosphere\b/i, "Unsupported atmosphere claim"],
+    [/\bcontinues? (?:its|H\.A\.G\.'s) commitment\b/i, "Unsubstantiated organizational commitment claim"],
+    [/\b(?:has not released|have not been disclosed|no other operational details|ticketing details|ticketing or registration processes)\b/i, "Unsupported claim about missing information or ticketing"],
+    [/\b(?:has announced|announces|is excited to announce)\b/i, "Unverified announcement claim"],
+    [/\b(?:arrangements are finalized|once arrangements are finalized)\b/i, "Implies unverified arrangements or timelines"]
   ] as const;
   for (const [pattern, warning] of unsupported) {
     const found = text.match(pattern);
     if (found && !grounded.includes(found[0].toLowerCase())) warnings.push(warning);
   }
-  const wordCount = draft.body.join(" ").trim().split(/\\s+/).filter(Boolean).length;
+  const wordCount = draft.body.join(" ").trim().split(/\s+/).filter(Boolean).length;
   if (format === "brief" && draft.body.length > 2) warnings.push("News brief contains more than two paragraphs. Condense it.");
   if (format === "brief" && wordCount > 125) warnings.push("News brief is too long for the supplied facts; reduce to 115 words or less.");
   if (draft.body.some(p => p.length < 15)) warnings.push("An article paragraph is unusually short; check for fragmented writing.");
-  const normalized = (value:string) => value.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\\s+/).filter(w=>w.length>3);
+  const normalized = (value:string) => value.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter(w=>w.length>3);
   const deck = normalized(draft.summary), lead=normalized(draft.body[0]||"");
   if (deck.length && lead.length) {
     const leadSet = new Set(lead);

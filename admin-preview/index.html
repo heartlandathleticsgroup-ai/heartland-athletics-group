@@ -140,6 +140,35 @@
 <label style="display:flex;gap:9px;align-items:flex-start;font-size:13px"><input type="checkbox" name="registration_verified" style="width:18px;height:18px;flex:none;margin-top:3px">
 <span>I personally verified that this link is the official, currently open registration destination for this event.</span></label>
 </div><div class="actions"><button class="primary" type="submit">Save event draft</button><button id="eventClear" type="button">Clear</button></div></form><div id="eventActions" class="actions"></div></section><section class="card"><h2>Event queue</h2><div id="eventList"></div></section></div></div>
+<div id="updatesPanel" class="view hidden">
+<div class="notice"><strong>In-app announcements.</strong> These appear inside the public H.A.G. app only after you publish them. They do not send push notifications, emails or text messages.</div>
+<div class="two">
+<section class="card">
+<h2>Create an app update</h2>
+<form id="hagUpdateForm">
+<input type="hidden" name="id">
+<label class="field">Headline<input name="title" minlength="5" maxlength="140" required placeholder="New information for H.A.G. families"></label>
+<label class="field">Message<textarea name="message" minlength="12" maxlength="1200" required placeholder="Give visitors one verified update, including any important next steps."></textarea></label>
+<div class="grid">
+<label class="field">Audience/topic<select name="topic">
+<option value="major">Major H.A.G. announcements</option><option value="community">Community events</option>
+<option value="clinics">Camps & clinics</option><option value="enforcers">Heartland Enforcers</option>
+<option value="macker">Gus Macker Quincy</option></select></label>
+<label class="field">Open which app area?<select name="app_section">
+<option value="events">Events</option><option value="news">News</option><option value="programs">Programs</option>
+<option value="home">Home</option><option value="more">More / Connect</option></select></label>
+</div>
+<button type="submit" class="primary">Save announcement draft</button>
+<button type="button" id="hagUpdateReset">New announcement</button>
+</form>
+<div id="hagUpdateActions" class="actions"></div>
+<p class="muted">Published updates cannot be edited in place. Archive an outdated update and publish a corrected draft instead.</p>
+</section>
+<section class="card">
+<h2>Announcements queue</h2><p class="muted">Drafts and scheduled updates are visible to staff only. Public readers see published items after the release time.</p>
+<div id="hagUpdateList"></div>
+</section>
+</div></div>
 <div id="interestPanel" class="view hidden">
 <div class="notice"><strong>Private Interest Inbox.</strong> Requests are inquiries from adults—not tournament registrations, paid entries, or automatically subscribed contacts. H.A.G. must follow up manually. Never share this list publicly.</div>
 <section class="card"><h2>Registration and program interest</h2>
@@ -178,7 +207,7 @@ Do not change the RP ID after registration. Supabase currently marks passkeys ex
 const config={url:'https://ouynjmqzabrvlddxjbtt.supabase.co',key:'sb_publishable_jjhyrlgShQS4setHH4cDVA_vdwWTP61'};
 const client=window.supabase?.createClient(config.url,config.key,{auth:{flowType:'implicit',detectSessionInUrl:true,autoRefreshToken:true,persistSession:true,experimental:{passkey:true}}});
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let currentUser=null,role=null,articleRows=[],eventRows=[],spotlightRows=[],submissions=[],factRows=[],interestRows=[],currentTab='articles',currentArticle=null,currentEvent=null;
+let currentUser=null,role=null,articleRows=[],eventRows=[],spotlightRows=[],submissions=[],factRows=[],interestRows=[],updateRows=[],currentTab='articles',currentArticle=null,currentEvent=null;
 function message(m,err=false){$('message').innerHTML='<div class="notice '+(err?'error':'')+'">'+esc(m)+'</div>';setTimeout(()=>$('message').replaceChildren(),8500)}
 function datePlus(d){const [y,m,day]=d.split('-').map(Number);const dt=new Date(Date.UTC(y,m-1,day+1));return dt.toISOString().slice(0,10)}
 function dateMinus(d){const [y,m,day]=d.split('-').map(Number);return new Date(Date.UTC(y,m-1,day-1)).toISOString().slice(0,10)}
@@ -188,8 +217,8 @@ async function signOut(){await client.auth.signOut();currentUser=null;role=null;
 function showAuth(){$('authPanel').classList.remove('hidden');$('appPanel').classList.add('hidden');$('signout').classList.add('hidden')}
 function showApp(){$('authPanel').classList.add('hidden');$('appPanel').classList.remove('hidden');$('signout').classList.remove('hidden');$('staffDetails').textContent='Signed in as '+currentUser.email+' · '+role+' · staff access verified.'; tabs();}
 async function checkAccess(){if(!client){message('Unable to load the Supabase client. Please try again.',true);return}const s=firstErr(await client.auth.getUser());const u=s.user;if(!u){currentUser=null;showAuth();return}currentUser=u;const p=firstErr(await client.from('hag_staff').select('role,active').eq('user_id',u.id).maybeSingle());if(!p||!p.active||!['admin','editor'].includes(p.role)){await client.auth.signOut();currentUser=null;showAuth();message('This account is not yet authorized for H.A.G. editorial access.',true);return}role=p.role;showApp();await refresh();}
-function tabs(){const names={articles:'News',facts:'Fact Library',events:'Events',spotlights:'Player spotlights',interest:'Interest Inbox',settings:'Settings'};$('tabs').innerHTML=Object.entries(names).map(([k,v])=>'<button data-tab="'+k+'" class="'+(currentTab===k?'on':'')+'">'+v+'</button>').join('');$('tabs').querySelectorAll('button').forEach(btn=>btn.onclick=()=>{currentTab=btn.dataset.tab;tabs();document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));$(currentTab+'Panel').classList.remove('hidden')})}
-async function refresh(){try{articleRows=firstErr(await client.from('hag_articles').select('*').order('created_at',{ascending:false}));factRows=firstErr(await client.from('hag_editorial_facts').select('*').order('created_at',{ascending:false}));eventRows=firstErr(await client.from('hag_events').select('*').order('created_at',{ascending:false}));interestRows=firstErr(await client.from('hag_interest_requests').select('id,topic,contact_name,contact_email,notes,status,created_at').order('created_at',{ascending:false}).limit(200));submissions=firstErr(await client.from('hag_spotlight_submissions').select('id,athlete_name,team_name,sport,review_state,received_at').order('received_at',{ascending:false}));spotlightRows=firstErr(await client.from('hag_spotlights').select('*').order('published_at',{ascending:false}));renderLists();renderFacts();renderInterestInbox();}catch(e){message(e.message||'Failed to load data',true)}}
+function tabs(){const names={articles:'News',facts:'Fact Library',events:'Events',spotlights:'Player spotlights',interest:'Interest Inbox',updates:'App Updates',settings:'Settings'};$('tabs').innerHTML=Object.entries(names).map(([k,v])=>'<button data-tab="'+k+'" class="'+(currentTab===k?'on':'')+'">'+v+'</button>').join('');$('tabs').querySelectorAll('button').forEach(btn=>btn.onclick=()=>{currentTab=btn.dataset.tab;tabs();document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));$(currentTab+'Panel').classList.remove('hidden')})}
+async function refresh(){try{articleRows=firstErr(await client.from('hag_articles').select('*').order('created_at',{ascending:false}));factRows=firstErr(await client.from('hag_editorial_facts').select('*').order('created_at',{ascending:false}));eventRows=firstErr(await client.from('hag_events').select('*').order('created_at',{ascending:false}));interestRows=firstErr(await client.from('hag_interest_requests').select('id,topic,contact_name,contact_email,notes,status,created_at').order('created_at',{ascending:false}).limit(200));updateRows=firstErr(await client.from('hag_app_updates').select('*').order('created_at',{ascending:false}).limit(150));submissions=firstErr(await client.from('hag_spotlight_submissions').select('id,athlete_name,team_name,sport,review_state,received_at').order('received_at',{ascending:false}));spotlightRows=firstErr(await client.from('hag_spotlights').select('*').order('published_at',{ascending:false}));renderLists();renderFacts();renderInterestInbox();renderAppUpdates();}catch(e){message(e.message||'Failed to load data',true)}}
 function renderLists(){
  $('articleList').innerHTML=articleRows.length?articleRows.map(x=>'<div class="row"><div><h3>'+esc(x.title)+'</h3><span class="pill">'+esc(x.status)+'</span><div class="meta">'+esc(x.category)+'</div></div><div class="right"><button data-editarticle="'+x.id+'">Edit</button></div></div>').join(''):'<div class="empty">No articles created yet.</div>';
  document.querySelectorAll('[data-editarticle]').forEach(b=>b.onclick=()=>editArticle(b.dataset.editarticle));
@@ -201,6 +230,88 @@ function renderLists(){
 
 
 const interestTopicLabels={'gus-macker-2027':'Gus Macker Quincy 2027','enforcers':'Heartland Enforcers','camps':'Camps & clinics','other-events':'Other H.A.G. events'};
+
+const hagUpdateTopics={major:'Major H.A.G.',community:'Community events',clinics:'Camps & clinics',enforcers:'Heartland Enforcers',macker:'Gus Macker'};
+function renderAppUpdates(){
+  const container=$('hagUpdateList');
+  container.innerHTML=updateRows.length?updateRows.map(row=>{
+    const schedule=row.status==='published'&&row.published_at?
+      (new Date(row.published_at)>new Date()?'Scheduled for ':'Published ')+
+      new Date(row.published_at).toLocaleString('en-US',{timeZone:'America/Chicago',dateStyle:'medium',timeStyle:'short'})+' Central':'';
+    return '<div class="row"><div><strong>'+esc(row.title)+'</strong><span class="pill">'+esc(row.status)+'</span>'+
+      '<div class="meta">'+esc(hagUpdateTopics[row.topic]||row.topic)+' · '+esc(schedule)+'</div>'+
+      '<p>'+esc(row.message)+'</p></div><div class="right">'+
+      '<button type="button" data-editupdate="'+esc(row.id)+'">View</button></div></div>';
+  }).join(''):'<div class="empty">No app updates yet. Save an announcement draft to begin.</div>';
+  container.querySelectorAll('[data-editupdate]').forEach(b=>b.onclick=()=>openHagUpdate(b.dataset.editupdate));
+}
+function clearHagUpdate(){
+  $('hagUpdateForm').reset();
+  $('hagUpdateForm').elements.id.value='';
+  [...$('hagUpdateForm').querySelectorAll('input,select,textarea,button')].forEach(el=>el.disabled=false);
+  $('hagUpdateActions').replaceChildren();
+}
+function openHagUpdate(id){
+ const x=updateRows.find(y=>y.id===id);if(!x)return;
+ const form=$('hagUpdateForm');
+ for(const name of ['id','title','message','topic','app_section'])form.elements[name].value=x[name]||'';
+ form.querySelectorAll('input,select,textarea,button[type=submit]').forEach(el=>el.disabled=x.status!=='draft'||(role!=='admin'&&x.created_by!==currentUser.id));
+ const buttons=[];
+ if(role==='admin'&&x.status==='draft'){
+   buttons.push('<button class="primary" id="hagPublishUpdate" type="button">Publish now</button>');
+   buttons.push('<button type="button" id="hagScheduleUpdate">Schedule (Chicago time)</button>');
+ }
+ if(role==='admin'&&x.status==='published')buttons.push('<button id="hagArchiveUpdate" type="button">Archive / remove from app</button>');
+ $('hagUpdateActions').innerHTML=buttons.join('');
+ const publish=$('hagPublishUpdate');
+ if(publish)publish.onclick=()=>publishHagUpdate(x.id,null);
+ const schedule=$('hagScheduleUpdate');
+ if(schedule)schedule.onclick=()=>{
+  const local=prompt('Schedule this update in Chicago/Central time: YYYY-MM-DD HH:MM (24-hour clock)');
+  if(!local)return;
+  if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}$/.test(local)){
+   message('Use YYYY-MM-DD HH:MM in Chicago time.',true);return;
+  }
+  void publishHagUpdate(x.id,local);
+ };
+ const archive=$('hagArchiveUpdate');
+ if(archive)archive.onclick=async()=>{
+   if(!confirm('Remove this announcement from public in-app updates?'))return;
+   try{firstErr(await client.from('hag_app_updates').update({status:'archived',updated_at:new Date().toISOString()}).eq('id',x.id).select('id').single());
+     message('Update archived and no longer shown publicly.');clearHagUpdate();await refresh();
+   }catch(error){message(error.message,true)}
+ };
+}
+async function publishHagUpdate(id,localTime){
+ if(!confirm(localTime?'Schedule this verified announcement for '+localTime+' Chicago time?':'Publish this verified announcement to the H.A.G. app now?'))return;
+ try{
+  firstErr(await client.rpc('hag_publish_app_update',{update_id:id,local_chicago_time:localTime}));
+  message(localTime?'Announcement scheduled (Chicago time).':'Announcement published in-app. No push or email was sent.');
+  clearHagUpdate();await refresh();
+ }catch(error){message(error.message,true)}
+}
+$('hagUpdateReset').onclick=clearHagUpdate;
+$('hagUpdateForm').onsubmit=async event=>{
+ event.preventDefault();
+ const form=event.currentTarget,id=form.elements.id.value;
+ const item={title:form.elements.title.value.trim(),message:form.elements.message.value.trim(),
+   topic:form.elements.topic.value,app_section:form.elements.app_section.value,updated_at:new Date().toISOString()};
+ if(item.title.length<5||item.message.length<12){message('Add a specific headline and message.',true);return}
+ try{
+  if(id){
+   const row=updateRows.find(x=>x.id===id);
+   if(!row||row.status!=='draft')throw Error('Only drafts can be edited.');
+   firstErr(await client.from('hag_app_updates').update(item).eq('id',id).select('id').single());
+  }else{
+   item.created_by=currentUser.id;
+   item.status='draft';
+   firstErr(await client.from('hag_app_updates').insert(item).select('id').single());
+  }
+  message('Announcement saved as a private draft. Publish it when verified.');
+  clearHagUpdate();await refresh();
+ }catch(error){message(error.message,true)}
+};
+
 function renderInterestInbox(){
  const filter=$('interestStatusFilter').value;
  const records=interestRows.filter(x=>filter==='all'||x.status===filter);

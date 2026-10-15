@@ -16,7 +16,7 @@ const respond = (body: unknown, status: number, origin: string) => new Response(
 );
 const tones = new Set(["Professional", "Community-focused", "Energetic", "Press release"]);
 const categories = new Set(["Events", "Programs", "Community", "Enforcers"]);
-function editorialChecks(draft: {title: string, summary: string, body: string[]}, confirmed: string, format: string): string[] {
+function editorialChecks(draft: {title: string, summary: string, body: string[]}, confirmed: string, format: string, verifiedBackground: string = ""): string[] {
   const warnings: string[] = [];
   const text = [draft.title, draft.summary, ...draft.body].join(" ");
   const grounded = confirmed.toLowerCase();
@@ -30,12 +30,23 @@ function editorialChecks(draft: {title: string, summary: string, body: string[]}
     [/\bfamily.friendly atmosphere\b/i, "Unsupported atmosphere claim"],
     [/\bcontinues? (?:its|H\.A\.G\.'s) commitment\b/i, "Unsubstantiated organizational commitment claim"],
     [/\b(?:has not released|have not been disclosed|no other operational details|ticketing details|ticketing or registration processes)\b/i, "Unsupported claim about missing information or ticketing"],
-    [/\b(?:has announced|announces|is excited to announce)\b/i, "Unverified announcement claim"],
     [/\b(?:arrangements are finalized|once arrangements are finalized)\b/i, "Implies unverified arrangements or timelines"]
   ] as const;
   for (const [pattern, warning] of unsupported) {
     const found = text.match(pattern);
     if (found && !grounded.includes(found[0].toLowerCase())) warnings.push(warning);
+  }
+  // A future "will be announced" is NOT evidence that a public announcement has already occurred.
+  const pastAnnouncement = /\b(?:(?:has|had|was|were)\s+announced|announced\s+(?:that|the|its|a|plans|an)\b|announces\s+(?:that|the|its|a|plans|an)\b|is excited to announce)\b/i.test(text);
+  const announcementConfirmed = /\b(?:has (?:publicly |officially )?announced|publicly announced|officially announced|made a public announcement|announcement was made)\b/i.test(confirmed);
+  if (pastAnnouncement && !announcementConfirmed) {
+    warnings.push("Unverified claim that an announcement has already been made.");
+  }
+  // When a verified historical return is the actual story, it belongs in the headline or deck.
+  const historicReturn = /\b(?:\d{1,3}[-\s]+years?|tradition|returned?|reviv(?:es|al|ed)|depart(?:ed|ure)|ended\s+in\s+20\d{2})\b/i.test(verifiedBackground);
+  const front = draft.title + " " + draft.summary;
+  if (historicReturn && !/\b(?:return(?:ing|s|ed)?|back|reviv(?:al|ed|es)|tradition|history|legacy|\d{1,3}[-\s]+years?)\b/i.test(front)) {
+    warnings.push("Verified historical significance is buried; lead with the return or tradition in the headline or summary.");
   }
   const wordCount = draft.body.join(" ").trim().split(/\s+/).filter(Boolean).length;
   if (format === "brief" && draft.body.length > 2) warnings.push("News brief contains more than two paragraphs. Condense it.");
@@ -190,6 +201,10 @@ Deno.serve(async (req: Request) => {
           "The provided notes are your ONLY factual source. You have NO automatic access to H.A.G. sponsor records, news, history, confirmations, previous conversations, events, or the web. Never imply you know information you have not been given.",
           "Respect three types of input separately: CONFIRMED FACTS may support claims; PENDING/UNKNOWN DETAILS are context for cautious omission, not facts to imply finalized; DO NOT INCLUDE boundaries are hard prohibitions.",
           "A requested STORY ANGLE describes the desired framing, not evidence. If an angle is not supported by confirmed facts, do not assert it. Instead use the most concrete verifiable news fact.",
+          "If verified historical background establishes that the event is returning after a decades-long run or absence, put that compelling return/tradition angle in the HEADLINE or DECK. Do not bury the historical significance in the last sentence.",
+          "Never say the organizer announced, confirmed publicly, or issued a statement unless the confirmed facts explicitly establish a prior public announcement. The words 'additional details will be announced' do not establish that an announcement was already made.",
+          "If the venue is marked pending or TBD, do not ask what venue has been secured; ask useful reporting questions about the significance, participant expectations or a permission-cleared organizer perspective.",
+
           "HARD FACT CHECK: No invented nicknames, branding, event subtitles, slogans, quotations, history, sponsors, dates, venues, basketball format, participant ages, benefits, promises, or definitive statements about pending arrangements.",
           "Use the exact official event and organization names in the supplied notes. Never attach invented descriptors such as 'Bash', 'Spectacular', 'Festival', 'celebration', or 'family-friendly' unless explicitly supported.",
           "No guarantees about what the event will deliver. Plans and goals may be attributed to H.A.G. only when the notes explicitly describe them.",
@@ -237,7 +252,7 @@ Deno.serve(async (req: Request) => {
     let briefDeduplicated = false;
     const normalizedInitial = deduplicateNewsBrief(draft,format);
     if(normalizedInitial.changed){draft=normalizedInitial.draft;briefDeduplicated=true}
-    const originalWarnings = editorialChecks(draft, confirmedFacts, format);
+    const originalWarnings = editorialChecks(draft, confirmedFacts, format, verifiedBackground);
     if (originalWarnings.length) {
       try {
         const repairResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -249,7 +264,7 @@ Deno.serve(async (req: Request) => {
             reasoning_effort: "medium",
             messages: [
               { role: "system", content:
-                "You are a rigorous H.A.G. newsroom copy editor. Rewrite the supplied DRAFT into concise, factual, high-quality news using ONLY VERIFIED_FACTS. Do not turn editorial angles or pending items into facts. Remove every flagged phrase and unsupported claim entirely, do not replace them with speculation. Respect the exact official names. Keep a NEWS BRIEF to 1–2 substantive paragraphs and maximum 115 body words, with no generic filler, invented announcements or repetitive headline/summary/lead. Historical details may be included only when listed in VERIFIED_FACTS. Return only the structured JSON schema. Keep useful follow-up reporting questions." },
+                "You are a rigorous H.A.G. newsroom copy editor. Rewrite the supplied DRAFT into concise, factual, high-quality news using ONLY VERIFIED_FACTS. If verified history establishes a long-standing event RETURN, it is the headline or deck angle; never bury it. Never write that H.A.G. announced anything when notes only say future details will be announced. Do not ask which venue is secured if it is marked TBD. Do not turn editorial angles or pending items into facts. Remove every flagged phrase and unsupported claim entirely, do not replace them with speculation. Respect the exact official names. Keep a NEWS BRIEF to 1–2 substantive paragraphs and maximum 115 body words, with no generic filler, invented announcements or repetitive headline/summary/lead. Historical details may be included only when listed in VERIFIED_FACTS. Return only the structured JSON schema. Keep useful follow-up reporting questions." },
               { role: "user", content: JSON.stringify({
                 VERIFIED_FACTS: confirmedFacts,
                 STORY_ANGLE_NOT_FACT: storyAngle,
@@ -285,10 +300,17 @@ Deno.serve(async (req: Request) => {
       summary: draft.summary.slice(0, 1200),
       body: draft.body.slice(0, 8).map((p: string) => p.slice(0, 3000))
     };
-    const qualityWarnings = editorialChecks(trimmedDraft, confirmedFacts, format);
-    const reportingQuestions = Array.isArray(draft.follow_up_questions) ?
+    const qualityWarnings = editorialChecks(trimmedDraft, confirmedFacts, format, verifiedBackground);
+    const allQuestions = Array.isArray(draft.follow_up_questions) ?
       draft.follow_up_questions.filter((q: unknown) => typeof q === "string")
-        .slice(0, 3).map((q: string) => q.slice(0, 220)) : [];
+        .map((q: string) => q.slice(0, 220)) : [];
+    // Questions must not assume a fact that editors explicitly marked unconfirmed.
+    const venuePending = /\b(?:venue|location|site)\b/i.test(pendingDetails) &&
+      /\b(?:tbd|unknown|unconfirmed|not yet|pending|to be determined)\b/i.test(pendingDetails);
+    const reportingQuestions = allQuestions.filter((q: string) =>
+      !(venuePending && /\b(?:venue|location|site)\b/i.test(q) &&
+        /\b(?:secured|confirmed|chosen|selected|finalized|booked|locked in)\b/i.test(q))
+    ).slice(0, 3);
     return respond({ draft: { ...trimmedDraft, reporting_questions: reportingQuestions },
       format, quality_warnings: qualityWarnings, ready_for_editor: qualityWarnings.length === 0, automatically_revised: revisionPerformed, brief_deduplicated: briefDeduplicated,
       notice: "AI-created draft only; editorial checks flag common problems but cannot prove every claim. Verify facts, quotes, event terminology and guardian permissions." }, 200, origin);

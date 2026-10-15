@@ -154,7 +154,7 @@ Do not change the RP ID after registration. Supabase currently marks passkeys ex
 const config={url:'https://ouynjmqzabrvlddxjbtt.supabase.co',key:'sb_publishable_jjhyrlgShQS4setHH4cDVA_vdwWTP61'};
 const client=window.supabase?.createClient(config.url,config.key,{auth:{flowType:'implicit',detectSessionInUrl:true,autoRefreshToken:true,persistSession:true,experimental:{passkey:true}}});
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let currentUser=null,role=null,articleRows=[],eventRows=[],spotlightRows=[],submissions=[],currentTab='articles',currentArticle=null,currentEvent=null;
+let currentUser=null,role=null,articleRows=[],eventRows=[],spotlightRows=[],submissions=[],factRows=[],currentTab='articles',currentArticle=null,currentEvent=null;
 function message(m,err=false){$('message').innerHTML='<div class="notice '+(err?'error':'')+'">'+esc(m)+'</div>';setTimeout(()=>$('message').replaceChildren(),8500)}
 function datePlus(d){const [y,m,day]=d.split('-').map(Number);const dt=new Date(Date.UTC(y,m-1,day+1));return dt.toISOString().slice(0,10)}
 function dateMinus(d){const [y,m,day]=d.split('-').map(Number);return new Date(Date.UTC(y,m-1,day-1)).toISOString().slice(0,10)}
@@ -164,8 +164,8 @@ async function signOut(){await client.auth.signOut();currentUser=null;role=null;
 function showAuth(){$('authPanel').classList.remove('hidden');$('appPanel').classList.add('hidden');$('signout').classList.add('hidden')}
 function showApp(){$('authPanel').classList.add('hidden');$('appPanel').classList.remove('hidden');$('signout').classList.remove('hidden');$('staffDetails').textContent='Signed in as '+currentUser.email+' · '+role+' · staff access verified.'; tabs();}
 async function checkAccess(){if(!client){message('Unable to load the Supabase client. Please try again.',true);return}const s=firstErr(await client.auth.getUser());const u=s.user;if(!u){currentUser=null;showAuth();return}currentUser=u;const p=firstErr(await client.from('hag_staff').select('role,active').eq('user_id',u.id).maybeSingle());if(!p||!p.active||!['admin','editor'].includes(p.role)){await client.auth.signOut();currentUser=null;showAuth();message('This account is not yet authorized for H.A.G. editorial access.',true);return}role=p.role;showApp();await refresh();}
-function tabs(){const names={articles:'News',events:'Events',spotlights:'Player spotlights',settings:'Settings'};$('tabs').innerHTML=Object.entries(names).map(([k,v])=>'<button data-tab="'+k+'" class="'+(currentTab===k?'on':'')+'">'+v+'</button>').join('');$('tabs').querySelectorAll('button').forEach(btn=>btn.onclick=()=>{currentTab=btn.dataset.tab;tabs();document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));$(currentTab+'Panel').classList.remove('hidden')})}
-async function refresh(){try{articleRows=firstErr(await client.from('hag_articles').select('*').order('created_at',{ascending:false}));eventRows=firstErr(await client.from('hag_events').select('*').order('created_at',{ascending:false}));submissions=firstErr(await client.from('hag_spotlight_submissions').select('id,athlete_name,team_name,sport,review_state,received_at').order('received_at',{ascending:false}));spotlightRows=firstErr(await client.from('hag_spotlights').select('*').order('published_at',{ascending:false}));renderLists();}catch(e){message(e.message||'Failed to load data',true)}}
+function tabs(){const names={articles:'News',facts:'Fact Library',events:'Events',spotlights:'Player spotlights',settings:'Settings'};$('tabs').innerHTML=Object.entries(names).map(([k,v])=>'<button data-tab="'+k+'" class="'+(currentTab===k?'on':'')+'">'+v+'</button>').join('');$('tabs').querySelectorAll('button').forEach(btn=>btn.onclick=()=>{currentTab=btn.dataset.tab;tabs();document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));$(currentTab+'Panel').classList.remove('hidden')})}
+async function refresh(){try{articleRows=firstErr(await client.from('hag_articles').select('*').order('created_at',{ascending:false}));factRows=firstErr(await client.from('hag_editorial_facts').select('*').order('created_at',{ascending:false}));eventRows=firstErr(await client.from('hag_events').select('*').order('created_at',{ascending:false}));submissions=firstErr(await client.from('hag_spotlight_submissions').select('id,athlete_name,team_name,sport,review_state,received_at').order('received_at',{ascending:false}));spotlightRows=firstErr(await client.from('hag_spotlights').select('*').order('published_at',{ascending:false}));renderLists();renderFacts();}catch(e){message(e.message||'Failed to load data',true)}}
 function renderLists(){
  $('articleList').innerHTML=articleRows.length?articleRows.map(x=>'<div class="row"><div><h3>'+esc(x.title)+'</h3><span class="pill">'+esc(x.status)+'</span><div class="meta">'+esc(x.category)+'</div></div><div class="right"><button data-editarticle="'+x.id+'">Edit</button></div></div>').join(''):'<div class="empty">No articles created yet.</div>';
  document.querySelectorAll('[data-editarticle]').forEach(b=>b.onclick=()=>editArticle(b.dataset.editarticle));
@@ -174,6 +174,87 @@ function renderLists(){
  $('submissionList').innerHTML=submissions.length?submissions.map(x=>'<div class="row"><div><h3>'+esc(x.athlete_name)+'</h3><div class="meta">'+esc(x.team_name)+' · '+esc(x.sport)+'</div></div><span class="pill">'+esc(x.review_state)+'</span></div>').join(''):'<div class="empty">No private spotlight submissions yet. Public intake is not enabled.</div>';
  const query=$('spotlightSearch').value.toLowerCase();const shown=spotlightRows.filter(x=>[x.athlete_name,x.team_name,x.sport].join(' ').toLowerCase().includes(query));$('spotlightList').innerHTML=shown.length?shown.map(x=>'<div class="row"><div><h3>'+esc(x.athlete_name)+'</h3><div class="meta">'+esc(x.team_name)+' · '+esc(x.sport)+'</div><span class="pill">'+esc(x.status)+'</span></div></div>').join(''):'<div class="empty">No matching spotlight stories.</div>';
 }
+
+function renderFacts(){
+  const filter=$('hagFactSearch').value.trim().toLowerCase();
+  const visible=factRows.filter(x=>(x.topic+' '+x.fact_text+' '+(x.source_note||'')).toLowerCase().includes(filter));
+  $('hagFactList').innerHTML=visible.length?visible.map(x=>
+    '<div class="row"><div><strong>'+esc(x.topic)+'</strong> <span class="pill">'+esc(x.status)+'</span>'+
+    '<div class="meta">'+esc(x.fact_text)+'</div>'+
+    '<div class="meta">'+(x.status==='approved'?'Verified for AI use':'Not available to AI')+'</div></div>'+
+    '<button type="button" data-editfact="'+esc(x.id)+'">Review</button></div>'
+  ).join(''):'<div class="empty">No fact entries found. Add one to begin.</div>';
+  $('hagFactList').querySelectorAll('[data-editfact]').forEach(b=>b.onclick=()=>editFact(b.dataset.editfact));
+  const existing=$('hagAiFactTopic').value;
+  const approved=factRows.filter(x=>x.status==='approved'&&x.public_use_approved);
+  const topics=[...new Set(approved.map(x=>x.topic))].sort();
+  $('hagAiFactTopic').innerHTML='<option value="">No Fact Library topic selected</option>'+
+    topics.map(x=>'<option value="'+esc(x)+'">'+esc(x)+' ('+approved.filter(y=>y.topic===x).length+' facts)</option>').join('');
+  if(topics.includes(existing))$('hagAiFactTopic').value=existing;
+  const list=$('hagFactTopics');const known=new Set(['Gus Macker Quincy 2027','Heartland Athletics Group','Heartland Enforcers',...factRows.map(x=>x.topic)]);
+  list.innerHTML=[...known].map(x=>'<option value="'+esc(x)+'"></option>').join('');
+}
+function clearFact(){
+  $('hagFactForm').reset();
+  $('hagFactForm').elements.id.value='';
+  $('hagFactHeading').textContent='Create a verified source entry';
+  $('hagFactActions').replaceChildren();
+}
+function editFact(id){
+  const x=factRows.find(f=>f.id===id);if(!x)return;
+  const form=$('hagFactForm');
+  for(const name of ['id','topic','fact_text','source_note'])form.elements[name].value=x[name]||'';
+  $('hagFactHeading').textContent='Review fact: '+x.topic;
+  const approved=x.status==='approved';
+  const canApprove=role==='admin'&&!approved;
+  const buttons=[];
+  if(canApprove)buttons.push('<button type="button" class="primary" id="hagApproveFact">Verify and approve for AI</button>');
+  if(role==='admin'&&x.status!=='archived')buttons.push('<button type="button" id="hagArchiveFact">Archive fact</button>');
+  $('hagFactActions').innerHTML=buttons.join('')+
+   '<p class="muted">'+(approved?'Approved for public-facing AI drafting. Editing its factual content invalidates approval until reverified.':'Draft facts are not sent to Groq. Verify evidence before approval.')+'</p>';
+  const approve=$('hagApproveFact');
+  if(approve)approve.onclick=async()=>{
+    if(!confirm('I have checked this statement against its source and approve public use in H.A.G. AI-generated News. Continue?'))return;
+    try{
+      firstErr(await client.from('hag_editorial_facts').update({
+       status:'approved',public_use_approved:true,verified_by:currentUser.id,
+       verified_at:new Date().toISOString()}).eq('id',x.id).select('id').single());
+      message('Fact approved for AI use.');await refresh();editFact(x.id);
+    }catch(e){message(e.message,true)}
+  };
+  const archive=$('hagArchiveFact');
+  if(archive)archive.onclick=async()=>{
+    if(!confirm('Archive this fact? The AI will stop using it.'))return;
+    try{
+      firstErr(await client.from('hag_editorial_facts').update({
+       status:'archived',public_use_approved:false,verified_by:null,verified_at:null
+      }).eq('id',x.id).select('id').single());
+      message('Fact archived.');clearFact();await refresh();
+    }catch(e){message(e.message,true)}
+  };
+}
+$('hagFactSearch').oninput=renderFacts;
+$('hagClearFact').onclick=clearFact;
+$('hagFactForm').onsubmit=async ev=>{
+  ev.preventDefault();const form=ev.target;
+  const id=form.elements.id.value;
+  const data={topic:form.elements.topic.value.trim(),fact_text:form.elements.fact_text.value.trim(),
+    source_note:form.elements.source_note.value.trim()||null,updated_at:new Date().toISOString()};
+  if(data.fact_text.length<12){message('Add a specific fact of at least 12 characters.',true);return}
+  try{
+    if(id){
+      const row=factRows.find(x=>x.id===id);
+      if(row?.status==='approved'&&!confirm('Editing an approved fact will invalidate its verification and return it to draft. Continue?'))return;
+      firstErr(await client.from('hag_editorial_facts').update(data).eq('id',id).select('id').single());
+    }else{
+      data.created_by=currentUser.id;data.status='draft';
+      firstErr(await client.from('hag_editorial_facts').insert(data).select('id').single());
+    }
+    message('Fact saved as draft. An administrator must approve it for AI use.');
+    clearFact();await refresh();
+  }catch(e){message(e.message,true)}
+};
+
 function editArticle(id){currentArticle=articleRows.find(x=>x.id===id);if(!currentArticle)return;const f=$('articleForm');for(const name of ['id','title','category','summary','art_label','tone'])f.elements[name].value=currentArticle[name]||'';f.elements.body.value=(currentArticle.body||[]).join('\n\n');$('articleHeading').textContent='Edit News: '+currentArticle.title;renderArticleActions();previewArticle()}
 function clearArticle(){currentArticle=null;$('articleForm').reset();$('articleForm').elements.id.value='';$('articleHeading').textContent='Write a News article';$('articleActions').replaceChildren();previewArticle()}
 function previewArticle(){let f=$('articleForm');$('articlePreview').textContent=(f.elements.title.value||'Headline')+'\n\n'+(f.elements.summary.value||'Summary')+'\n\n'+(f.elements.body.value||'Article text')}
@@ -239,7 +320,7 @@ $('aiWriter').onsubmit=async ev=>{
  $('aiResult').textContent='Preparing your draft. This can take a few moments.';
  try{
   const result=await client.functions.invoke('hag-draft-news',{body:{
-   points:points,category:form.elements.category.value,tone:form.elements.tone.value,format:form.elements.format.value,storyAngle:form.elements.storyAngle.value.trim(),audience:form.elements.audience.value.trim(),pendingDetails:form.elements.pendingDetails.value.trim(),editorialBoundaries:form.elements.editorialBoundaries.value.trim(),verifiedBackground:background,backgroundVerified:form.elements.backgroundVerified.checked
+   points:points,category:form.elements.category.value,tone:form.elements.tone.value,format:form.elements.format.value,factTopic:form.elements.factTopic.value,storyAngle:form.elements.storyAngle.value.trim(),audience:form.elements.audience.value.trim(),pendingDetails:form.elements.pendingDetails.value.trim(),editorialBoundaries:form.elements.editorialBoundaries.value.trim(),verifiedBackground:background,backgroundVerified:form.elements.backgroundVerified.checked
   }});
   if(result.error){
    let info=result.error.message||'Generation failed';

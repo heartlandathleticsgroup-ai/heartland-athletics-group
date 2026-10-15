@@ -38,7 +38,13 @@
 <label class="field">Who should read it? (optional)
 <input name="audience" maxlength="180" placeholder="Local athletes, families, sponsors…"></label>
 </div>
-<p class="ai-note">Tip: The strongest articles have a distinctive, verified detail or reason this matters—not just a date and an organization name. If the details are thin, the assistant will keep the article short and suggest what to confirm next.</p>
+<div class="ai-fields">
+<label class="field">Still pending / unconfirmed (optional)
+<textarea name="pendingDetails" maxlength="1000" rows="3" placeholder="Example: Exact venue has not been announced; team registration is not yet open."></textarea></label>
+<label class="field">Do not say or imply (optional)
+<textarea name="editorialBoundaries" maxlength="1000" rows="3" placeholder="Example: Do not call it a basketball bash, do not invent sponsors or quotes, do not say an unconfirmed venue is finalized."></textarea></label>
+</div>
+<p class="ai-note">Tip: Distinguish verified facts from unknowns. Use these fields to keep drafts factual, avoid invented event names, and get useful reporting questions instead of generic filler.</p>
 <div class="ai-fields">
 <label class="field">News category<select name="category"><option>Events</option><option>Programs</option><option>Community</option><option>Enforcers</option></select></label>
 <label class="field">Writing style<select name="tone"><option>Professional</option><option>Community-focused</option><option>Energetic</option><option>Press release</option></select></label>
@@ -147,7 +153,7 @@ $('aiWriter').onsubmit=async ev=>{
  $('aiResult').textContent='Preparing your draft. This can take a few moments.';
  try{
   const result=await client.functions.invoke('hag-draft-news',{body:{
-   points:points,category:form.elements.category.value,tone:form.elements.tone.value,storyAngle:form.elements.storyAngle.value.trim(),audience:form.elements.audience.value.trim()
+   points:points,category:form.elements.category.value,tone:form.elements.tone.value,storyAngle:form.elements.storyAngle.value.trim(),audience:form.elements.audience.value.trim(),pendingDetails:form.elements.pendingDetails.value.trim(),editorialBoundaries:form.elements.editorialBoundaries.value.trim()
   }});
   if(result.error){
    let info=result.error.message||'Generation failed';

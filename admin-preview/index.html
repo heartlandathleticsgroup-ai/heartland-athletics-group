@@ -1,14 +1,53 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>H.A.G. | Editorial Admin</title><meta name="robots" content="noindex,nofollow"><style>
 :root{--black:#0d0d0d;--gold:#f5b500;--blue:#0057ff;--line:#dfe3ed;--muted:#677083}*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:#f3f5fa;color:#141a24}header{background:var(--black);padding:18px max(20px,calc((100vw - 1140px)/2));border-bottom:4px solid var(--gold);display:flex;align-items:center;justify-content:space-between;gap:10px;color:#fff}header h1{font-size:22px;margin:0}header small{display:block;letter-spacing:.13em;color:var(--gold);font-size:10px;font-weight:800;margin-top:4px}header button{background:#1d2531;border:1px solid #4b5568;color:#fff}.wrap{max-width:1140px;margin:26px auto;padding:0 18px}h2{font-size:22px}p{line-height:1.55}button{cursor:pointer;border:0;border-radius:11px;padding:12px 17px;font-weight:800;font:inherit}button.primary{background:var(--gold);font-weight:900}button.blue{background:var(--blue);color:#fff;font-weight:800}button.danger{background:#ffe8e8;color:#a01c1c;font-weight:800}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--blue);outline-offset:2px}.card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:23px;margin-bottom:19px;box-shadow:0 5px 25px #1118270c}.muted{color:var(--muted);font-size:13px}.notice{padding:13px;background:#fff6d8;border-left:4px solid var(--gold);border-radius:9px;font-size:13px;margin-bottom:16px}.error{background:#fff0f0;border-color:#db3535}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.field{display:block;font-size:13px;font-weight:750;margin:12px 0}.field input,.field textarea,.field select{display:block;width:100%;margin-top:7px;border:1px solid #c9d1df;border-radius:10px;padding:12px;font:inherit;font-size:14px;background:#fff;color:#141a24}textarea{min-height:145px;resize:vertical}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:17px}.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}.tabs button{background:#fff;border:1px solid var(--line);font-weight:850}.tabs button.on{background:var(--black);color:white}.pill{display:inline-block;font-size:11px;border-radius:100px;background:#e9efff;color:#104dc4;font-weight:900;padding:6px 11px;text-transform:uppercase}.row{border-top:1px solid var(--line);padding:13px 0;display:flex;align-items:center;justify-content:space-between;gap:12px}.row:first-child{border:0}.row h3{font-size:15px;margin:0 0 5px}.row .meta{color:var(--muted);font-size:12px}.row .right{display:flex;gap:7px;flex-wrap:wrap}.row button{background:#ecf1fb;font-size:12px;padding:9px 12px}.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}#authPanel{max-width:500px;margin:55px auto}#authPanel h2{margin-top:0}.hidden{display:none!important}#message{position:sticky;top:0;z-index:9}.empty{padding:35px;text-align:center;color:#687386;background:#f7f9fc;border-radius:14px}.small{font-size:12px}.risk{color:#a11a1a}.preview{white-space:pre-wrap;line-height:1.65;background:#f7f9fc;padding:17px;border-radius:14px;border:1px solid #e1e6ed}.footer{text-align:center;color:#7b8493;font-size:11px;margin:25px 0}.logo{height:50px;width:50px;object-fit:contain;border-radius:50%;background:#000}@media(max-width:760px){.grid,.two{grid-template-columns:1fr}.row{align-items:flex-start;flex-direction:column}header h1{font-size:18px}}
+
+.auth-divider{display:flex;align-items:center;gap:12px;margin:20px 0;font-size:12px;color:#677083;font-weight:900}.auth-divider::before,.auth-divider::after{content:"";height:1px;flex:1;background:#dae0ea}
+.status-text{font-size:13px;margin:7px 0;color:#45536b}
+.ai-editor{background:linear-gradient(160deg,#fff,#f0f5ff);border-left:4px solid var(--blue)}
+.ai-editor h2{margin-top:0;display:flex;gap:9px;align-items:center}
+.ai-editor p{font-size:13px}
+.ai-editor textarea{min-height:135px}
+.ai-note{font-size:12px;line-height:1.5;color:#606d85}
+.ai-editor .ai-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#aiResult{margin-top:14px}
+#aiResult h3{font-size:18px;margin-top:6px}
+.ai-preview{white-space:pre-wrap;line-height:1.5;padding:14px;border-radius:12px;background:#fff;border:1px solid #d6e0f0}
+@media(max-width:600px){.ai-editor .ai-fields{grid-template-columns:1fr}}
 </style></head><body>
 <header><div style="display:flex;align-items:center;gap:14px"><img class="logo" src="../assets/assets/hag-logo.png" alt="H.A.G. official logo" onerror="this.style.display='none'"><div><h1>H.A.G. Editorial Desk</h1><small>COMPETE. DEVELOP. INSPIRE.</small></div></div><button id="signout" class="hidden">Sign out</button></header>
 <main class="wrap"><div id="message" aria-live="polite"></div>
-<section id="authPanel" class="card"><h2>Staff sign-in</h2><p>Authorized Heartland Athletics Group staff only. Enter your staff account email address to receive a one-time sign-in link.</p><div class="notice">Admin accounts must be approved and assigned a role by H.A.G. This page does not grant access to the public.</div><form id="login"><label class="field">Staff email<input type="email" name="email" autocomplete="email" required placeholder="Enter your staff email address"></label><button class="primary" type="submit">Email sign-in link</button></form><p class="muted">Your administrator account is created only after you request a link and verify ownership of jhawkins@heartlandathleticsgroup.com. If sign-in returns to the wrong URL, the dashboard redirect must be permitted in Supabase Auth settings.</p></section>
+<section id="authPanel" class="card"><h2>Staff sign-in</h2><p>Authorized Heartland Athletics Group staff only. Enter your staff account email address to receive a one-time sign-in link.</p><div class="notice">Admin accounts must be approved and assigned a role by H.A.G. This page does not grant access to the public.</div><form id="login"><label class="field">Staff email<input type="email" name="email" autocomplete="email" required placeholder="Enter your staff email address"></label><button class="primary" type="submit">Email sign-in link</button></form><div class="auth-divider">OR SIGN IN WITH PASSWORD</div>
+<form id="passwordLogin"><label class="field">Email<input type="email" name="email" autocomplete="username" required placeholder="Authorized staff email"></label>
+<label class="field">Password<input type="password" name="password" autocomplete="current-password" required minlength="8"></label>
+<button class="blue" type="submit">Admin Login</button></form>
+<p class="muted">Use a verified email link the first time, then open <strong>Settings → Account security</strong> to create a password. This device stays signed in while your secure session remains valid. Sign out on shared devices.</p></section>
 <section id="appPanel" class="hidden"><div class="notice">Administrative content is stored securely in Supabase. Only published, approved content is visible to the public. All schedule times use <b>America/Chicago</b>.</div><div class="tabs" id="tabs"></div>
-<div id="articlesPanel" class="view"><div class="two"><section class="card"><h2 id="articleHeading">Write a News article</h2><form id="articleForm"><input type="hidden" name="id"><div class="grid"><label class="field">Headline<input name="title" required minlength="4" maxlength="200" placeholder="New announcement"></label><label class="field">Category<select name="category"><option>Events</option><option>Programs</option><option>Community</option><option>Enforcers</option></select></label></div><label class="field">Short summary<input name="summary" required minlength="10" maxlength="1200"></label><label class="field">Full article (paragraphs separated by blank lines)<textarea name="body" required></textarea></label><div class="grid"><label class="field">Artwork title<input name="art_label" maxlength="60" placeholder="H.A.G. NEWS"></label><label class="field">Accent<select name="tone"><option>blue</option><option>gold</option><option>charcoal</option></select></label></div><div class="actions"><button class="primary" type="submit">Save draft</button><button id="articleClear" type="button">Clear</button></div></form><div class="actions" id="articleActions"></div></section><section class="card"><h2>Preview and queue</h2><div id="articlePreview" class="preview muted">Select or write an article to preview it.</div><h3>Editorial stories</h3><div id="articleList"></div></section></div></div>
+<div id="articlesPanel" class="view">
+<section class="card ai-editor" aria-labelledby="aiHeading">
+<h2 id="aiHeading">✦ AI News Writing Assistant</h2>
+<p>Turn your factual focal points into a polished H.A.G. News draft. The result goes into the article editor for review—<strong>never directly to publication</strong>.</p>
+<form id="aiWriter">
+<label class="field">Focal points (facts, names, dates, quotes you have permission to publish)
+<textarea name="points" required minlength="35" maxlength="6000" placeholder="What happened? Who was involved? Include confirmed dates, locations, achievements, organizers, and the key message. Do not include private information about minors."></textarea></label>
+<div class="ai-fields">
+<label class="field">News category<select name="category"><option>Events</option><option>Programs</option><option>Community</option><option>Enforcers</option></select></label>
+<label class="field">Writing style<select name="tone"><option>Professional</option><option>Community-focused</option><option>Energetic</option><option>Press release</option></select></label>
+</div>
+<button class="blue" type="submit" id="aiGenerateBtn">✦ Generate professional article draft</button></form>
+<p class="ai-note">AI drafts can make mistakes. Review all facts, quotes, and guardian permissions. AI generation requires a server-side API key and may incur usage costs. No draft is published automatically.</p>
+<div id="aiResult" aria-live="polite"></div>
+</section>
+<div class="two"><section class="card"><h2 id="articleHeading">Write a News article</h2><form id="articleForm"><input type="hidden" name="id"><div class="grid"><label class="field">Headline<input name="title" required minlength="4" maxlength="200" placeholder="New announcement"></label><label class="field">Category<select name="category"><option>Events</option><option>Programs</option><option>Community</option><option>Enforcers</option></select></label></div><label class="field">Short summary<input name="summary" required minlength="10" maxlength="1200"></label><label class="field">Full article (paragraphs separated by blank lines)<textarea name="body" required></textarea></label><div class="grid"><label class="field">Artwork title<input name="art_label" maxlength="60" placeholder="H.A.G. NEWS"></label><label class="field">Accent<select name="tone"><option>blue</option><option>gold</option><option>charcoal</option></select></label></div><div class="actions"><button class="primary" type="submit">Save draft</button><button id="articleClear" type="button">Clear</button></div></form><div class="actions" id="articleActions"></div></section><section class="card"><h2>Preview and queue</h2><div id="articlePreview" class="preview muted">Select or write an article to preview it.</div><h3>Editorial stories</h3><div id="articleList"></div></section></div></div>
 <div id="eventsPanel" class="view hidden"><div class="two"><section class="card"><h2>Event management</h2><form id="eventForm"><input name="id" type="hidden"><label class="field">Event name<input name="title" required></label><label class="field">Description<textarea name="description" required></textarea></label><div class="grid"><label class="field">First event date (Central)<input name="event_start" type="date" required></label><label class="field">Last date, inclusive (Central)<input name="last_day" type="date" required></label></div><label class="field">Public status<input name="public_status" value="Planning underway" required></label><label class="field">Confirmed venue only (optional)<input name="venue" placeholder="Leave blank until confirmed"></label><div class="actions"><button class="primary" type="submit">Save event draft</button><button id="eventClear" type="button">Clear</button></div></form><div id="eventActions" class="actions"></div></section><section class="card"><h2>Event queue</h2><div id="eventList"></div></section></div></div>
 <div id="spotlightsPanel" class="view hidden"><section class="card"><h2>Player spotlights</h2><p>Submissions are private and require verified guardian authorization before any athlete details or photograph may become public.</p><div class="notice">Public athlete submission forms remain disabled until anti-spam checks, guardian verification, media storage protections, and an accessible removal process are ready.</div><h3>Private review queue</h3><div id="submissionList"></div></section><section class="card"><h2>Published spotlight archive</h2><p class="muted">One athlete may be scheduled for each Monday-starting Central Time week. Published entries remain searchable in the public archive.</p><label class="field">Search published spotlights<input id="spotlightSearch" type="search" placeholder="Player, team, sport"></label><div id="spotlightList"></div></section></div>
-<div id="settingsPanel" class="view hidden"><section class="card"><h2>Publishing and permissions</h2><div id="staffDetails"></div><p class="muted">New staff members must be authorized by an existing administrator or trusted Supabase project owner. This interface cannot promote an account to administrator.</p><p class="muted">Public app data and private athlete submission data are stored separately. Public feeds currently remain on GitHub Pages until direct Supabase publishing is connected and verified.</p></section></div></section>
+<div id="settingsPanel" class="view hidden"><section class="card"><h2>Publishing and permissions</h2><div id="staffDetails"></div><p class="muted">New staff members must be authorized by an existing administrator or trusted Supabase project owner. This interface cannot promote an account to administrator.</p><p class="muted">Public app data and private athlete submission data are stored separately. Public News publishing uses consent/approval-gated Supabase records.</p></section>
+<section class="card"><h2>Account security</h2><p>After verifying your email, create a strong password so you can sign in directly next time. Supabase securely manages sessions and authentication.</p>
+<form id="passwordSettings">
+<label class="field">New password (at least 12 characters)<input name="password" type="password" minlength="12" required autocomplete="new-password"></label>
+<label class="field">Confirm password<input name="confirmation" type="password" minlength="12" required autocomplete="new-password"></label>
+<button class="primary" type="submit">Set or update password</button>
+</form>
+<p class="muted">The email sign-in link remains a backup. On your personal device you should stay signed in unless you sign out, clear site data, or your session expires. For shared devices, sign out when finished.</p></section></div></section>
 <div class="footer">H.A.G. Editorial Desk · Private staff tool · America/Chicago</div></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -45,7 +84,74 @@ function clearEvent(){currentEvent=null;$('eventForm').reset();$('eventForm').el
 function renderEventActions(){if(!currentEvent)return;const x=currentEvent,admin=role==='admin',arr=[];if(x.status==='draft')arr.push(['review','Submit for review']);if(admin&&['draft','review'].includes(x.status))arr.push(['approved','Approve']);if(admin&&x.status==='approved')arr.push(['published','Publish now']);if(admin&&x.status==='published')arr.push(['archived','Archive']);$('eventActions').innerHTML=arr.map(([s,l])=>'<button type="button" class="blue" data-event-status="'+s+'">'+l+'</button>').join('');$('eventActions').querySelectorAll('button').forEach(b=>b.onclick=()=>updateStatus('hag_events',x.id,b.dataset.eventStatus));}
 async function scheduleArticle(id){const local=prompt('Schedule approved article in Chicago (Central) time.\\nEnter YYYY-MM-DD HH:MM (24-hour clock):');if(!local)return;if(!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(local)){message('Use YYYY-MM-DD HH:MM in Central Time',true);return}if(!confirm('Schedule this article for '+local+' America/Chicago?'))return;try{firstErr(await client.rpc('hag_schedule_article',{article_id:id,local_datetime:local}));message('Scheduled for '+local+' Central Time');await refresh();editArticle(id)}catch(e){message(e.message,true)}}
 async function updateStatus(table,id,status){if(status==='published'&&!confirm('Publish this approved content publicly?'))return;try{let changes={status,updated_at:new Date().toISOString()};if(table==='hag_articles')changes.updated_by=currentUser.id;if(status==='published')changes.published_at=new Date().toISOString();const row=firstErr(await client.from(table).update(changes).eq('id',id).select('id').single());message('Saved status: '+status);await refresh();if(table==='hag_articles')editArticle(row.id);else editEvent(row.id)}catch(e){message(e.message,true)}}
-$('login').onsubmit=async ev=>{ev.preventDefault();const email=ev.target.elements.email.value.trim();if(email.toLowerCase()!=='jhawkins@heartlandathleticsgroup.com'){message('This dashboard is currently restricted to the primary H.A.G. administrator email.',true);return}const btn=ev.target.querySelector('[type=submit]');if(btn){btn.disabled=true;btn.textContent='Requesting sign-in link…'}try{if(!client)throw Error('Supabase sign-in library failed to load. Refresh the page.');firstErr(await client.auth.signInWithOtp({email,options:{shouldCreateUser:true,emailRedirectTo:location.origin+location.pathname}}));message('Sign-in link requested. If it does not arrive, the Supabase Auth email provider may need to be configured. Do not request it repeatedly.')}catch(e){message('Unable to send sign-in link: '+e.message,true)}finally{if(btn){btn.disabled=false;btn.textContent='Email sign-in link'}}};
+$('login').onsubmit=async ev=>{ev.preventDefault();const email=ev.target.elements.email.value.trim();const btn=ev.target.querySelector('[type=submit]');if(btn){btn.disabled=true;btn.textContent='Requesting sign-in link…'}try{if(!client)throw Error('Supabase sign-in library failed to load. Refresh the page.');firstErr(await client.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:location.origin+location.pathname}}));message('Sign-in link requested. If it does not arrive, the Supabase Auth email provider may need to be configured. Do not request it repeatedly.')}catch(e){message('Unable to send sign-in link: '+e.message,true)}finally{if(btn){btn.disabled=false;btn.textContent='Email sign-in link'}}};
+
+$('passwordLogin').onsubmit=async ev=>{
+ ev.preventDefault();
+ const form=ev.target,button=form.querySelector('button[type=submit]');
+ button.disabled=true;
+ try{
+   if(!client)throw Error('Supabase client did not load');
+   const email=form.elements.email.value.trim(), password=form.elements.password.value;
+   firstErr(await client.auth.signInWithPassword({email,password}));
+   form.elements.password.value='';
+   await checkAccess();
+ }catch(e){message('Password login failed: '+(e.message||'Check email and password'),true)}
+ finally{button.disabled=false}
+};
+$('passwordSettings').onsubmit=async ev=>{
+ ev.preventDefault();
+ const form=ev.target,p=form.elements.password.value,c=form.elements.confirmation.value;
+ if(p.length<12||p!==c){message('Use 12+ characters and enter matching passwords.',true);return}
+ const button=form.querySelector('button[type=submit]');
+ button.disabled=true;
+ try{
+   firstErr(await client.auth.updateUser({password:p}));
+   form.reset();
+   message('Your password is updated. You can now use Admin Login with your email and password.');
+ }catch(e){message('Could not update password: '+(e.message||'Try again'),true)}
+ finally{button.disabled=false}
+};
+let aiDraft=null;
+$('aiWriter').onsubmit=async ev=>{
+ ev.preventDefault();
+ const form=ev.target, btn=$('aiGenerateBtn');
+ const points=form.elements.points.value.trim();
+ if(points.length<35){message('Add at least 35 characters of confirmed focal points.',true);return}
+ btn.disabled=true;btn.textContent='Writing draft…';
+ $('aiResult').textContent='Preparing your draft. This can take a few moments.';
+ try{
+  const result=await client.functions.invoke('hag-draft-news',{body:{
+   points:points,category:form.elements.category.value,tone:form.elements.tone.value
+  }});
+  if(result.error){
+   let info=result.error.message||'Generation failed';
+   if(result.error.context?.json){try{const extra=await result.error.context.json();if(extra.error)info=extra.error}catch{}}
+   throw Error(info);
+  }
+  const draft=result.data?.draft;
+  if(!draft||typeof draft.title!=='string'||typeof draft.summary!=='string'||!Array.isArray(draft.body))throw Error('Unexpected response from AI service.');
+  aiDraft={title:draft.title,summary:draft.summary,body:draft.body,category:form.elements.category.value};
+  $('aiResult').innerHTML='<div class="notice">AI-generated draft; fact-check before publication.</div>'+
+   '<div class="ai-preview"><h3>'+esc(draft.title)+'</h3><p><strong>'+esc(draft.summary)+'</strong></p>'+
+   draft.body.map(x=>'<p>'+esc(x)+'</p>').join('')+'</div>'+
+   '<div class="actions"><button type="button" id="aiUseDraft" class="primary">Use draft in News editor →</button></div>';
+  $('aiUseDraft').onclick=()=>{
+    if(!confirm('Replace the current News editor fields with this AI draft? Any unsaved editor changes will be lost.'))return;
+    clearArticle();
+    const target=$('articleForm');
+    target.elements.title.value=aiDraft.title.slice(0,200);
+    target.elements.summary.value=aiDraft.summary.slice(0,1200);
+    target.elements.body.value=aiDraft.body.join('\n\n');
+    target.elements.category.value=aiDraft.category;
+    previewArticle();
+    target.scrollIntoView({behavior:'smooth',block:'start'});
+    message('Draft copied into the editor. Review and click Save draft when ready.');
+  };
+ }catch(err){$('aiResult').textContent='AI drafting unavailable: '+(err.message||'Please try again later.')}
+ finally{btn.disabled=false;btn.textContent='✦ Generate professional article draft'}
+};
+
 $('signout').onclick=signOut;
 $('articleForm').onsubmit=async ev=>{ev.preventDefault();const f=ev.target;let x={title:f.elements.title.value.trim(),category:f.elements.category.value,summary:f.elements.summary.value.trim(),body:f.elements.body.value.split(/\n\s*\n/).map(t=>t.trim()).filter(Boolean),art_label:f.elements.art_label.value.trim()||null,tone:f.elements.tone.value,updated_by:currentUser.id,updated_at:new Date().toISOString()};if(!x.body.length){message('Article body required',true);return}try{if(currentArticle){if(!['draft','review'].includes(currentArticle.status)&&role!=='admin')throw Error('Editors cannot modify approved/published stories');firstErr(await client.from('hag_articles').update(x).eq('id',currentArticle.id).select('id').single());}else{x.slug=slug(x.title);x.created_by=currentUser.id;x.status='draft';firstErr(await client.from('hag_articles').insert(x).select('id').single());}message('Draft saved');clearArticle();await refresh()}catch(e){message(e.message,true)}};
 $('eventForm').onsubmit=async ev=>{ev.preventDefault();const f=ev.target;if(f.elements.last_day.value<f.elements.event_start.value){message('Last day cannot precede first day',true);return}const x={title:f.elements.title.value.trim(),description:f.elements.description.value.trim(),event_start:f.elements.event_start.value,event_end_exclusive:datePlus(f.elements.last_day.value),public_status:f.elements.public_status.value.trim(),venue:f.elements.venue.value.trim()||null,updated_at:new Date().toISOString(),timezone:'America/Chicago'};try{if(currentEvent){if(!['draft','review'].includes(currentEvent.status)&&role!=='admin')throw Error('Editors cannot modify approved/published events');firstErr(await client.from('hag_events').update(x).eq('id',currentEvent.id).select('id').single());}else{x.slug=slug(x.title);x.created_by=currentUser.id;x.status='draft';firstErr(await client.from('hag_events').insert(x).select('id').single());}message('Event saved');clearEvent();await refresh()}catch(e){message(e.message,true)}};

@@ -1332,3 +1332,127 @@
     padding: 8px 14px;
   }
 }
+
+
+/* Heartland Enforcers Bags & Buckets fundraiser */
+.btn-bags {
+  color: var(--white);
+  background: linear-gradient(135deg, #ff0a78, #d90063);
+  box-shadow: 0 12px 28px rgba(255, 10, 120, 0.28);
+}
+
+.bags-buckets-section {
+  color: var(--white);
+  background:
+    radial-gradient(circle at 10% 12%, rgba(255, 10, 120, 0.2), transparent 30%),
+    radial-gradient(circle at 92% 84%, rgba(255, 10, 120, 0.12), transparent 28%),
+    linear-gradient(135deg, #050505 0%, #111111 58%, #230010 100%);
+  border-top: 1px solid rgba(255, 10, 120, 0.25);
+  border-bottom: 1px solid rgba(255, 10, 120, 0.22);
+}
+
+.bags-buckets-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.82fr) minmax(0, 1.18fr);
+  gap: 52px;
+  align-items: center;
+}
+
+.bags-buckets-flyer {
+  padding: 10px;
+  border-radius: 28px;
+  background: #050505;
+  border: 1px solid rgba(255, 10, 120, 0.5);
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.38);
+}
+
+.bags-buckets-flyer img {
+  width: 100%;
+  height: auto;
+  border-radius: 19px;
+}
+
+.bags-buckets-copy .eyebrow {
+  color: #ff2d8b;
+}
+
+.bags-buckets-copy h2 {
+  font-size: clamp(2.8rem, 6vw, 5rem);
+  text-transform: uppercase;
+}
+
+.bags-buckets-lead {
+  max-width: 720px;
+  margin: 22px 0 0;
+  color: rgba(255, 255, 255, 0.8) !important;
+  font-size: 1.12rem;
+}
+
+.bags-event-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.bags-event-meta div {
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.bags-event-meta strong,
+.bags-event-meta span {
+  display: block;
+}
+
+.bags-event-meta strong {
+  margin-bottom: 5px;
+  color: #ff2d8b;
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.bags-event-meta span {
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 800;
+}
+
+.bags-event-list {
+  margin: 26px 0 0;
+  padding-left: 22px;
+  color: rgba(255, 255, 255, 0.84);
+  font-weight: 720;
+}
+
+.bags-event-list li {
+  margin: 9px 0;
+}
+
+.bags-event-list li::marker {
+  color: #ff2d8b;
+}
+
+.bags-buckets-note {
+  margin: 24px 0 0;
+  color: rgba(255, 255, 255, 0.72) !important;
+}
+
+@media (max-width: 980px) {
+  .bags-buckets-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bags-buckets-flyer {
+    max-width: 620px;
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .bags-event-meta {
+    grid-template-columns: 1fr;
+  }
+}

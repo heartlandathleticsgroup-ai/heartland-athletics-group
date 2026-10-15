@@ -107,6 +107,39 @@ function deduplicateNewsBrief(draft:{
   return {draft:{...draft,summary,body:remaining},changed:true};
 }
 
+
+function enforceNewsBriefStructure(draft: {
+  title: string; summary: string; body: string[]; follow_up_questions?: string[]
+}, format: string): { draft: typeof draft; changed: boolean } {
+  if (format!=="brief") return {draft,changed:false};
+  const original=(draft.body||[]).map(p=>p.trim()).filter(Boolean);
+  if(!original.length)return {draft,changed:false};
+  const summary=(draft.summary||"").trim();
+
+  // Avoid a stand-alone paragraph that says almost the same thing as the deck.
+  let paragraphs=original.filter((p,i)=> !(i===0 && original.length>1 &&
+    editorialOverlap(summary,p)>0.70));
+  if(!paragraphs.length) paragraphs=[original[0]];
+
+  // Remove near-identical individual sentences across the deck and article,
+  // but never discard every sentence: scarce reporting should receive a warning.
+  const originalSentences=paragraphs.flatMap(splitNewsSentences).filter(Boolean);
+  let selected: string[]=[];
+  for(const sentence of originalSentences){
+    const similar=selected.some(p=>editorialOverlap(sentence,p)>.87 &&
+      editorialOverlap(p,sentence)>.87);
+    if(!similar && !(originalSentences.length>1 && editorialOverlap(sentence,summary)>.85))
+      selected.push(sentence);
+  }
+  if(!selected.length) selected=[originalSentences[0]||paragraphs[0]];
+
+  // Briefs have a single substantial body paragraph. The headline and deck
+  // already provide separate visual hierarchy; 3 tiny paragraphs are not news.
+  const body=[selected.join(" ").trim()].filter(Boolean);
+  const changed=original.length!==body.length||original.join("\n")!==body.join("\n");
+  return {draft:{...draft,body},changed};
+}
+
 const outputSchema = {
   type: "object", additionalProperties: false,
   properties: {
@@ -227,7 +260,7 @@ Deno.serve(async (req: Request) => {
           "Your first sentence must convey the genuinely newsworthy supported fact and when relevant the location/date. Do not repeat the same lead in the deck and first paragraph.",
           "Avoid corporate padding and generic claims: 'laying the groundwork', 'spirited competition', 'fostering camaraderie', 'family engagement', 'bringing communities together', 'showcase', 'gearing up', 'community-centric', 'more details as plans solidify'. If a phrase adds no distinct verified information, cut it.",
           "Headline should be clear, specific and credible—never clickbait, no invented naming. Summary adds context, not a paraphrase of the headline.",
-          "NEWS BRIEF mode is the DEFAULT and MUST contain only 1 or 2 paragraphs, with a maximum of 115 words across the body. For sparse notes, 35–70 words is better than padding. State the principal verifiable development without another paragraph restating it.",
+          "NEWS BRIEF mode is the DEFAULT. Return the entire story body as ONE concise substantive paragraph, maximum 115 words, not three tiny paragraphs. For sparse notes 35–70 words beats padding. Headline and summary are separate; the body must add information instead of repeating them.",
           "FULL ARTICLE mode is allowed only when the notes contain substantive specific reporting; write up to 3–5 short paragraphs grounded in those facts. No padding to fill the target length.",
           "Style Professional = polished, concise news; Community-focused = warm and specific; Energetic = brisk and vivid but factual; Press release = official H.A.G. tone ONLY when an announcement or release is appropriate. All must follow the same factual limits.",
           "Use exact quotations only when attribution and publication permission are supplied. Do not fabricate speaker remarks or attach quotes to minors.",
@@ -265,8 +298,11 @@ Deno.serve(async (req: Request) => {
     }
     let revisionPerformed = false;
     let briefDeduplicated = false;
+    let briefFormatted = false;
     const normalizedInitial = deduplicateNewsBrief(draft,format);
     if(normalizedInitial.changed){draft=normalizedInitial.draft;briefDeduplicated=true}
+    const structuredInitial = enforceNewsBriefStructure(draft,format);
+    if(structuredInitial.changed){draft=structuredInitial.draft;briefFormatted=true}
     const originalWarnings = editorialChecks(draft, fullFacts, format, checkedBackground);
     if (originalWarnings.length) {
       try {
@@ -310,6 +346,8 @@ Deno.serve(async (req: Request) => {
     }
     const normalizedFinal = deduplicateNewsBrief(draft,format);
     if(normalizedFinal.changed){draft=normalizedFinal.draft;briefDeduplicated=true}
+    const structuredFinal = enforceNewsBriefStructure(draft,format);
+    if(structuredFinal.changed){draft=structuredFinal.draft;briefFormatted=true}
     const trimmedDraft = {
       title: draft.title.slice(0, 200),
       summary: draft.summary.slice(0, 1200),
@@ -323,11 +361,11 @@ Deno.serve(async (req: Request) => {
     const venuePending = /\b(?:venue|location|site)\b/i.test(pendingDetails) &&
       /\b(?:tbd|unknown|unconfirmed|not yet|pending|to be determined)\b/i.test(pendingDetails);
     const reportingQuestions = allQuestions.filter((q: string) =>
-      !(venuePending && /\b(?:venue|location|site)\b/i.test(q) &&
-        /\b(?:secured|confirmed|chosen|selected|finalized|booked|locked in)\b/i.test(q))
+      // If the venue is explicitly TBD, asking for the venue again offers no value.
+      !(venuePending && /\b(?:venue|location|site|where.*host)\b/i.test(q))
     ).slice(0, 3);
     return respond({ draft: { ...trimmedDraft, reporting_questions: reportingQuestions },
-      format, quality_warnings: qualityWarnings, ready_for_editor: qualityWarnings.length === 0, automatically_revised: revisionPerformed, brief_deduplicated: briefDeduplicated,
+      format, quality_warnings: qualityWarnings, ready_for_editor: qualityWarnings.length === 0, automatically_revised: revisionPerformed, brief_deduplicated: briefDeduplicated, brief_formatted: briefFormatted,
       notice: "AI-created draft only; editorial checks flag common problems but cannot prove every claim. Verify facts, quotes, event terminology and guardian permissions." }, 200, origin);
   } catch (_error) {
     return respond({ error: "Groq AI draft generation failed or timed out. Try again later." }, 502, origin);

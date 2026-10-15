@@ -59,12 +59,12 @@ Deno.serve(async (req: Request) => {
   if (points.length < 35 || points.length > 6000) {
     return respond({ error: "Provide 35–6,000 characters of factual focal points." }, 400, origin);
   }
-  const apiKey = Deno.env.get("OPENAI_API_KEY");
+  const apiKey = Deno.env.get("GROQ_API_KEY");
   if (!apiKey) return respond({
-    error: "AI drafting is not yet activated. A project owner must set the OPENAI_API_KEY Edge Function secret in Supabase."
+    error: "Groq free AI drafting is not yet activated. A project owner must set GROQ_API_KEY in Supabase Edge Function secrets."
   }, 503, origin);
 
-  // Limit AI model charges; log only request time and user identity, never prompts.
+  // Limit free-tier provider usage; record request timestamps and user IDs, never raw focal points.
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const usage = await supabase.from("hag_ai_draft_requests").select("id", { count: "exact", head: true })
     .eq("staff_user_id", user.id).gte("requested_at", cutoff);
@@ -78,12 +78,13 @@ Deno.serve(async (req: Request) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 23000);
   try {
-    const result = await fetch("https://api.openai.com/v1/responses", {
+    const result = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST", signal: controller.signal,
       headers: { Authorization: "Bearer " + apiKey, "content-type": "application/json" },
       body: JSON.stringify({
-        model: "gpt-4.1-mini", store: false, max_output_tokens: 1250,
-        instructions: [
+        model: "openai/gpt-oss-20b", max_completion_tokens: 1700,
+        reasoning_effort: "low",
+        messages: [{ role: "system", content: [
           "You are H.A.G. News Assistant, editorial support for Heartland Athletics Group and Heartland Enforcers Basketball Club.",
           "Write a compelling, polished, accurate public news article based ONLY on supplied focal points.",
           "NEVER invent names, scores, quotes, awards, dates, prices, locations, sponsorships or affiliations.",
@@ -94,18 +95,19 @@ Deno.serve(async (req: Request) => {
           "If athlete details are included, use only clearly public, guardian-approved details.",
           "The output is a DRAFT; H.A.G. staff must verify factual accuracy and approve it before publication.",
           "Return exactly the requested structured output."
-        ].join(" "),
-        input: "Category: " + category + "\nTone: " + tone + "\nApproved factual focal points:\n" + points,
-        text: { format: { type: "json_schema", name: "hag_news_draft", strict: true, schema: outputSchema } }
+        ].join(" ") }, { role: "user", content:
+          "Category: " + category + "\nTone: " + tone + "\nApproved factual focal points:\n" + points
+        }],
+        response_format: { type: "json_schema",
+          json_schema: { name: "hag_news_draft", strict: true, schema: outputSchema }
+        }
       })
     });
-    const response = await result.json();
-    if (!result.ok) {
-      return respond({ error: "AI service returned an error. Please check billing or the configured service key." }, 502, origin);
-    }
-    const raw = (response.output || []).filter((x: any) => x.type === "message")
-      .flatMap((x: any) => x.content || []).filter((x: any) => x.type === "output_text")
-      .map((x: any) => x.text).join("");
+    const response = await result.json().catch(() => ({}));
+    if (result.status === 429) return respond({ error: "Groq free-plan rate limit reached. Wait and retry later." }, 429, origin);
+    if (!result.ok) return respond({ error: "Groq AI could not generate the draft. Confirm the Groq API key and free-plan quota." }, 502, origin);
+    const raw = response.choices?.[0]?.message?.content;
+    if (typeof raw !== "string" || !raw.trim()) throw Error("No article content returned");
     const draft = JSON.parse(raw);
     if (typeof draft.title !== "string" || typeof draft.summary !== "string" ||
         !Array.isArray(draft.body) || draft.body.some((p: unknown) => typeof p !== "string")) {
@@ -115,6 +117,6 @@ Deno.serve(async (req: Request) => {
       body: draft.body.slice(0, 8).map((p: string) => p.slice(0, 3000)) },
       notice: "AI-created draft. Verify all facts and any guardian permissions before publishing." }, 200, origin);
   } catch (_error) {
-    return respond({ error: "AI draft generation failed or timed out. Try again later." }, 502, origin);
+    return respond({ error: "Groq AI draft generation failed or timed out. Try again later." }, 502, origin);
   } finally { clearTimeout(timer); }
 });

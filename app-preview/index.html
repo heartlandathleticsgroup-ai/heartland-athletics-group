@@ -138,12 +138,10 @@ const HAG_SOCIALS=[
  {name:'Heartland Enforcers Facebook',detail:'Official basketball club page',url:'https://www.facebook.com/share/19yansjdb4/?mibextid=wwXIfr'}
 ];
 const events=[
-{id:'bags',title:'Bags & Buckets Fundraiser',date:'November 7, 2026',start:'20261107',end:'20261108',status:'Scheduled',location:'Kroc Center · Quincy, Illinois',description:'Join the Heartland Enforcers for a community fundraiser featuring a blind-draw cornhole tournament, youth basketball activities and a silent auction. Registration begins at 10:00 AM and bags fly at 11:00 AM. Individual cornhole entry is $25. Registration is handled outside this prototype.'},
 {id:'macker',title:'Gus Macker — Quincy 2027',date:'May 29–30, 2027',start:'20270529',end:'20270531',status:'Planning underway',description:'The dates for Gus Macker in Quincy are set for May 29–30, 2027. H.A.G. is working on planning and partnerships. Venue and additional event information will be published when confirmed.'}];
-const slides=[{id:'bags',title:'Bags & Buckets',date:'NOV 7 · 2026',pill:'Community fundraiser',tone:'gold',cta:'Event details'},{id:'macker',title:'Gus Macker Quincy 2027',date:'MAY 29–30 · 2027',pill:'Planning underway',tone:'blue',cta:'Explore event'},{id:'programs',title:'Camps & Clinics',date:'ATHLETE DEVELOPMENT',pill:'Explore opportunities',tone:'black',cta:'Explore programs'}];
+const slides=[{id:'macker',title:'Gus Macker Quincy 2027',date:'MAY 29–30 · 2027',pill:'Planning underway',tone:'blue',cta:'Explore event'},{id:'programs',title:'Camps & Clinics',date:'ATHLETE DEVELOPMENT',pill:'Explore opportunities',tone:'black',cta:'Explore programs'}];
 const stories=[
 {id:'gus-news',category:'Events',title:'Gus Macker Quincy: May 29–30, 2027',deck:'The event dates are set. Follow H.A.G. for official planning announcements and updates.',body:['May 29–30, 2027 is the confirmed date for the Gus Macker event in Quincy.','The event is currently in the planning phase. Venue details and any additional information will be shared when confirmed.','Use the event page to save the dates to your calendar and follow the Gus Macker topic in notification preferences.'],art:'MACKER\n2027',tone:'blue',link:'macker'},
-{id:'bags-news',category:'Events',title:'Bags & Buckets brings hoops and cornhole together',deck:'A community fundraiser for Heartland Enforcers on November 7, 2026.',body:['Bags & Buckets is planned for November 7, 2026 at the Kroc Center in Quincy.','The fundraiser includes a blind-draw cornhole competition, basketball activities for youth, and a silent auction.','The app is not accepting registrations yet. Consult official H.A.G. announcements for sign-up information.'],art:'BAGS +\nBUCKETS',tone:'gold',link:'bags'},
 {id:'program-news',category:'Programs',title:'A home for future camps and clinics',deck:'Discover how H.A.G. will share confirmed training and development opportunities.',body:['H.A.G. is building a central place for the public to discover athletic development opportunities.','Future camp and clinic announcements can feature coaches, dates, eligibility, registration details, and event instructions once confirmed.','This article is a sample of how program news could look in the app; it does not announce a new clinic.'],art:'GROW\nYOUR GAME',tone:'charcoal',sample:true},
 {id:'community-news',category:'Community',title:'Celebrating the people who build the Heartland',deck:'Community stories will recognize volunteers, partners and the people making local athletics possible.',body:['H.A.G. is committed to creating meaningful opportunities through community involvement.','This is an editorial preview of a community spotlight. Future published stories could recognize supporters and highlight positive impact with permission.','No individual or sponsor is being announced in this sample story.'],art:'OUR\nCOMMUNITY',tone:'blue',sample:true},
 {id:'enforcers-news',category:'Enforcers',title:'Heartland Enforcers: Enforce the Standard',deck:'Development, accountability, respect and competition are central to the club philosophy.',body:['Heartland Enforcers Basketball Club is part of Heartland Athletics Group.','The club is built around effort, accountability, discipline, teamwork, sportsmanship, preparation, respect, and competitive standards.','This is public program information—not a team messaging channel.'],art:'ENFORCE\nTHE STANDARD',tone:'gold'}];
@@ -484,7 +482,8 @@ async function reloadPublicFeed(){
    const pub=items.filter(x=>x.publication_state==='published'&&typeof x.title==='string'&&
       typeof x.browser_id==='string'&&typeof x.date_label==='string'&&
       typeof x.start_date==='string'&&typeof x.end_date_exclusive==='string'&&
-      typeof x.description==='string'&&['Scheduled','Planning underway'].includes(x.status));
+      typeof x.description==='string'&&['Scheduled','Planning underway'].includes(x.status)&&
+      !/bags.*buckets/i.test(x.title+' '+x.browser_id));
    events.splice(0,events.length,...pub.map(x=>({
       id:x.browser_id,title:x.title,date:x.date_label,
       start:x.start_date.replaceAll('-',''),end:x.end_date_exclusive.replaceAll('-',''),
@@ -496,7 +495,8 @@ async function reloadPublicFeed(){
   if(kind==='news'){
    const pub=items.filter(x=>x.publication_state==='published'&&typeof x.id==='string'&&
      typeof x.title==='string'&&typeof x.deck==='string'&&Array.isArray(x.body)&&
-     x.body.every(p=>typeof p==='string')&&['Events','Programs','Community','Enforcers'].includes(x.category));
+     x.body.every(p=>typeof p==='string')&&['Events','Programs','Community','Enforcers'].includes(x.category)&&
+     !/bags.*buckets/i.test(x.title+' '+(x.event_id||'')));
    if(pub.length){
     stories.splice(0,stories.length,...pub.map(x=>({
       id:x.id,title:x.title,deck:x.deck,body:x.body,category:x.category,
@@ -532,7 +532,7 @@ async function loadApprovedSupabaseContent(){
  ]);
  let changed=false;
  if(result[0].status==='fulfilled'&&result[0].value.length){
-   stories.splice(0,stories.length,...result[0].value.map(a=>({
+   stories.splice(0,stories.length,...result[0].value.filter(a=>!/bags.*buckets/i.test((a.title||'')+' '+(a.slug||''))).map(a=>({
      id:a.id,category:a.category,title:a.title,deck:a.summary,
      body:Array.isArray(a.body)?a.body:[],art:a.art_label||'H.A.G.\\nNEWS',
      tone:['blue','gold','charcoal'].includes(a.tone)?a.tone:'blue',
@@ -562,6 +562,7 @@ async function loadApprovedSupabaseContent(){
     return fmt(begin)+' – '+fmt(last);
   };
   for(const ev of result[2].value){
+    if(/bags.*buckets/i.test((ev.slug||'')+' '+(ev.title||'')))continue;
     const alias=/gus-macker/i.test(ev.slug)?'macker':/bags.*buckets/i.test(ev.slug)?'bags':ev.id;
     const possibleUrl=ev.registration_state==='open'&&ev.registration_verified?ev.registration_url:null;
     let registrationUrl=null;

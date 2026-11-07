@@ -1,5 +1,5 @@
 /* H.A.G. public app preview PWA shell. No staff or submitted personal data is cached. */
-const CACHE_NAME='hag-public-preview-shell-v1';
+const CACHE_NAME='hag-public-preview-shell-v2';
 const SHELL=['/app-preview/','/app-preview/manifest.webmanifest','/app-preview/icon.svg'];
 self.addEventListener('install',event=>{
  event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));

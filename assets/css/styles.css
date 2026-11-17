@@ -1545,3 +1545,108 @@
     width: 100%;
   }
 }
+
+
+
+/* 2027 Quincy Gus Macker business sponsor recognition */
+.macker-sponsor-showcase {
+  background:
+    radial-gradient(circle at 12% 15%, rgba(245, 181, 0, 0.10), transparent 38%),
+    linear-gradient(180deg, #fff 0%, #f6f7fa 100%);
+}
+
+.macker-sponsor-feature-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 22px;
+  align-items: stretch;
+  margin-top: 30px;
+}
+
+.macker-sponsor-card,
+.macker-sponsor-directory-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 30px;
+  border: 1px solid rgba(13, 13, 13, 0.12);
+  border-radius: 22px;
+  background: #fff;
+  color: #10121b;
+  text-decoration: none;
+  text-align: center;
+  box-shadow: 0 15px 35px rgba(13, 13, 13, 0.06);
+}
+
+.macker-sponsor-card-featured {
+  border-top: 5px solid var(--gold);
+}
+
+.macker-sponsor-card-major {
+  border-top: 5px solid #1649a4;
+}
+
+.macker-sponsor-card img,
+.macker-sponsor-directory-card img {
+  display: block;
+  width: min(100%, 245px);
+  height: 220px;
+  object-fit: contain;
+  margin: 0 auto;
+}
+
+.macker-sponsor-card-featured img {
+  width: min(100%, 280px);
+  height: 250px;
+}
+
+.macker-sponsor-card strong,
+.macker-sponsor-directory-card strong {
+  color: #10121b;
+  font-size: 1.12rem;
+  font-weight: 900;
+}
+
+.macker-sponsor-card span {
+  color: #425474;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+a.macker-sponsor-card:hover,
+a.macker-sponsor-directory-card:hover {
+  border-color: #1649a4;
+  transform: translateY(-3px);
+}
+
+a.macker-sponsor-card,
+a.macker-sponsor-directory-card {
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.macker-sponsor-directory {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  max-width: 850px;
+  margin: 28px auto 0;
+}
+
+.macker-sponsor-directory-card img {
+  width: min(100%, 200px);
+  height: 170px;
+}
+
+@media (max-width: 760px) {
+  .macker-sponsor-feature-grid,
+  .macker-sponsor-directory {
+    grid-template-columns: 1fr;
+  }
+
+  .macker-sponsor-card,
+  .macker-sponsor-directory-card {
+    padding: 22px;
+  }
+}

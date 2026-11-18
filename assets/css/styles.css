@@ -1549,6 +1549,10 @@
 
 
 /* 2027 Quincy Gus Macker business sponsor recognition */
+.macker-sponsor-showcase .section-heading h2 {
+  font-size: clamp(2rem, 3vw, 3rem);
+}
+
 .macker-sponsor-showcase {
   background:
     radial-gradient(circle at 12% 15%, rgba(245, 181, 0, 0.10), transparent 38%),

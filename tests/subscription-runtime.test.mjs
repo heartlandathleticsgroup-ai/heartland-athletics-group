@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import {createBoundExecutor,createStagedRuntime} from "../previews/subscriptions/server/staged-runtime.mjs";
+const calls=[];let released=0,fail=false,wrong=false;
+const pool={async connect(){return {async query(q,args){calls.push([q,args]);if(q.includes("current_user"))return {rows:[{role:"hag_subscription_runtime",login:"hag_subscription_gateway_login",narrow:!wrong}]};if(q.includes("select fixture")){if(fail)throw Error("secret detail");return {rows:[{value:true}]};}return {rows:[{value:true}]};},release(){released++;}};}};
+const execute=createBoundExecutor(pool,{max:1});
+assert.deepEqual(await execute("select fixture $1",["test"]),{rows:[{value:true}]});
+assert.ok(calls.some(([q])=>q.includes("statement_timeout")));assert.ok(calls.some(([q])=>q.includes("SET LOCAL ROLE")));
+fail=true;await assert.rejects(execute("select fixture $1",["test"]),/Private runtime unavailable/);assert.equal(calls.at(-1)[0],"ROLLBACK");fail=false;
+wrong=true;await assert.rejects(execute("select fixture $1",["test"]),/Private runtime unavailable/);wrong=false;
+assert.equal(released,3);
+let releaseConnect;const slow=createBoundExecutor({connect:()=>new Promise(r=>releaseConnect=r)},{max:1});const first=slow("select fixture $1",[]);await assert.rejects(slow("select fixture $1",[]),/Runtime busy/);releaseConnect(await pool.connect());await first;
+assert.throws(()=>createStagedRuntime({mode:"production",ordinaryPool:pool,optoutPool:{...pool},trustedSource:()=> "192.0.2.1"}));
+assert.throws(()=>createStagedRuntime({mode:"isolated-test",ordinaryPool:pool,optoutPool:pool,trustedSource:()=> "192.0.2.1"}));
+const runtime=createStagedRuntime({mode:"isolated-test",ordinaryPool:pool,optoutPool:{...pool},trustedSource:()=> "192.0.2.1"});
+const response=await runtime.handle(new Request("https://preview.invalid/subscriptions",{method:"POST",headers:{origin:"https://evil.invalid","content-type":"application/json"},body:"{}"}));assert.equal(response.status,403);assert.deepEqual(runtime.drainSyntheticMessages(),[]);
+console.log("PASS: isolated runtime gate, bounded executor, transaction timeouts, identity, rollback, and separate pool requirement");

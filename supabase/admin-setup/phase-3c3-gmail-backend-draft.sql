@@ -285,7 +285,7 @@ begin
  delete from hag_private.gmail_launch_grant where digest=p_digest and expires_at>clock_timestamp() and generation=g returning * into v;
  if v.digest is null then return null;end if;
  return jsonb_build_object('generation',v.generation,'ciphertext',v.ciphertext);
-end $;
+end $$;
 revoke all on function hag_private.gmail_launch_put(text,uuid,uuid,text),hag_private.gmail_launch_take(text) from public,anon,authenticated,service_role,hag_gmail_control,hag_gmail_dispatch,hag_subscription_runtime,hag_email_worker,hag_subscription_maintenance;
 grant execute on function hag_private.gmail_launch_put(text,uuid,uuid,text),hag_private.gmail_launch_take(text) to hag_gmail_control;
 

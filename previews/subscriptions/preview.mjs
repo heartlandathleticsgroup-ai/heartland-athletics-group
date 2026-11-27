@@ -1,4 +1,5 @@
 import {TOPICS,CONSENT,validateRequest,validatePreferenceAccess} from "./consent.mjs";
+import {subscriptionEnvelope,accessEnvelope} from "./form-envelope.mjs";
 const $=id=>document.getElementById(id);
 for(const channel of ["email","sms"]){
  const enabled=$(channel+"-enabled"),details=$(channel+"-details"),destination=$(channel+"-destination"),consent=$(channel+"-consent"),topics=$(channel+"-topics");
@@ -18,14 +19,15 @@ function selection(channel){return {enabled:$(channel+"-enabled").checked,destin
 $("optin").addEventListener("submit",event=>{
  event.preventDefault();
  try{
-  const request=validateRequest({name:$("name").value,adult:$("adult").checked,email:selection("email"),sms:selection("sms")});
+  const envelope=subscriptionEnvelope({name:$("name").value,adult:$("adult").checked,email:selection("email"),sms:selection("sms")},crypto.randomUUID());
+  const request=validateRequest(envelope.form);
   $("result").textContent="Validation passed for "+request.requests.map(r=>r.channel.toUpperCase()).join(" and ")+". Preview only; nothing saved, confirmed or sent.";
   $("optin").reset();for(const c of ["email","sms"])$(c+"-enabled").dispatchEvent(new Event("change"));
  }catch(error){$("result").textContent=error.message;}
 });
 $("preferences").addEventListener("submit",event=>{
  event.preventDefault();
- try{validatePreferenceAccess({channel:$("access-channel").value,destination:$("access-destination").value});$("access-result").textContent="Validation passed. In production, a verified request would be required. No lookup, change or message occurred.";$("preferences").reset();}
+ try{accessEnvelope({channel:$("access-channel").value,destination:$("access-destination").value},crypto.randomUUID());$("access-result").textContent="Validation passed. In production, a verified request would be required. No lookup, change or message occurred.";$("preferences").reset();}
  catch(error){$("access-result").textContent=error.message;}
 });
 $("validate").disabled=false;$("access-check").disabled=false;

@@ -23,7 +23,7 @@ export function attachPreferences(doc,{call,link,randomId=()=>crypto.randomUUID(
  const additions=()=>controls.filter(x=>x.checked&&baseline.get(x.value)!=="active").map(x=>x.value);
  const removals=()=>controls.filter(x=>!x.checked&&["active","pending"].includes(baseline.get(x.value))).map(x=>x.value);
  function updateConsent(){$("new-consent").hidden=additions().length===0;if($("new-consent").hidden){$("adult").checked=false;$("consent").checked=false;}}
- $("request").hidden=false;
+ $("request").hidden=false;say("Request a secure link or use a link you already received.");
  const access=purpose=>run(async()=>{const destination=normalizeDestination("email",$("email").value);await call({action:"access",requestId:randomId(),purpose,form:{channel:"email",destination}});$("email").value="";say("If eligible, a secure link can be sent to that email address.");});
  $("manage-link").addEventListener("click",()=>void access("manage"));$("unsubscribe-link").addEventListener("click",()=>void access("unsubscribe"));
  if(link){

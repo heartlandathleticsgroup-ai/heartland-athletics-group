@@ -66,7 +66,7 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource}){
      case "inspect":case "confirm":case "manage":case "unsubscribe":
       if(!exact(x,["action","token"])||!token(x.token))throw Error();break;
      case "edit":
-      if(!exact(x,["action","token","add","remove","adult","consent","version"])||!token(x.token)||!topics(x.add)||!topics(x.remove)||x.add.some(t=>x.remove.includes(t))||!x.add.length&&!x.remove.length||typeof x.adult!=="boolean"||typeof x.consent!=="boolean"||x.version!==CONSENT_VERSION||(x.add.length&&(!x.adult||!x.consent)))throw Error();break;
+      if(!exact(x,["action","token","add","remove","adult","consent","version"])||!token(x.token)||!topics(x.add)||!topics(x.remove)||x.add.some(t=>x.remove.includes(t))||!x.add.length&&!x.remove.length||typeof x.adult!=="boolean"||typeof x.consent!=="boolean"||typeof x.version!=="string"||x.version.length>64||(x.add.length&&(x.version!==CONSENT_VERSION||!x.adult||!x.consent)))throw Error();break;
      default:throw Error();
     }
     if(items?.some(v=>!fixture(v.channel,v.destination)))throw Error();

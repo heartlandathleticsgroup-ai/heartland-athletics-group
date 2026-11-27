@@ -1,0 +1,27 @@
+name: Admin verified passkey review
+on:
+  push:
+    branches: [admin/phase-3c1d-verified-passkey]
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Test staged browser and gateway code
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet --no-tags --depth 1 --branch admin/phase-3c1d-verified-passkey https://github.com/heartlandathleticsgroup-ai/heartland-athletics-group.git "$RUNNER_TEMP/hag-passkey-review"
+          cd "$RUNNER_TEMP/hag-passkey-review"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node --check admin/auth.js
+          node --check admin/verified-passkey.mjs
+          node --check supabase/functions/hag-admin-passkey/verify.mjs
+          node tests/admin-auth-state.test.mjs
+          node tests/admin-passkey.test.mjs
+          grep -F 'userVerification="required"' admin/verified-passkey.mjs
+          grep -F '(auth[32]&5)!==5' supabase/functions/hag-admin-passkey/verify.mjs
+          if grep -Eq 'sb_secret_|SUPABASE_SERVICE_ROLE_KEY' admin/auth.js admin/verified-passkey.mjs admin/index.html; then exit 1; fi
+          echo 'No privileged key in browser code.'

@@ -1,0 +1,31 @@
+name: Unpublished subscription preview checks
+on:
+  pull_request:
+    branches: [main]
+    paths: ["previews/subscriptions/**", "tests/subscription-preview.test.mjs", ".github/workflows/subscription-preview-review.yml"]
+  push:
+    branches: [admin/phase-3c3-subscription-preview]
+permissions:
+  contents: read
+jobs:
+  preview-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Test exact commit with no deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet --no-tags https://github.com/heartlandathleticsgroup-ai/heartland-athletics-group.git "$RUNNER_TEMP/hag-preview"
+          cd "$RUNNER_TEMP/hag-preview"
+          git fetch origin "$GITHUB_SHA"
+          git checkout --detach "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node --check previews/subscriptions/consent.mjs
+          node --check previews/subscriptions/preview.mjs
+          node tests/subscription-preview.test.mjs
+          node tests/admin-dashboard.test.mjs
+          node tests/admin-communications.test.mjs
+          node tests/admin-auth-state.test.mjs
+          node tests/admin-passkey.test.mjs
+          git diff --exit-code origin/main...HEAD -- admin/auth.js admin/auth-state.mjs admin/verified-passkey.mjs supabase

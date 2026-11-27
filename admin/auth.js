@@ -21,9 +21,10 @@ function beginClock(){started=Date.now();last=started;active=true;saveClock();}
 function data(result){if(result.error)throw result.error;return result.data;}
 async function lock(text=notices.denied){
  show("login");clearClock();$("password").value="";$("challenge-code").value="";clearEnrollment();
- try{await client.auth.signOut({scope:"local"});}catch{}
+ let confirmed=false;
+ try{const result=await client.auth.signOut({scope:"local"});confirmed=!result.error;}catch{}
  try{sessionStorage.removeItem(STORAGE);}catch{}
- say(text);
+ say(confirmed?text:text+" Local access is locked; server sign-out could not be confirmed.");
 }
 async function assess(){
  const {user}=data(await client.auth.getUser());
@@ -46,7 +47,10 @@ async function run(fn,onError="Unable to complete this security step. Try again 
  if(busy||!client)return;
  busy=true;
  const controls=[...document.querySelectorAll("button")];const wasDisabled=controls.map(x=>x.disabled);controls.forEach(x=>x.disabled=true);
- try{await fn();}catch{say(onError);}finally{controls.forEach((x,i)=>x.disabled=wasDisabled[i]);busy=false;}
+ try{
+  if(active&&expired(Date.now(),last,started)){await lock("Session ended. Sign in again.");return;}
+  await fn();
+ }catch{say(onError);}finally{controls.forEach((x,i)=>x.disabled=wasDisabled[i]);busy=false;}
 }
 function on(id,event,fn){$(id).addEventListener(event,ev=>{ev.preventDefault();void fn();});}
 on("login-form","submit",()=>run(async()=>{
@@ -99,7 +103,7 @@ async function init(){
  try{
   if(!window.isSecureContext||!window.supabase?.createClient)throw Error("Secure context required");
   // Public publishable key only; no privileged keys, passwords or provider secrets.
-  client=window.supabase.createClient("https://unrqbfngcgvqnytxbtgj.supabase.co","sb_publishable_JeTzqF2gS0-pEHLs3VLOmg_GmK22bon",{auth:{flowType:"pkce",detectSessionInUrl:false,storage:sessionStorage,storageKey:STORAGE,persistSession:true,autoRefreshToken:true,experimental:{passkey:true}}});
+  client=window.supabase.createClient("https://unrqbfngcgvqnytxbtgj.supabase.co","sb_publishable_JeTzqF2gS0-pEHLs3VLOmg_GmK22bon",{auth:{flowType:"pkce",detectSessionInUrl:false,storage:sessionStorage,storageKey:STORAGE,persistSession:true,autoRefreshToken:true}});
   const {session}=data(await client.auth.getSession());
   if(!session){show("login");clearClock();return;}
   const saved=JSON.parse(sessionStorage.getItem(CLOCK)||"null");

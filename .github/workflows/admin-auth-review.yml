@@ -32,3 +32,31 @@ jobs:
           printf 'HAG_VERIFIED_SRI=sha384-'
           openssl dgst -sha384 -binary cdn.js | openssl base64 -A
           printf '\n'
+      - name: Check committed login source and live anonymous access
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet --no-tags --depth 1 --branch admin/phase-3c1-secure-auth https://github.com/heartlandathleticsgroup-ai/heartland-athletics-group.git "$RUNNER_TEMP/hag-site-review"
+          cd "$RUNNER_TEMP/hag-site-review"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node --check admin/auth.js
+          node tests/admin-auth-state.test.mjs
+          grep -F 'integrity="sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ" crossorigin="anonymous"' admin/index.html
+          grep -F 'src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js"' admin/index.html
+          ACTUAL="sha384-$(openssl dgst -sha384 -binary "$RUNNER_TEMP/hag-auth-review/cdn.js" | openssl base64 -A)"
+          test "$ACTUAL" = 'sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ'
+          KEY=$(grep -oE 'sb_publishable_[A-Za-z0-9_-]+' admin/auth.js | head -1)
+          test -n "$KEY"
+          HTTP=$(curl --silent --show-error --max-time 15 --output "$RUNNER_TEMP/rpc-response.json" --write-out '%{http_code}' -X POST -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{}' 'https://unrqbfngcgvqnytxbtgj.supabase.co/rest/v1/rpc/hag_admin_access_state')
+          case "$HTTP" in 401|403) echo "Anonymous administrative RPC denied: $HTTP";; *) echo "Unexpected RPC HTTP $HTTP"; exit 1;; esac
+          HTTP=$(curl --silent --show-error --max-time 15 --output "$RUNNER_TEMP/private-response.json" --write-out '%{http_code}' -H "apikey: $KEY" -H 'Accept-Profile: hag_private' 'https://unrqbfngcgvqnytxbtgj.supabase.co/rest/v1/hag_inquiries?select=id&limit=1')
+          case "$HTTP" in 401|403|406) echo "Anonymous private schema denied: $HTTP";; *) echo "Unexpected private schema HTTP $HTTP"; exit 1;; esac
+          python3 -m http.server 8765 --bind 127.0.0.1 >"$RUNNER_TEMP/hag-http.log" 2>&1 &
+          SERVER=$!
+          trap 'kill "$SERVER" 2>/dev/null || true' EXIT
+          for i in 1 2 3 4 5; do curl --silent --fail http://127.0.0.1:8765/admin/ >/dev/null && break; sleep 1; done
+          CHROME=$(command -v google-chrome || command -v chromium || command -v chromium-browser)
+          "$CHROME" --headless --disable-gpu --no-sandbox --disable-dev-shm-usage --virtual-time-budget=10000 --dump-dom http://127.0.0.1:8765/admin/ >"$RUNNER_TEMP/hag-dom.html" 2>"$RUNNER_TEMP/hag-chrome.log"
+          grep -F 'Sign in with your approved administrator account.' "$RUNNER_TEMP/hag-dom.html"
+          grep -E 'id="login-panel"[^>]*>' "$RUNNER_TEMP/hag-dom.html" | grep -v 'hidden'
+          echo "Real headless browser loaded the verified library and displayed sign-in without credentials."

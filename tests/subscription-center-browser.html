@@ -1,0 +1,45 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Local preference center browser QA</title><p id="result">RUNNING</p><iframe id="frame" title="Subscriber preference center test" style="width:390px;height:900px;border:0"></iframe><script type="module">
+const frame=document.getElementById("frame"),result=document.getElementById("result");
+const check=(x,label)=>{if(!x)throw Error(label);};
+const wait=async(fn,label)=>{for(let i=0;i<150;i++){if(fn())return;await new Promise(r=>setTimeout(r,20));}throw Error(label);};
+const load=new Promise(r=>frame.addEventListener("load",r,{once:true}));frame.src="/center.html";await load;
+const d=frame.contentDocument,$=id=>d.getElementById(id);
+const text=(id,s)=>$(id).textContent.includes(s);
+const click=id=>$(id).click();
+const choose=(id,v)=>{const el=$(id);el.value=v;el.dispatchEvent(new frame.contentWindow.Event("change"));};
+const setCheck=(el,v)=>{el.checked=v;el.dispatchEvent(new frame.contentWindow.Event("change"));};
+const inbox=()=>[...$("inbox").querySelectorAll("button")];
+const link=label=>inbox().findLast(x=>x.textContent.includes(label));
+const go=async(label)=>{await wait(()=>link(label)&&!link(label).disabled,"inbox link missing "+label);link(label).click();check(d.activeElement===$("action-heading"),"action focus");$("action-controls").querySelector("button").click();await wait(()=>$("action-panel").hidden,"action not cleared");};
+try{
+ await wait(()=>!$("start-submit").disabled,"preview initialization");
+ check(d.documentElement.lang==="en","language missing");
+ check(!d.querySelector("#start input:checked"),"prechecked consent");
+ check($("status").getAttribute("role")==="status"&&$("error").getAttribute("role")==="alert","live status missing");
+ for(const width of [320,375,390,768,1280]){
+  frame.style.width=width+"px";await new Promise(r=>setTimeout(r,50));
+  check(d.documentElement.scrollWidth<=frame.contentWindow.innerWidth,"horizontal overflow "+width);
+  for(const input of d.querySelectorAll("input,select"))check(input.labels?.length>0,"unlabelled control");
+  check($("start-submit").getBoundingClientRect().height>=44,"touch target");
+ }
+ frame.style.width="390px";
+ setCheck($("start-topics").querySelector("input"),true);setCheck($("adult"),true);setCheck($("consent"),true);
+ click("start-submit");await wait(()=>link("Confirm subscription"),"confirmation missing");
+ await go("Confirm subscription");await wait(()=>text("status","confirmed"),"confirmation failed");
+ await go("Confirm subscription");await wait(()=>text("error","invalid, expired"),"replay not rejected");
+ click("access");await go("Manage preferences");await wait(()=>!$("manage-panel").hidden,"manage failed");
+ check(d.activeElement===$("manage-heading"),"verified focus");
+ check(text("manage-detail","Verified email only"),"channel scope");
+ check(d.documentElement.scrollWidth<=frame.contentWindow.innerWidth,"manage overflow");
+ const add=[...$("edit-topics").querySelectorAll("input")].find(x=>x.value==="camps-clinics");
+ setCheck(add,true);check(!$("edit-consent").hidden&&!$("edit-agree").checked,"new consent not fresh");
+ click("save");await wait(()=>text("error","Confirm adult"),"missing consent accepted");
+ setCheck($("edit-adult"),true);setCheck($("edit-agree"),true);click("save");await wait(()=>text("status","saved"),"save failed");
+ click("optout-link");await go("Unsubscribe");await wait(()=>text("status","unsubscribe completed"),"unsubscribe failed");
+ click("access");await wait(()=>inbox().filter(x=>x.textContent.includes("Manage preferences")).length>=2,"new access link missing");
+ click("expire");await go("Manage preferences");await wait(()=>text("error","invalid, expired"),"expired link accepted");
+ choose("channel","sms");check(!$("adult").checked&&!$("consent").checked,"channel consent retained");
+ click("reset");check(inbox().length===0&&$("manage-panel").hidden&&$("action-panel").hidden,"reset failed");
+ result.textContent="PASS: five viewport widths; labelled controls, focus, touch target, live status, confirmation, replay, verified edit, unsubscribe, expiry and reset";
+}catch(e){result.textContent="FAIL: "+e.message;}
+</script></html>

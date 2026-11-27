@@ -25,6 +25,6 @@ async function render(){
   $("holds").append(p,label,b);
  }
 }
-async function run(action,data){if(busy)return;busy=true;$("error").textContent="";await render();try{if(action!=="refresh")await api(action,data);}catch{$("error").textContent="Action could not be completed.";}finally{busy=false;await render();}}
+async function run(action,data){if(busy)return;busy=true;for(const button of document.querySelectorAll("button"))button.disabled=true;$("error").textContent="";await render();try{if(action!=="refresh")await api(action,data);}catch{$("error").textContent="Action could not be completed.";}finally{busy=false;await render();}}
 for(const id of ["refresh","disable","disconnect","rotate"])$(id).addEventListener("click",()=>void run(id));
 void render();

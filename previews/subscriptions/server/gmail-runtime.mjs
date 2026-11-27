@@ -21,6 +21,7 @@ export function createGmailStagedRuntime({mode,controlPool,dispatchPool,resolveS
 }
 
 import {createCallbackBridge,createFlowDb} from "./gmail-callback-bridge.mjs";
+import {createStaticLaunchBridge,createLaunchDb} from "./gmail-launch-bridge.mjs";
 import {createGoogleHttpBoundary} from "./gmail-http-boundary.mjs";
 export function createGmailBridgedRuntime({mode,controlPool,dispatchPool,userRpc,mockFetch,...options}){
  if(mode!=="isolated-test"||!controlPool||!dispatchPool||controlPool===dispatchPool||typeof userRpc!=="function")throw Error("Separate isolated Gmail pools required");
@@ -28,7 +29,8 @@ export function createGmailBridgedRuntime({mode,controlPool,dispatchPool,userRpc
  const control=gmailControlDb(cq),dispatch=gmailDispatchDb(dq),flows=createFlowDb(cq),fixtureRequest=createGoogleHttpBoundary({mode,mockFetch});
  const proof=async bearer=>{try{const r=await userRpc({name:"hag_gmail_admin_proof",args:{},bearer});return r?.error?null:r?.data??null;}catch{return null;}};
  const base={...options,mode,control,dispatch,fixtureRequest};
- const backend=(req,bearer)=>createGmailBackend({...base,verifyAdmin:()=>proof(bearer)}).handle(req);
- const handle=createCallbackBridge({mode,backend,flows,vault:options.vault,userProof:proof,now:options.now});
+ const backend=(req,bearer,expectedGeneration=null)=>createGmailBackend({...base,expectedGeneration,verifyAdmin:()=>proof(bearer)}).handle(req);
+ const callback=createCallbackBridge({mode,backend,flows,vault:options.vault,userProof:proof,now:options.now});
+ const handle=createStaticLaunchBridge({mode,callback,launches:createLaunchDb(cq),vault:options.vault,userProof:proof,now:options.now});
  return {handle,pump:createGmailBackend({...base,verifyAdmin:async()=>null}).pump};
 }

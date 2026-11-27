@@ -17,7 +17,16 @@ export function createFixtureDatabase({now=Date.now,random=()=>crypto.getRandomV
  const view=m=>[...m.topics].map(([topic,status])=>({topic,status}));
  return {
   async budget(src,action){const k=src+":"+(action==="unsubscribe"?"optout":"ordinary")+":"+Math.floor(now()/60000);const n=(buckets.get(k)||0)+1;buckets.set(k,n);return n<=20;},
+  async optInEmail(id,item){
+   if(item.channel!=="email"||!fixture("email",item.destination)||keys.size>=200)return;
+   const k=id+":email";if(keys.has(k))return;keys.add(k);
+   const mk="email:"+item.destination;let m=method("email",item.destination);
+   if(!m){m={channel:"email",topics:new Map(),suppressed:false};methods.set(mk,m);}
+   if(m.suppressed)return;
+   for(const topic of item.topics)if(!m.topics.has(topic)||m.topics.get(topic)==="pending")m.topics.set(topic,"active");
+  },
   async issue(id,action,item){
+   if(item.channel==="email"&&action==="subscribe")return null;
    if(!fixture(item.channel,item.destination)||keys.size>=200)return null;
    const k=id+":"+item.channel;if(keys.has(k))return null;keys.add(k);
    const mk=item.channel+":"+item.destination;

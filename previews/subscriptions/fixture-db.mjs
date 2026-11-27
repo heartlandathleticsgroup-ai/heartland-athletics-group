@@ -31,7 +31,7 @@ export function createFixtureDatabase({now=Date.now,random=()=>crypto.getRandomV
   },
   async redeem(raw,p){
    const t=take(raw,p);if(!t)return null;const m=t.m;
-   if(p==="confirm"){if(m.suppressed)return null;for(const topic of t.topics)if(m.topics.get(topic)==="pending")m.topics.set(topic,"active");return {ok:true};}
+   if(p==="confirm"){if(m.suppressed)return null;let n=0;for(const topic of t.topics)if(m.topics.get(topic)==="pending"){m.topics.set(topic,"active");n++;}return n?{ok:true}:null;}
    if(p==="unsubscribe"){for(const topic of m.topics.keys())m.topics.set(topic,"withdrawn");m.suppressed=true;invalidate(m);return {ok:true};}
    return {channel:m.channel,suppressed:m.suppressed,preferences:view(m),edit_token:issueToken(m,"edit")};
   },
@@ -40,7 +40,7 @@ export function createFixtureDatabase({now=Date.now,random=()=>crypto.getRandomV
    const t=take(x.token,"edit");if(!t||t.m.suppressed&&x.add.length)return false;
    for(const topic of x.remove)if(t.m.topics.has(topic))t.m.topics.set(topic,"withdrawn");
    for(const topic of x.add)t.m.topics.set(topic,"active");
-   invalidate(t.m);return true;
+   for(const k of tokens.values())if(k.m===t.m&&(k.p==="manage"||k.p==="edit"||k.p==="confirm"&&k.topics.some(topic=>x.add.includes(topic)||x.remove.includes(topic))))k.used=true;return true;
   }
  };
 }

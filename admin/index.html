@@ -20,9 +20,9 @@
 <noscript><p>JavaScript is required for secure administrator sign-in. No administrative information is available here without authentication.</p></noscript>
 <div id="login-panel" hidden>
 <button id="passkey-login" type="button" class="blue" hidden>Sign in with Face ID, Touch ID or passkey</button>
-<p id="passkey-hint" class="muted" hidden>Your device may use biometrics, a device PIN or a security key.</p>
+<p id="passkey-hint" class="muted" hidden>Use an approved passkey with device verification. Password sign-in still requires an authenticator code.</p>
 <form id="login-form">
-<label for="email">Staff email</label><input id="email" type="email" autocomplete="username webauthn" required maxlength="254">
+<label for="email">Staff email</label><input id="email" type="email" autocomplete="username" required maxlength="254">
 <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
 <button class="gold" type="submit">Secure sign in</button>
 </form>
@@ -39,7 +39,7 @@
 </div></div>
 <div id="challenge-panel" hidden><h2>Two-step verification</h2><p>Enter the current six-digit code from your authenticator.</p>
 <form id="challenge-form"><label for="factor">Authenticator</label><select id="factor" required></select><label for="challenge-code">Verification code</label><input id="challenge-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required><button class="gold" type="submit">Verify</button></form></div>
-<div id="authorized-panel" hidden><h2>Administrator access verified</h2><p>Your account and MFA session have been verified by H.A.G.'s backend. Dashboard features are not included in this phase.</p><button id="register-passkey" class="blue" type="button" hidden>Register Face ID, Touch ID or passkey</button><p class="muted">Passkeys are optional. Authenticator verification is still required whenever the backend requires it.</p></div>
+<div id="authorized-panel" hidden><h2>Administrator access verified</h2><p>Your account and secure sign-in session have been verified by H.A.G.'s backend. Dashboard features are not included in this phase.</p><button id="register-passkey" class="blue" type="button" hidden>Register Face ID, Touch ID or passkey</button><p class="muted">New passkeys require a password-and-authenticator session and separate administrator approval. Keep your authenticator for backup.</p></div>
 <button id="signout" type="button" class="secondary" hidden>Sign out</button>
 <details><summary>Need account recovery?</summary><p>Use a previously enrolled authenticator or a backed-up Apple Passwords verification code. If unavailable, contact the authorized H.A.G. Supabase organization owner through a known private channel. The owner must verify identity, disable access and revoke compromised sessions or factors before re-enrollment. Never send passwords, setup keys or codes by email or text.</p><p>There is no self-service MFA bypass or public password-reset form.</p></details>
 </section><p class="footer">Heartland Athletics Group LLC · Secure administration</p>

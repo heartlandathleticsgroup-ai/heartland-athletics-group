@@ -1,11 +1,13 @@
 import {nextPanel,isSixDigit,expired} from "./auth-state.mjs";
+import {signInWithVerifiedPasskey} from "./verified-passkey.mjs";
+const BASE="https://unrqbfngcgvqnytxbtgj.supabase.co", PUBLISHABLE_KEY="sb_publishable_JeTzqF2gS0-pEHLs3VLOmg_GmK22bon";
 const $=id=>document.getElementById(id);
 const panels=["login","enroll","challenge","authorized"];
 const notices={login:"Sign in with your approved administrator account.",enroll:"An authenticator is required before administrative access.",challenge:"Complete authenticator verification.",authorized:"Secure administrator session verified.",denied:"Access denied or session expired. Sign in again."};
 const STORAGE="hag-admin-auth-v1", CLOCK="hag-admin-clock-v1";
 let client=null,busy=false,started=0,last=0,active=false,enrollment=null,currentPanel=null;
 const say=s=>{$("notice").textContent=s;};
-function passkeyAvailable(){return !!(window.isSecureContext&&window.PublicKeyCredential&&navigator.credentials&&client?.auth?.signInWithPasskey&&client?.auth?.registerPasskey);}
+function passkeyAvailable(){return !!(window.isSecureContext&&window.PublicKeyCredential&&navigator.credentials&&client?.auth?.passkey?.startAuthentication&&client?.auth?.registerPasskey);}
 function clearEnrollment(){enrollment=null;$("enroll-details").hidden=true;$("qr").removeAttribute("src");$("setup-key").textContent="";$("enroll-code").value="";$("start-enroll").disabled=false;}
 function show(panel){
  panels.forEach(p=>{$(p+"-panel").hidden=p!==panel;});
@@ -42,6 +44,10 @@ async function assess(){
    $("factor").replaceChildren(...factors.map(f=>{const o=document.createElement("option");o.value=f.id;o.textContent=f.friendly_name||"Authenticator";return o;}));
  }
  show(panel);
+ if(panel==="authorized"){
+   const assurance=data(await client.auth.mfa.getAuthenticatorAssuranceLevel());
+   $("register-passkey").hidden=!passkeyAvailable()||assurance.currentLevel!=="aal2";
+ }
 }
 async function run(fn,onError="Unable to complete this security step. Try again or use account recovery."){
  if(busy||!client)return;
@@ -60,7 +66,7 @@ on("login-form","submit",()=>run(async()=>{
 },"Sign-in failed. Check your credentials or contact the authorized account owner."));
 on("passkey-login","click",()=>run(async()=>{
  if(!passkeyAvailable())throw Error("Unavailable");
- data(await client.auth.signInWithPasskey());beginClock();
+ await signInWithVerifiedPasskey(client,BASE,PUBLISHABLE_KEY);beginClock();
  try{await assess();}catch{await lock("Unable to verify administrative access. Sign in again.");}
 },"Passkey sign-in unavailable or cancelled. Use your password and authenticator."));
 on("start-enroll","click",()=>run(async()=>{
@@ -81,8 +87,8 @@ on("enroll-form","submit",()=>run(async()=>{const code=$("enroll-code").value;$(
 on("challenge-form","submit",()=>run(async()=>{const code=$("challenge-code").value;$("challenge-code").value="";await verify($("factor").value,code);},"Code verification failed. Use a fresh code from your authenticator."));
 on("register-passkey","click",()=>run(async()=>{
  if(currentPanel!=="authorized"||data(await client.rpc("hag_admin_access_state"))!=="authorized"){await lock();return;}
- if(!passkeyAvailable())throw Error("Unavailable");
- data(await client.auth.registerPasskey());await assess();if(currentPanel==="authorized")say("Passkey registered. Keep your authenticator available.");
+ if(!passkeyAvailable()||data(await client.auth.mfa.getAuthenticatorAssuranceLevel()).currentLevel!=="aal2")throw Error("Password and authenticator session required");
+ data(await client.auth.registerPasskey());await assess();if(currentPanel==="authorized")say("Passkey registered. It requires administrator approval for code-free login.");
 },"Passkey setup unavailable or cancelled. Password and authenticator sign-in remain available."));
 on("signout","click",()=>run(()=>lock("Signed out.")));
 function checkClock(){
@@ -103,7 +109,7 @@ async function init(){
  try{
   if(!window.isSecureContext||!window.supabase?.createClient)throw Error("Secure context required");
   // Public publishable key only; no privileged keys, passwords or provider secrets.
-  client=window.supabase.createClient("https://unrqbfngcgvqnytxbtgj.supabase.co","sb_publishable_JeTzqF2gS0-pEHLs3VLOmg_GmK22bon",{auth:{flowType:"pkce",detectSessionInUrl:false,storage:sessionStorage,storageKey:STORAGE,persistSession:true,autoRefreshToken:true}});
+  client=window.supabase.createClient(BASE,PUBLISHABLE_KEY,{auth:{flowType:"pkce",detectSessionInUrl:false,storage:sessionStorage,storageKey:STORAGE,persistSession:true,autoRefreshToken:true}});
   const {session}=data(await client.auth.getSession());
   if(!session){show("login");clearClock();return;}
   const saved=JSON.parse(sessionStorage.getItem(CLOCK)||"null");

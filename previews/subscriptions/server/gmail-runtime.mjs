@@ -26,7 +26,7 @@ import {createGoogleHttpBoundary} from "./gmail-http-boundary.mjs";
 export function createGmailBridgedRuntime({mode,controlPool,dispatchPool,userRpc,mockFetch,...options}){
  if(mode!=="isolated-test"||!controlPool||!dispatchPool||controlPool===dispatchPool||typeof userRpc!=="function")throw Error("Separate isolated Gmail pools required");
  const cq=createBoundExecutor(controlPool,{max:2,kind:"gmailControl"}),dq=createBoundExecutor(dispatchPool,{max:2,kind:"gmailDispatch"});
- const control=gmailControlDb(cq),dispatch=gmailDispatchDb(dq),flows=createFlowDb(cq),fixtureRequest=createGoogleHttpBoundary({mode,mockFetch});
+ const control=gmailControlDb(cq),dispatch=gmailDispatchDb(dq),flows=createFlowDb(cq),fixtureRequest=options.protocol?options.protocol.request:createGoogleHttpBoundary({mode,mockFetch});
  const proof=async bearer=>{try{const r=await userRpc({name:"hag_gmail_admin_proof",args:{},bearer});return r?.error?null:r?.data??null;}catch{return null;}};
  const base={...options,mode,control,dispatch,fixtureRequest};
  const backend=(req,bearer,expectedGeneration=null)=>createGmailBackend({...base,expectedGeneration,verifyAdmin:()=>proof(bearer)}).handle(req);

@@ -13,13 +13,13 @@ function topic(container,code,label,note,checked=false,disabled=false){
  if(note){const n=document.createElement("span");n.className="topic-note";n.textContent=note;span.append(n);}
  l.append(cb,span);row.append(l);container.append(row);return cb;
 }
-const buttons=["start-submit","access","optout-link","expire","reset","save","close"];
+const buttons=["channel","start-submit","access","optout-link","expire","reset","save","close"];
 function clearVerified(){verified=null;$("manage-panel").hidden=true;$("edit-topics").replaceChildren();$("edit-adult").checked=false;$("edit-agree").checked=false;$("edit-consent").hidden=true;$("edit-wording").textContent="";$("manage-detail").textContent="";}
 function clearAction(){selected=null;$("action-panel").hidden=true;$("action-controls").replaceChildren();$("action-heading").textContent="";$("action-detail").textContent="";}
 function setBusy(v){busy=v;for(const id of buttons)$(id).disabled=v;for(const b of document.querySelectorAll("#inbox button,#action-controls button"))b.disabled=v;}
 async function run(fn){if(busy)return;setBusy(true);try{await fn();}catch{clearAction();clearVerified();error("The test request could not be completed. Try again or request a new link.");}finally{setBusy(false);}}
 function resetChoices(){for(const cb of $("start-topics").querySelectorAll("input"))cb.checked=false;$("adult").checked=false;$("consent").checked=false;$("wording").textContent=CONSENT[$("channel").value];}
-for(const [code,label] of TOPICS)topic($("start-topics"),code,label);
+for(const [code,label] of TOPICS){const cb=topic($("start-topics"),code,label);cb.addEventListener("change",()=>{$("consent").checked=false;});}
 $("channel").addEventListener("change",()=>{resetChoices();clearVerified();clearAction();});
 resetChoices();
 function renderInbox(){
@@ -42,14 +42,15 @@ $("start").addEventListener("submit",ev=>{ev.preventDefault();void run(async()=>
  issueResult(await sim.subscribe(form));resetChoices();
 });});
 for(const [id,purpose] of [["access","manage"],["optout-link","unsubscribe"]])$(id).addEventListener("click",()=>void run(async()=>{clearVerified();clearAction();const channel=$("channel").value;issueResult(await sim.access({channel,destination:dest(channel)},purpose));}));
-function open(item){
+async function open(item){
  clearVerified();clearAction();selected=item;
  const c=item.channel==="email"?"email":"SMS";
  $("action-heading").textContent=({confirm:"Confirm subscription",manage:"Verify preference access",unsubscribe:"Unsubscribe from all "+c+" marketing"}[item.purpose]);
  $("action-detail").textContent=({confirm:"Confirm only the topics requested on this "+c+" link.",manage:"Verify this "+c+" link before viewing or changing preferences.",unsubscribe:"This withdraws all pending and active topics for this "+c+" destination only. Your other communication channel is unaffected."}[item.purpose]);
- const b=document.createElement("button");b.type="button";b.textContent=item.purpose==="unsubscribe"?"Unsubscribe from all "+c:"Continue verification";if(item.purpose==="unsubscribe")b.className="danger";
+ const b=document.createElement("button");b.type="button";b.textContent=item.purpose==="unsubscribe"?"Unsubscribe from all "+c:item.purpose==="confirm"?"Confirm selected topics":"Continue verification";if(item.purpose==="unsubscribe")b.className="danger";
  b.addEventListener("click",()=>void run(async()=>{
   const current=selected;if(!current)return;
+  if(!eligible){clearAction();error("This link is invalid, expired, already used or no longer eligible. Request a new test link.");return;}
   const r=await sim.call({action:current.purpose,token:current.token});
   clearAction();
   if(r.status!==200){error(r.status===429?"Too many test requests. Try again later.":"Service unavailable. Request a new test link if necessary.");return;}
@@ -57,8 +58,19 @@ function open(item){
   if(current.purpose==="manage"){showVerified(r.body);status("Test contact method verified.");}
   else{status(current.purpose==="confirm"?"Test subscription confirmed for the selected topics.":"Test unsubscribe completed for this channel.");$("inbox-heading").setAttribute("tabindex","-1");$("inbox-heading").focus();}
  }));
+ let eligible=item.purpose!=="confirm";
  const cancel=document.createElement("button");cancel.type="button";cancel.textContent="Cancel";cancel.addEventListener("click",()=>{clearAction();$("inbox-heading").setAttribute("tabindex","-1");$("inbox-heading").focus();});
  $("action-controls").append(b,cancel);$("action-panel").hidden=false;$("action-heading").focus();
+ if(item.purpose==="confirm"){
+  b.disabled=true;
+  try{const r=await sim.call({action:"inspect",token:item.token});if(selected!==item)return;
+   if(r.status===200&&r.body.ok&&r.body.channel===item.channel){
+    const list=document.createElement("ul");for(const code of r.body.topics){const li=document.createElement("li");li.textContent=TOPICS.find(t=>t[0]===code)?.[1]||code;list.append(li);}
+    const wording=document.createElement("p");wording.textContent=CONSENT[item.channel];$("action-detail").textContent="Review the exact topics and consent below before confirming."; $("action-controls").prepend(list,wording);eligible=true;
+   }else{$("action-detail").textContent="This link cannot be verified. Request a new test link.";b.textContent="Close invalid link";}
+  }catch{if(selected!==item)return;$("action-detail").textContent="Verification is temporarily unavailable.";b.textContent="Close invalid link";}
+  if(selected===item)b.disabled=false;
+ }
 }
 function showVerified(data){
  clearVerified();
@@ -69,7 +81,7 @@ function showVerified(data){
   const state=verified.states.get(code)||"not subscribed";const cb=topic($("edit-topics"),code,label,state,state==="active"||state==="pending",verified.suppressed&&state!=="active"&&state!=="pending");
   // Pending starts selected but is not active. Uncheck to withdraw; confirm via its original link.
   if(state==="pending")cb.dataset.pending="true";
-  cb.addEventListener("change",()=>{cb.indeterminate=false;cb.dataset.touched="true";updateEditConsent();});
+  cb.addEventListener("change",()=>{cb.indeterminate=false;cb.dataset.touched="true";$("edit-agree").checked=false;updateEditConsent();});
  }
  $("manage-panel").hidden=false;$("manage-heading").focus();updateEditConsent();
 }

@@ -19,7 +19,7 @@ begin
  select id into m from hag_private.hag_contact_methods where channel='email' and destination=p_destination;
  if m is null or exists(select 1 from hag_private.hag_suppressions where contact_method_id=m and active) then return;end if;
  update hag_private.hag_subscriptions s set status='active',email_opt_in_event_id=e.id
- from lateral (select id,subscription_id from hag_private.hag_consent_events where event_kind='requested' and source='website' and channel='email' and consent_version='draft-3c3-v1' and consent_text=hag_private.subscription_wording('email')) e
+ from (select distinct on (subscription_id) id,subscription_id from hag_private.hag_consent_events where event_kind='requested' and source='website' and channel='email' and consent_version='draft-3c3-v1' and consent_text=hag_private.subscription_wording('email') order by subscription_id,occurred_at desc,id) e
  where s.contact_method_id=m and s.channel='email' and s.status='pending' and s.topic_code=any(p_topics) and e.subscription_id=s.id;
  -- No verification timestamp, confirmation event, capability, or outbox job.
 end $single$;
@@ -39,3 +39,20 @@ begin
  insert into hag_private.subscription_email_outbox(id,request_id,payload,key_version,deadline)
  values(j,p_id,extensions.pgp_sym_encrypt(jsonb_build_object('destination',p_destination,'purpose',p_purpose,'token',raw)::text,p_key,'cipher-algo=aes256,compress-algo=0'),p_key_version,clock_timestamp()+interval '15 minutes');
 end $fn$;
+
+-- Disable any historical draft email confirmation capabilities and dispatch attempts.
+update hag_private.subscription_capabilities k set used_at=clock_timestamp() from hag_private.hag_contact_methods m where k.method_id=m.id and m.channel='email' and k.purpose='confirm' and k.used_at is null;
+create or replace function hag_private.subscription_email_delivery_eligible(p_token text,p_destination text,p_purpose text)
+returns boolean language sql stable security definer set search_path='' as $elig$
+ select coalesce(p_token ~ '^[0-9a-f]{64}$' and p_purpose in ('manage','unsubscribe') and exists(
+ select 1 from hag_private.subscription_capabilities k
+ join hag_private.hag_contact_methods m on m.id=k.method_id
+ where k.token_hash=extensions.digest(p_token,'sha256') and k.purpose=p_purpose
+ and k.used_at is null and k.expires_at>statement_timestamp()+interval '1 minute'
+ and m.channel='email' and m.destination=p_destination
+ and (p_purpose<>'confirm' or (
+ not exists(select 1 from hag_private.hag_suppressions x where x.contact_method_id=m.id and x.active)
+ and exists(select 1 from hag_private.hag_subscriptions s join hag_private.hag_topics t on t.code=s.topic_code and t.purpose=s.topic_purpose where s.contact_method_id=m.id and s.id=any(k.snapshot) and s.status='pending' and t.active
+ and exists(select 1 from hag_private.hag_consent_events e where e.subscription_id=s.id and e.event_kind='requested' and e.consent_version='draft-3c3-v1' and e.consent_text=hag_private.subscription_wording(m.channel)))
+ ))),false)
+$elig$;

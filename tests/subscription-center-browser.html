@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>Local preference center browser QA</title><p id="result">RUNNING</p><iframe id="frame" title="Subscriber preference center test" style="width:390px;height:900px;border:0"></iframe><script type="module">
 const frame=document.getElementById("frame"),result=document.getElementById("result");
 const check=(x,label)=>{if(!x)throw Error(label);};
-const wait=async(fn,label)=>{for(let i=0;i<150;i++){if(fn())return;await new Promise(r=>setTimeout(r,20));}throw Error(label);};
+const wait=async(fn,label)=>{for(let i=0;i<150;i++){if(fn())return;await new Promise(r=>setTimeout(r,20));}throw Error(label+"; status: "+frame.contentDocument?.getElementById("status")?.textContent+"; error: "+frame.contentDocument?.getElementById("error")?.textContent);};
 const load=new Promise(r=>frame.addEventListener("load",r,{once:true}));frame.src="/center.html";await load;
 const d=frame.contentDocument,$=id=>d.getElementById(id);
 const text=(id,s)=>$(id).textContent.includes(s);

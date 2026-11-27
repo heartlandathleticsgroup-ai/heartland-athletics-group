@@ -50,3 +50,17 @@ assert.deepEqual(await (await backend.handle(post("disable"))).json(),{enabled:f
 assert.deepEqual(await (await backend.handle(post("disconnect"))).json(),{connected:false,enabled:false,providerRevoked:true});assert.equal(credential,null);
 const queries=[];const q=async(sql,args)=>{queries.push({sql,args});return {rows:[{value:true}]};};await gmailControlDb(q).begin("a".repeat(64),actor,session,sealed);await gmailDispatchDb(q).allowed(ticket,1,{destination:"fixture@example.invalid",purpose:"manage",token:"a".repeat(64)});assert.equal(queries.length,2);assert.ok(queries.every(x=>x.sql.includes("$1")));
 console.log("PASS: isolated OAuth callback, fresh admin/session, state expiry/replay, scope rejection, AES-GCM tamper rejection, status, disconnect, disabled dispatch and ambiguous send hold");
+
+const {createAdminProofVerifier,createGmailStagedRuntime}=await import("../previews/subscriptions/server/gmail-runtime.mjs");
+let rpcCalls=[];
+const verifier=createAdminProofVerifier({resolveSession:async()=>({bearer:"fixture-admin-bearer"}),userRpc:async x=>{rpcCalls.push(x);return {data:admin};}});
+assert.deepEqual(await verifier(post("status")),admin);assert.equal(rpcCalls[0].name,"hag_gmail_admin_proof");assert.equal(rpcCalls[0].bearer,"fixture-admin-bearer");
+assert.equal(await createAdminProofVerifier({resolveSession:async()=>({bearer:"untrusted"}),userRpc:async()=>{throw Error("must not run");}})(post("status")),null);
+const poolCalls=[];
+const makePool=(role,login)=>({async connect(){return {async query(q,args){poolCalls.push(q);if(q.includes("current_user"))return {rows:[{role,login,narrow:true}]};if(q.includes("gmail_status"))return {rows:[{value:{connected:false,enabled:false}}]};if(q.includes("gmail_claim"))return {rows:[{value:null}]};return {rows:[]};},release(){}};}});
+const cp=makePool("hag_gmail_control","hag_gmail_control_login"),dp=makePool("hag_gmail_dispatch","hag_gmail_dispatch_login");
+const runtime=createGmailStagedRuntime({...opts,controlPool:cp,dispatchPool:dp,resolveSession:async()=>({bearer:"fixture-admin-bearer"}),userRpc:async()=>({data:admin})});
+assert.deepEqual(await (await runtime.handle(post("status"))).json(),{connected:false,enabled:false});
+assert.equal(await runtime.pump(),"empty");assert.ok(poolCalls.includes("SET LOCAL ROLE hag_gmail_control"));assert.ok(poolCalls.includes("SET LOCAL ROLE hag_gmail_dispatch"));
+assert.throws(()=>createGmailStagedRuntime({...opts,controlPool:cp,dispatchPool:cp,resolveSession:async()=>null,userRpc:async()=>null}));
+console.log("PASS: user-context admin proof and isolated bounded Gmail control/dispatch runtime");

@@ -50,9 +50,9 @@ async function reviewBody(req){
  }finally{clearTimeout(timer);void reader.cancel().catch(()=>{});}
 }
 function reply(status,body){return new Response(JSON.stringify(body),{status,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Referrer-Policy":"no-referrer","X-Content-Type-Options":"nosniff"}});}
-export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixtureRequest,clientId,clientSecret,outboxKeys,nextVault=null,expectedGeneration=null,now=Date.now}){
+export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixtureRequest,clientId,clientSecret,outboxKeys,nextVault=null,expectedGeneration=null,protocol=null,now=Date.now}){
  if(mode!=="isolated-test"||typeof fixtureRequest!=="function"||typeof verifyAdmin!=="function"||clientId!=="fixture.apps.googleusercontent.com"||!secret(clientSecret)||!control||!dispatch||!vault||typeof outboxKeys!=="function")throw Error("Synthetic backend only");
- const call=async(url,form,access)=>{const headers=access?{"Authorization":"Bearer "+access,"Content-Type":"application/json"}:{"Content-Type":"application/x-www-form-urlencoded"};const body=access?JSON.stringify(form):new URLSearchParams(form).toString();return fixtureRequest({url,method:"POST",headers,body,redirect:"error",timeoutMs:5000});};
+ const call=async(url,form,access)=>{const headers=access?{"Authorization":"Bearer "+access,"Content-Type":"application/json"}:{"Content-Type":"application/x-www-form-urlencoded"};const body=access?JSON.stringify(form):new URLSearchParams(form).toString();return (protocol?.request||fixtureRequest)({url,method:"POST",headers,body,redirect:"error",timeoutMs:5000});};
  const vaultFor=version=>version===vault.version?vault:nextVault?.version===version?nextVault:null;
  const revoke=async token=>{try{return (await call(REVOKE,{token})).status===200;}catch{return false;}};
  const exchange=async form=>call(TOKEN,{client_id:clientId,client_secret:clientSecret,...form});
@@ -95,7 +95,7 @@ export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixt
    }
    if(u.pathname.endsWith("/start")){
     const s=await control.status();if(s.connected)return reply(409,{ok:false});
-    const p=createOfflineAuthorizationPlan({clientId,redirectUri:CALLBACK}),d=digest(p.parameters.state);
+    const p=createOfflineAuthorizationPlan({clientId,redirectUri:CALLBACK});if(protocol)p.parameters.redirect_uri=protocol.callback;const d=digest(p.parameters.state);
     const encrypted=vault.seal(p.verifier,"state:"+d+":"+a.actor+":"+a.session);
     const g=expectedGeneration===null?await control.begin(d,a.actor,a.session,encrypted):await control.beginAtGeneration(d,a.actor,a.session,encrypted,expectedGeneration);
     if(g===null)return reply(409,{ok:false});
@@ -106,7 +106,7 @@ export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixt
    const d=digest(state),s=await control.take(d,a.actor,a.session);
    if(!s)return reply(400,{ok:false});
    const verifier=vault.open(s.verifier,"state:"+d+":"+a.actor+":"+a.session);
-   const t=await exchange({grant_type:"authorization_code",code,redirect_uri:CALLBACK,code_verifier:verifier});
+   const t=await exchange({grant_type:"authorization_code",code,redirect_uri:protocol?.callback||CALLBACK,code_verifier:verifier});
    if(!tokenValid(t)||!secret(t.body?.refresh_token)){if(secret(t.body?.refresh_token))await revoke(t.body.refresh_token);else if(secret(t.body?.access_token))await revoke(t.body.access_token);return reply(400,{ok:false});}
    // Sending identity cannot be proven with gmail.send alone. Connection is
    // stored disabled; a separately authorized alias acceptance test is required.
@@ -133,7 +133,7 @@ export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixt
     if(!tokenValid(t)){outcome="authorization-required";}
     else if(t.body.refresh_token!==undefined){outcome="authorization-required";} // unexpected rotation: stop, no silent replacement
     else {
-     const message=buildSyntheticGmailMessage({id:reservation.id,...reservation.message});
+     const message=(protocol?.render||buildSyntheticGmailMessage)({id:reservation.id,...reservation.message});
      if(!await dispatch.allowed(reservation.ticket,reservation.generation,reservation.message))outcome="permanent-or-configuration-review";
      else {const response=await call(SEND,message,t.body.access_token);outcome=classifyGmailOutcome(response.status);if(outcome==="accepted-not-delivered"&&!secret(response.body?.id))outcome="ambiguous-hold-no-resend";}
     }

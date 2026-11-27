@@ -58,3 +58,12 @@ const overall=createIngressGuard({clock:()=>0});
 for(let i=0;i<600;i++)assert.equal(overall("2001:db8::"+(i+1).toString(16)),true);
 assert.equal(overall("2001:db8::ffff"),false);
 console.log("Ingress source canonicalization, per-source/global limits and window reset passed.");
+
+assert.equal(guard("2001:db8::1","optout"),true);
+assert.equal(overall("2001:db8::ffff","optout"),true);
+for(let i=1;i<20;i++)assert.equal(overall("2001:db8::ffff","optout"),true);
+assert.equal(overall("2001:db8::ffff","optout"),false);
+assert.equal((await gateway(req({action:"unsubscribe",token:"a".repeat(64)}))).status,400);
+assert.equal((await gateway(new Request(url+"/unsubscribe",{method:"POST",headers:{origin,"content-type":"application/json"},body:JSON.stringify(sub)}))).status,400);
+assert.equal((await gateway(req({action:"edit",token:result.editToken,add:[],remove:["hag-announcements"],adult:false,consent:false,version:"old-draft"}))).status,200);
+console.log("Dedicated opt-out lane and consent-independent withdrawal tests passed.");

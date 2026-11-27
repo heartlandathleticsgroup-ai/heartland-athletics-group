@@ -140,3 +140,32 @@ grant execute on function hag_private.gmail_begin(text,uuid,uuid,text),hag_priva
 grant execute on function hag_private.gmail_claim(),hag_private.gmail_reserve(uuid,uuid,text,text),hag_private.gmail_dispatch_allowed(uuid,bigint,text,text,text),hag_private.gmail_finish(uuid,text) to hag_gmail_dispatch;
 -- Final worker cannot bypass the durable pre-dispatch reservation via historical sim step.
 revoke execute on function hag_private.subscription_email_claim(),hag_private.subscription_email_sim_step(uuid,uuid,text,text,text) from hag_email_worker;
+
+-- New read-only admin bridge uses the existing gate, not client assertions.
+-- In production it must be invoked with the initiating user's verified JWT.
+create function hag_private.gmail_admin_proof()
+returns jsonb language plpgsql stable security definer set search_path='' as $$
+declare uid uuid:=auth.uid(); claims jsonb:=auth.jwt(); sid uuid; recent timestamptz;
+begin
+ if uid is null or hag_private.admin_session_state() is distinct from 'authorized' or coalesce(claims->>'session_id','') !~ '^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$' then return null;end if;
+ sid:=(claims->>'session_id')::uuid;
+ -- The existing gate checks current active staff, auth.users, auth.sessions,
+ -- verified TOTP enrollment, and approved passkey session where appropriate.
+ select max(t.at) into recent from (
+ select greatest(m.created_at,m.updated_at) as at from auth.mfa_amr_claims m
+ where m.session_id=sid and m.authentication_method='totp' and claims->>'aal'='aal2'
+ union all
+ select g.verified_at from hag_private.hag_verified_passkey_sessions g
+ join hag_private.hag_approved_passkeys a on a.credential_id=g.credential_id and a.user_id=g.user_id and a.revoked_at is null
+ join auth.webauthn_credentials c on c.id=a.credential_id and c.user_id=a.user_id
+ where g.session_id=sid and g.user_id=uid and exists(select 1 from auth.mfa_amr_claims m where m.session_id=sid and m.authentication_method='passkey')
+ ) t where t.at<=now() and t.at>now()-interval '5 minutes';
+ if recent is null then return null;end if;
+ return jsonb_build_object('actor',uid,'session',sid,'gate','authorized','sessionActive',true,'stepUpAt',floor(extract(epoch from recent)*1000)::bigint);
+end $$;
+revoke all on function hag_private.gmail_admin_proof() from public,anon,authenticated,service_role;
+grant execute on function hag_private.gmail_admin_proof() to authenticated;
+create function public.hag_gmail_admin_proof()
+returns jsonb language sql stable security invoker set search_path='' as $$ select hag_private.gmail_admin_proof() $$;
+revoke all on function public.hag_gmail_admin_proof() from public,anon,authenticated,service_role;
+grant execute on function public.hag_gmail_admin_proof() to authenticated;

@@ -1,11 +1,11 @@
 // Disabled draft adapter. No API key, HTTP client, endpoint, DNS or provider calls.
-export function createResendAdapter(){
- return Object.freeze({enabled:false,async send(){throw Error("Resend integration is disabled; explicit activation and security acceptance required");}});
+export function createGmailAdapter(){
+ return Object.freeze({enabled:false,from:"no-reply@heartlandathleticsgroup.com",replyTo:"info@heartlandathleticsgroup.com",scope:"https://www.googleapis.com/auth/gmail.send",async send(){throw Error("Gmail integration is disabled; explicit OAuth authorization and security acceptance required");}});
 }
 // Fixed-query adapters for synthetic-only isolated database, separate worker identity.
 export function durableEmailAdapter(query,key,keyVersion){
  if(typeof query!=="function"||typeof key!=="string"||! /^[a-f0-9]{64}$/.test(key)||! /^[a-zA-Z0-9_-]{1,32}$/.test(keyVersion))throw Error("Invalid isolated configuration");
- return {async enqueue(id,action,item){if(item.channel!=="email"||!item.destination.endsWith(".invalid"))throw Error("Synthetic email only");await query("select hag_private.subscription_enqueue_email($1::uuid,$2,$3,$4,$5,$6::text[],$7,$8,$9,$10,$11)",[id,action,item.name??null,item.adult??null,item.destination,item.topics??null,item.consentText!==undefined?true:null,item.consentVersion??null,item.purpose,key,keyVersion]);}};
+ return {async enqueue(id,action,item){if(action!=="access"||!["manage","unsubscribe"].includes(item.purpose)||item.channel!=="email"||!item.destination.endsWith(".invalid"))throw Error("Synthetic email only");await query("select hag_private.subscription_enqueue_email($1::uuid,$2,$3,$4,$5,$6::text[],$7,$8,$9,$10,$11)",[id,action,item.name??null,item.adult??null,item.destination,item.topics??null,item.consentText!==undefined?true:null,item.consentVersion??null,item.purpose,key,keyVersion]);}};
 }
 export function durableEmailWorker(query,keys){
  if(typeof query!=="function"||typeof keys!=="function")throw Error("Isolated worker configuration required");

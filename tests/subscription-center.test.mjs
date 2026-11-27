@@ -11,8 +11,11 @@ const access=async(channel,purpose)=>{assert.equal((await sim.access({channel,de
 assert.equal((await sim.subscribe(form)).status,202);const initial=sim.takeMessages();assert.equal(initial.length,2);
 const e=initial.find(x=>x.channel==="email").token,s=initial.find(x=>x.channel==="sms").token;
 assert.equal((await sim.call({action:"manage",token:e})).body.ok,false);
+assert.deepEqual((await sim.call({action:"inspect",token:e})).body,{ok:true,channel:"email",topics:["hag-announcements"]});
+assert.deepEqual((await sim.call({action:"inspect",token:s})).body,{ok:true,channel:"sms",topics:["gus-macker-local"]});
 assert.equal((await sim.call({action:"confirm",token:e})).body.ok,true);
 assert.equal((await sim.call({action:"confirm",token:e})).body.ok,false);
+assert.equal((await sim.call({action:"inspect",token:e})).body.ok,false);
 const mt=await access("email","manage");const m=(await sim.call({action:"manage",token:mt})).body;
 assert.equal(m.channel,"email");assert.deepEqual(m.preferences,[{topic:"hag-announcements",status:"active"}]);
 const edit={action:"edit",token:m.editToken,add:["camps-clinics"],remove:["hag-announcements"],adult:true,consent:true,version:CONSENT_VERSION};

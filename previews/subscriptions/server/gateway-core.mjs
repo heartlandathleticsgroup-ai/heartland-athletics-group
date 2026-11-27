@@ -63,7 +63,7 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource}){
      case "access":
       if(!exact(x,["action","requestId","purpose","form"])||!id(x.requestId)||!["manage","unsubscribe"].includes(x.purpose))throw Error();
       items=[{...validatePreferenceAccess(x.form),purpose:x.purpose}];break;
-     case "confirm":case "manage":case "unsubscribe":
+     case "inspect":case "confirm":case "manage":case "unsubscribe":
       if(!exact(x,["action","token"])||!token(x.token))throw Error();break;
      case "edit":
       if(!exact(x,["action","token","add","remove","adult","consent","version"])||!token(x.token)||!topics(x.add)||!topics(x.remove)||x.add.some(t=>x.remove.includes(t))||!x.add.length&&!x.remove.length||typeof x.adult!=="boolean"||typeof x.consent!=="boolean"||x.version!==CONSENT_VERSION||(x.add.length&&(!x.adult||!x.consent)))throw Error();break;
@@ -82,6 +82,11 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource}){
       if(token(raw))await delivery.accept({channel:item.channel,destination:item.destination,purpose:item.purpose,token:raw});}catch{/* Do not leak outcomes or skip another channel. */}
      }
      return generic();
+    }
+    if(x.action==="inspect"){
+     const v=await db.inspect(x.token);
+     if(!v||!["email","sms"].includes(v.channel)||!topics(v.topics)||!v.topics.length)return response(200,{ok:false},true);
+     return response(200,{ok:true,channel:v.channel,topics:v.topics},true);
     }
     if(x.action==="edit"){
      const ok=await db.edit(x);

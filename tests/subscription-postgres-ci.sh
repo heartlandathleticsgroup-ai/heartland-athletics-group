@@ -25,3 +25,7 @@ python3 tests/subscription-outbox-concurrency.py
 # Final revised consent policy; previous suites exercise the superseded historical draft.
 psql -X -q -v ON_ERROR_STOP=1 -h "$dir" -d hag_qa -f supabase/admin-setup/phase-3c3-single-opt-in-draft.sql
 psql -X -q -v ON_ERROR_STOP=1 -h "$dir" -d hag_qa -f tests/subscription-single-opt-in-db.sql
+
+# Final Gmail backend stage: fixtures only, no real provider or hosted database.
+psql -X -q -v ON_ERROR_STOP=1 -h "$dir" -d hag_qa -f supabase/admin-setup/phase-3c3-gmail-backend-draft.sql
+psql -X -q -v ON_ERROR_STOP=1 -h "$dir" -d hag_qa -f tests/subscription-gmail-backend-db.sql

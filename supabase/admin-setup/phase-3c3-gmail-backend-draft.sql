@@ -18,7 +18,7 @@ create table hag_private.gmail_oauth_state (
 create table hag_private.gmail_dispatch_receipt (
  job_id uuid primary key, ticket uuid unique not null, generation bigint not null,
  outcome text not null check(outcome in ('ambiguous-hold-no-resend','accepted-not-delivered','authorization-required','hold-quota-or-policy-review','permanent-or-configuration-review')),
- created_at timestamptz not null default clock_timestamp(), finished_at timestamptz
+ created_at timestamptz not null default clock_timestamp(), finished_at timestamptz, started_at timestamptz, message_digest text not null
 );
 alter table hag_private.gmail_connection enable row level security;
 alter table hag_private.gmail_connection force row level security;
@@ -33,7 +33,8 @@ returns bigint language plpgsql volatile security definer set search_path='' as 
 declare g bigint;
 begin
  if p_digest is null or p_digest !~ '^[a-f0-9]{64}$' or p_actor is null or p_session is null or p_verifier is null or length(p_verifier) not between 1 and 2048 then return null;end if;
- select generation into g from hag_private.gmail_connection where singleton for update;
+ select generation into g from hag_private.gmail_connection where singleton and credential is null for update;
+ if g is null then return null;end if;
  delete from hag_private.gmail_oauth_state where expires_at<=clock_timestamp() or actor=p_actor;
  if (select count(*) from hag_private.gmail_oauth_state)>=20 then return null;end if;
  insert into hag_private.gmail_oauth_state(digest,actor,session_id,generation,verifier) values(p_digest,p_actor,p_session,g,p_verifier);
@@ -53,7 +54,7 @@ returns boolean language plpgsql volatile security definer set search_path='' as
 declare n int;
 begin
  if p_credential is null or length(p_credential) not between 1 and 16384 or p_version is null or p_version !~ '^[a-zA-Z0-9_-]{1,32}$' then return false;end if;
- update hag_private.gmail_connection set credential=p_credential,key_version=p_version,enabled=false,generation=generation+1 where singleton and generation=p_generation;
+ update hag_private.gmail_connection set credential=p_credential,key_version=p_version,enabled=false,generation=generation+1 where singleton and generation=p_generation and credential is null;
  get diagnostics n=row_count;
  if n=1 then delete from hag_private.gmail_oauth_state;end if;
  return n=1;
@@ -108,27 +109,34 @@ begin
   update hag_private.subscription_email_outbox set state='failed',payload=null,finished_at=clock_timestamp(),lease=null,lease_until=null where id=j.id;return null;
  end if;
  insert into hag_private.subscription_email_quota values('day',d,1),('month',mo,1) on conflict(period,bucket) do update set reserved=hag_private.subscription_email_quota.reserved+1;
- insert into hag_private.gmail_dispatch_receipt(job_id,ticket,generation,outcome) values(j.id,ticket,c.generation,'ambiguous-hold-no-resend');
+ insert into hag_private.gmail_dispatch_receipt(job_id,ticket,generation,outcome,message_digest) values(j.id,ticket,c.generation,'ambiguous-hold-no-resend',encode(extensions.digest((v->>'destination')||':'||(v->>'purpose')||':'||(v->>'token'),'sha256'),'hex'));
  update hag_private.subscription_email_outbox set state='failed',payload=null,finished_at=clock_timestamp(),lease=null,lease_until=null,attempts=attempts+1 where id=j.id;
  return jsonb_build_object('id',j.id,'ticket',ticket,'generation',c.generation,'credential',c.credential,'key_version',c.key_version,'message',v);
 end $$;
-create function hag_private.gmail_dispatch_allowed(p_ticket uuid,p_generation bigint)
-returns boolean language sql stable security definer set search_path='' as $$
- select exists(select 1 from hag_private.gmail_connection c join hag_private.gmail_dispatch_receipt r on r.generation=c.generation where c.singleton and c.enabled and c.generation=p_generation and r.ticket=p_ticket and r.finished_at is null and r.created_at>statement_timestamp()-interval '30 seconds')
-$$;
+create function hag_private.gmail_dispatch_allowed(p_ticket uuid,p_generation bigint,p_destination text,p_purpose text,p_token text)
+returns boolean language plpgsql volatile security definer set search_path='' as $$
+declare n int; c hag_private.gmail_connection;
+begin
+ if p_destination is null or p_purpose is null or p_token is null then return false;end if;
+ perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('hag-subscription:email:'||p_destination,0));
+ select * into c from hag_private.gmail_connection where singleton for update;
+ if not c.enabled or c.generation is distinct from p_generation or not hag_private.subscription_email_delivery_eligible(p_token,p_destination,p_purpose) then return false;end if;
+ update hag_private.gmail_dispatch_receipt set started_at=clock_timestamp() where ticket=p_ticket and generation=p_generation and started_at is null and finished_at is null and created_at>clock_timestamp()-interval '30 seconds' and message_digest=encode(extensions.digest(p_destination||':'||p_purpose||':'||p_token,'sha256'),'hex');
+ get diagnostics n=row_count;return n=1;
+end $$;
 create function hag_private.gmail_finish(p_ticket uuid,p_outcome text)
 returns boolean language plpgsql volatile security definer set search_path='' as $$
 declare j uuid; g bigint;
 begin
  if p_outcome is null or p_outcome not in ('ambiguous-hold-no-resend','accepted-not-delivered','authorization-required','hold-quota-or-policy-review','permanent-or-configuration-review') then return false;end if;
- update hag_private.gmail_dispatch_receipt set outcome=p_outcome,finished_at=clock_timestamp() where ticket=p_ticket and finished_at is null returning job_id,generation into j,g;
+ update hag_private.gmail_dispatch_receipt set outcome=p_outcome,finished_at=clock_timestamp() where ticket=p_ticket and finished_at is null and (p_outcome<>'accepted-not-delivered' or started_at is not null) returning job_id,generation into j,g;
  if j is null then return false;end if;
  if p_outcome='accepted-not-delivered' then update hag_private.subscription_email_outbox set state='accepted' where id=j;end if;
  if p_outcome in ('authorization-required','hold-quota-or-policy-review') then update hag_private.gmail_connection set enabled=false,generation=generation+1 where singleton and generation=g;end if;
  return true;
 end $$;
-revoke all on function hag_private.gmail_begin(text,uuid,uuid,text),hag_private.gmail_take(text,uuid,uuid),hag_private.gmail_store(bigint,text,text),hag_private.gmail_status(),hag_private.gmail_disable(boolean),hag_private.gmail_enable_fixture(bigint),hag_private.gmail_claim(),hag_private.gmail_reserve(uuid,uuid,text,text),hag_private.gmail_dispatch_allowed(uuid,bigint),hag_private.gmail_finish(uuid,text) from public,anon,authenticated,service_role,hag_subscription_runtime,hag_email_worker,hag_subscription_maintenance,hag_gmail_control,hag_gmail_dispatch;
+revoke all on function hag_private.gmail_begin(text,uuid,uuid,text),hag_private.gmail_take(text,uuid,uuid),hag_private.gmail_store(bigint,text,text),hag_private.gmail_status(),hag_private.gmail_disable(boolean),hag_private.gmail_enable_fixture(bigint),hag_private.gmail_claim(),hag_private.gmail_reserve(uuid,uuid,text,text),hag_private.gmail_dispatch_allowed(uuid,bigint,text,text,text),hag_private.gmail_finish(uuid,text) from public,anon,authenticated,service_role,hag_subscription_runtime,hag_email_worker,hag_subscription_maintenance,hag_gmail_control,hag_gmail_dispatch;
 grant execute on function hag_private.gmail_begin(text,uuid,uuid,text),hag_private.gmail_take(text,uuid,uuid),hag_private.gmail_store(bigint,text,text),hag_private.gmail_status(),hag_private.gmail_disable(boolean),hag_private.gmail_enable_fixture(bigint) to hag_gmail_control;
-grant execute on function hag_private.gmail_claim(),hag_private.gmail_reserve(uuid,uuid,text,text),hag_private.gmail_dispatch_allowed(uuid,bigint),hag_private.gmail_finish(uuid,text) to hag_gmail_dispatch;
+grant execute on function hag_private.gmail_claim(),hag_private.gmail_reserve(uuid,uuid,text,text),hag_private.gmail_dispatch_allowed(uuid,bigint,text,text,text),hag_private.gmail_finish(uuid,text) to hag_gmail_dispatch;
 -- Final worker cannot bypass the durable pre-dispatch reservation via historical sim step.
 revoke execute on function hag_private.subscription_email_claim(),hag_private.subscription_email_sim_step(uuid,uuid,text,text,text) from hag_email_worker;

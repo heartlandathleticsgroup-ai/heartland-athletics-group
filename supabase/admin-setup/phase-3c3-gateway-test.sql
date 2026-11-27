@@ -26,3 +26,35 @@ begin
  execute 'reset role';
 end $qa$;
 select 'PASS: private gateway grants, idempotency, changed-body reuse, independent channels, one-use confirmation, source budget and separate opt-out budget' as result;
+
+-- Audit regression: scope lookup does not consume or widen the capability.
+do $audit$
+declare d text:='audit-'||gen_random_uuid()||'@example.invalid'; a text; b text; m text; j jsonb; mid uuid;
+begin
+ delete from hag_private.subscription_abuse;
+ if has_function_privilege('anon','hag_private.subscription_confirm_scope(text)','execute') or has_function_privilege('authenticated','hag_private.subscription_confirm_scope(text)','execute') then raise exception 'scope grant leak';end if;
+ execute 'set local role service_role';
+ a:=hag_private.subscription_gateway_issue(gen_random_uuid(),'subscribe','Fixture',true,'email',d,array['hag-announcements'],true,'draft-3c3-v1','confirm');
+ b:=hag_private.subscription_gateway_issue(gen_random_uuid(),'subscribe','Fixture',true,'email',d,array['camps-clinics'],true,'draft-3c3-v1','confirm');
+ j:=hag_private.subscription_confirm_scope(a);
+ if j is distinct from '{"channel":"email","topics":["hag-announcements"]}'::jsonb then raise exception 'scope mismatch';end if;
+ if hag_private.subscription_redeem(a,'confirm') is null or hag_private.subscription_confirm_scope(a) is not null then raise exception 'scope consumed/replayed';end if;
+ m:=hag_private.subscription_gateway_issue(gen_random_uuid(),'access',null,null,'email',d,null,null,null,'manage');
+ j:=hag_private.subscription_redeem(m,'manage');
+ execute 'reset role';
+ update hag_private.hag_topics set active=false where code='hag-announcements' and purpose='subscription';
+ execute 'set local role service_role';
+ if not hag_private.subscription_edit(j->>'edit_token',array[]::text[],array['hag-announcements'],false,false,'old-draft') then raise exception 'retired withdrawal denied';end if;
+ if hag_private.subscription_confirm_scope(b) is null or hag_private.subscription_redeem(b,'confirm') is null then raise exception 'unrelated pending link invalidated';end if;
+ execute 'reset role';
+ update hag_private.hag_topics set active=true where code='hag-announcements' and purpose='subscription';
+ select id into strict mid from hag_private.hag_contact_methods where destination=d;
+ if not exists(select 1 from hag_private.hag_subscriptions where contact_method_id=mid and topic_code='hag-announcements' and status='withdrawn') then raise exception 'withdrawal not recorded';end if;
+ if not exists(select 1 from hag_private.hag_subscriptions where contact_method_id=mid and topic_code='camps-clinics' and status='active') then raise exception 'unrelated pending not confirmed';end if;
+ -- A second token pointing only at an already-active topic cannot report success.
+ select hag_private.subscription_new_token(mid,'confirm',array(select id from hag_private.hag_subscriptions where contact_method_id=mid and topic_code='camps-clinics')) into a;
+ execute 'set local role service_role';
+ if hag_private.subscription_redeem(a,'confirm') is not null then raise exception 'no-op confirmation reported success';end if;
+ execute 'reset role';
+end $audit$;
+select 'PASS: scoped confirmation, retired topic withdrawal, independent pending link and no-op rejection' as result;

@@ -107,6 +107,10 @@ begin
  if p_outcome in ('accept','ambiguous') then
   -- Serialize the small quota ledger across all workers; UTC fixed calendar buckets.
   select * into strict lim from hag_private.subscription_email_limits where singleton for update;
+  if j.lease_until<=clock_timestamp() then return 'stale';end if;
+  if j.deadline<=clock_timestamp() then
+   update hag_private.subscription_email_outbox set state='expired',payload=null,finished_at=clock_timestamp(),lease=null,lease_until=null where id=j.id;return 'expired';
+  end if;
   d:=(clock_timestamp() at time zone 'UTC')::date;mo:=date_trunc('month',d::timestamp)::date;
   select coalesce((select reserved from hag_private.subscription_email_quota where period='day' and bucket=d),0) into daily_n;
   select coalesce((select reserved from hag_private.subscription_email_quota where period='month' and bucket=mo),0) into monthly_n;

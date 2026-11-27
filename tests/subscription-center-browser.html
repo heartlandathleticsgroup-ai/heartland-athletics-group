@@ -10,7 +10,7 @@ const choose=(id,v)=>{const el=$(id);el.value=v;el.dispatchEvent(new frame.conte
 const setCheck=(el,v)=>{el.checked=v;el.dispatchEvent(new frame.contentWindow.Event("change"));};
 const inbox=()=>[...$("inbox").querySelectorAll("button")];
 const link=label=>inbox().findLast(x=>x.textContent.includes(label));
-const go=async(label)=>{await wait(()=>link(label)&&!link(label).disabled,"inbox link missing "+label);link(label).click();check(d.activeElement===$("action-heading"),"action focus");$("action-controls").querySelector("button").click();await wait(()=>$("action-panel").hidden,"action not cleared");};
+const go=async(label,scope=false)=>{await wait(()=>link(label)&&!link(label).disabled,"inbox link missing "+label);link(label).click();check(d.activeElement===$("action-heading"),"action focus");await wait(()=>$("action-controls").querySelector("button")&&!$("action-controls").querySelector("button").disabled,"scope lookup incomplete");if(scope){check($("action-controls").querySelector("li")?.textContent==="General H.A.G. announcements","confirmation scope missing");check($("action-controls").textContent.includes("I agree to receive marketing email"),"confirmation consent missing");}$("action-controls").querySelector("button").click();await wait(()=>$("action-panel").hidden,"action not cleared");};
 try{
  await wait(()=>!$("start-submit").disabled,"preview initialization");
  check(d.documentElement.lang==="en","language missing");
@@ -25,7 +25,7 @@ try{
  frame.style.width="390px";
  setCheck($("start-topics").querySelector("input"),true);setCheck($("adult"),true);setCheck($("consent"),true);
  await click("start-submit");await wait(()=>link("Confirm subscription"),"confirmation missing");
- await go("Confirm subscription");await wait(()=>text("status","confirmed"),"confirmation failed");
+ await go("Confirm subscription",true);await wait(()=>text("status","confirmed"),"confirmation failed");
  await go("Confirm subscription");await wait(()=>text("error","invalid, expired"),"replay not rejected");
  await click("access");await go("Manage preferences");await wait(()=>!$("manage-panel").hidden,"manage failed");
  check(d.activeElement===$("manage-heading"),"verified focus");

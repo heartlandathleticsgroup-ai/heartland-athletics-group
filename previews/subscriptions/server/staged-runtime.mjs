@@ -2,7 +2,7 @@
 import {createGateway,createIngressGuard,createSimulatedDelivery} from "./gateway.mjs";
 import {durableEmailAdapter,durableEmailWorker} from "./durable-email.mjs";
 import {postgresAdapter} from "./postgres-adapter.mjs";
-const identities=Object.freeze({gateway:["hag_subscription_runtime","hag_subscription_gateway_login"],worker:["hag_email_worker","hag_email_worker_login"]});
+const identities=Object.freeze({gateway:["hag_subscription_runtime","hag_subscription_gateway_login"],worker:["hag_email_worker","hag_email_worker_login"],gmailControl:["hag_gmail_control","hag_gmail_control_login"],gmailDispatch:["hag_gmail_dispatch","hag_gmail_dispatch_login"]});
 export function createBoundExecutor(pool,{max=4,kind="gateway"}={}){
  if(!Object.hasOwn(identities,kind))throw Error("Unknown runtime identity");
  const [role,login]=identities[kind];

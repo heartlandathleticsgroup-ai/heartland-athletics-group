@@ -2,7 +2,7 @@ name: Unpublished subscription preview checks
 on:
   pull_request:
     branches: [main]
-    paths: ["previews/subscriptions/**", "tests/subscription-preview.test.mjs", "tests/subscription-gateway.test.mjs", "tests/subscription-center.test.mjs", "tests/subscription-center-browser.*", "tests/subscription-concurrency.py", "tests/subscription-ci-schema.sql", "tests/subscription-postgres-ci.sh", "tests/subscription-runtime.test.mjs", "tests/subscription-email.test.mjs", "tests/subscription-email-db.sql", "tests/subscription-outbox.test.mjs", "tests/subscription-outbox-db.sql", "tests/subscription-outbox-concurrency.py", "tests/subscription-single-opt-in-db.sql", "tests/subscription-gmail.test.mjs", "tests/subscription-gmail-backend.test.mjs", "tests/subscription-gmail-backend-db.sql", "tests/subscription-gmail-auth-fixture.sql", ".github/workflows/subscription-preview-review.yml", "supabase/admin-setup/phase-3c3-*.sql"]
+    paths: ["previews/subscriptions/**", "tests/subscription-preview.test.mjs", "tests/subscription-gateway.test.mjs", "tests/subscription-center.test.mjs", "tests/subscription-center-browser.*", "tests/subscription-concurrency.py", "tests/subscription-ci-schema.sql", "tests/subscription-postgres-ci.sh", "tests/subscription-runtime.test.mjs", "tests/subscription-email.test.mjs", "tests/subscription-email-db.sql", "tests/subscription-outbox.test.mjs", "tests/subscription-outbox-db.sql", "tests/subscription-outbox-concurrency.py", "tests/subscription-single-opt-in-db.sql", "tests/subscription-gmail.test.mjs", "tests/subscription-gmail-backend.test.mjs", "tests/subscription-gmail-backend-db.sql", "tests/subscription-gmail-auth-fixture.sql", "tests/subscription-gmail-runtime.test.mjs", ".github/workflows/subscription-preview-review.yml", "supabase/admin-setup/phase-3c3-*.sql"]
   push:
     branches: [admin/phase-3c3-subscription-preview]
 permissions:
@@ -36,6 +36,7 @@ jobs:
           node tests/subscription-outbox.test.mjs
           node tests/subscription-gmail.test.mjs
           node tests/subscription-gmail-backend.test.mjs
+          node tests/subscription-gmail-runtime.test.mjs
           bash tests/subscription-postgres-ci.sh
           node tests/admin-dashboard.test.mjs
           node tests/admin-communications.test.mjs

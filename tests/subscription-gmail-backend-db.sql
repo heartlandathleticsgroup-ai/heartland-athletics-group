@@ -67,3 +67,38 @@ begin
 end $qa$;
 select 'PASS: narrow Gmail roles, single-use state, disabled connection, quota reservation, message binding, no resend, emergency disable and disconnect' as result;
 rollback;
+
+begin;
+do $auth$
+declare a uuid:=gen_random_uuid(); s uuid:=gen_random_uuid(); c uuid:=gen_random_uuid(); v jsonb;
+begin
+ perform set_config('request.jwt.claim.sub',a::text,true);
+ perform set_config('request.jwt.claims',jsonb_build_object('session_id',s,'aal','aal2')::text,true);
+ perform set_config('hag.fixture.gate','denied',true);
+ insert into auth.mfa_amr_claims values(s,now(),now(),'totp');
+ if has_function_privilege('anon','public.hag_gmail_admin_proof()','execute') or has_function_privilege('service_role','public.hag_gmail_admin_proof()','execute') then raise exception 'proof grants too broad';end if;
+ execute 'set local role authenticated';
+ if public.hag_gmail_admin_proof() is not null then raise exception 'denied gate bypass';end if;
+ perform set_config('hag.fixture.gate','authorized',true);
+ v:=public.hag_gmail_admin_proof();
+ if v is null or v->>'actor'<>a::text or v->>'session'<>s::text then raise exception 'fresh TOTP proof missing';end if;
+ execute 'reset role';
+ update auth.mfa_amr_claims set created_at=now()-interval '10 minutes',updated_at=now()-interval '10 minutes';
+ execute 'set local role authenticated';
+ if public.hag_gmail_admin_proof() is not null then raise exception 'stale TOTP accepted';end if;
+ execute 'reset role';
+ perform set_config('request.jwt.claims',jsonb_build_object('session_id',s,'aal','aal1')::text,true);
+ insert into auth.mfa_amr_claims values(s,now(),now(),'passkey');
+ insert into auth.webauthn_credentials values(c,a);
+ insert into hag_private.hag_approved_passkeys values(c,a,null);
+ insert into hag_private.hag_verified_passkey_sessions values(s,a,c,now());
+ execute 'set local role authenticated';
+ if public.hag_gmail_admin_proof() is null then raise exception 'fresh approved passkey proof missing';end if;
+ execute 'reset role';
+ update hag_private.hag_approved_passkeys set revoked_at=now();
+ execute 'set local role authenticated';
+ if public.hag_gmail_admin_proof() is not null then raise exception 'revoked passkey accepted';end if;
+ execute 'reset role';
+end $auth$;
+select 'PASS: read-only admin bridge reuses gate, fresh TOTP or approved passkey, denies stale or revoked proof' as result;
+rollback;

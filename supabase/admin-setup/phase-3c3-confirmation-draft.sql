@@ -46,8 +46,8 @@ begin
  if not hag_private.subscription_allow('issue-hour','all',60,300) then return false; end if;
  select secret into strict k from hag_private.subscription_rate_key where singleton;
  b:=encode(extensions.hmac(convert_to(p_channel||':'||p_destination,'UTF8'),k,'sha256'),'hex');
- delete from hag_private.subscription_abuse where window_start<clock_timestamp()-interval '1 day';
- delete from hag_private.subscription_capabilities where expires_at<clock_timestamp()-interval '1 day';
+ -- Expired metadata is removed by the separate bounded maintenance operation.
+
  return hag_private.subscription_allow('issue-destination',b,15,3);
 end $$;
 create function hag_private.subscription_destination_valid(c text,d text)

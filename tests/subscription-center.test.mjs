@@ -8,9 +8,9 @@ const email={enabled:true,destination:"fixture@example.invalid",topics:["hag-ann
 const sms={enabled:true,destination:"+12025550123",topics:["gus-macker-local"],consent:true};
 const form={name:"Synthetic fixture",adult:true,email,sms};
 const access=async(channel,purpose)=>{assert.equal((await sim.access({channel,destination:channel==="email"?email.destination:sms.destination},purpose)).status,202);const a=sim.takeMessages();assert.equal(a.length,1);return a[0].token;};
-assert.equal((await sim.subscribe(form)).status,202);const initial=sim.takeMessages();assert.equal(initial.length,2);
-const e=initial.find(x=>x.channel==="email").token,s=initial.find(x=>x.channel==="sms").token;
-assert.equal((await sim.call({action:"manage",token:e})).body.ok,false);
+assert.equal((await sim.subscribe(form)).status,202);const initial=sim.takeMessages();assert.equal(initial.length,1);assert.equal(initial[0].channel,'sms');
+const s=initial[0].token;
+assert.equal((await sim.call({action:"manage",token:s})).body.ok,false);
 assert.deepEqual((await sim.call({action:"inspect",token:e})).body,{ok:true,channel:"email",topics:["hag-announcements"]});
 assert.deepEqual((await sim.call({action:"inspect",token:s})).body,{ok:true,channel:"sms",topics:["gus-macker-local"]});
 assert.equal((await sim.call({action:"confirm",token:e})).body.ok,true);
@@ -21,7 +21,7 @@ assert.equal(m.channel,"email");assert.deepEqual(m.preferences,[{topic:"hag-anno
 const edit={action:"edit",token:m.editToken,add:["camps-clinics"],remove:["hag-announcements"],adult:true,consent:true,version:CONSENT_VERSION};
 assert.equal((await sim.call({...edit,consent:false})).status,400);
 assert.equal((await sim.call(edit)).body.ok,true);assert.equal((await sim.call(edit)).body.ok,false);
-assert.equal((await sim.call({action:"confirm",token:s})).body.ok,true);
+assert.equal((await sim.call({action:"confirm",token:s})).body.ok,true);assert.equal((await sim.call({action:"confirm",token:s})).body.ok,false);
 const u=await access("email","unsubscribe");assert.equal((await sim.call({action:"unsubscribe",token:u})).body.ok,true);assert.equal((await sim.call({action:"unsubscribe",token:u})).body.ok,false);
 now+=60000;
 const m2=(await sim.call({action:"manage",token:await access("email","manage")})).body;assert.equal(m2.suppressed,true);assert.ok(m2.preferences.every(x=>x.status==="withdrawn"));

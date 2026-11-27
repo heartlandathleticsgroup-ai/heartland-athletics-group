@@ -19,7 +19,7 @@ export function createCallbackBridge({mode,backend,flows,vault,userProof,now=Dat
  if(mode!=="isolated-test"||typeof backend!=="function"||!flows||!vault||typeof userProof!=="function")throw Error("Isolated bridge only");
  // Only this request-scoped closure provides the bearer to the trusted verifier.
  // No inbound identity/assurance header is forwarded as proof.
- return async req=>{
+ return async (req,expectedGeneration=null)=>{
   try{
    const u=new URL(req.url);
    if(u.origin!==ORIGIN)return denied();
@@ -33,7 +33,7 @@ export function createCallbackBridge({mode,backend,flows,vault,userProof,now=Dat
     const bearer=req.headers.get("authorization")?.match(/^Bearer (fixture-[A-Za-z0-9_-]{8,200})$/)?.[1];
     if(!bearer)return denied();
     const proof=await userProof(bearer);if(!proof)return denied();
-    const result=await backend(req,bearer);if(result.status!==200)return result;
+    const result=await backend(req,bearer,expectedGeneration);if(result.status!==200)return result;
     const data=await result.json(),state=data?.parameters?.state;if(!valid(state))return denied();
     const id=opaque(),d=hash(id),s=hash(state);
     const ciphertext=vault.seal({bearer,actor:proof.actor,session:proof.session,expires:now()+300000},"flow:"+d+":"+s);

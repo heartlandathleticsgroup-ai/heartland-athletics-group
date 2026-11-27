@@ -48,7 +48,7 @@ export function validateRequest(input){
   }
   if(choice.consent!==true)fail("Consent is required for each selected channel.");
   if(choice.topics.length<1||choice.topics.length>TOPICS.length||new Set(choice.topics).size!==choice.topics.length||choice.topics.some(t=>!codes.has(t)))fail("Select valid, distinct topics for each channel.");
-  requests.push({channel,destination:normalizeDestination(channel,choice.destination),topics:[...choice.topics].sort(),consentVersion:CONSENT_VERSION,consentText:CONSENT[channel],status:"pending"});
+  requests.push({channel,destination:normalizeDestination(channel,choice.destination),topics:[...choice.topics].sort(),consentVersion:CONSENT_VERSION,consentText:CONSENT[channel],status:channel==="email"?"active":"pending"});
  }
  if(!requests.length)fail("Choose at least one communication channel.");
  return {name:input.name.trim(),adultConfirmed:true,requests};

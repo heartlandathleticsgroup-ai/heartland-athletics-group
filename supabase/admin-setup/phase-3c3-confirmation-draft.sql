@@ -82,7 +82,7 @@ begin
  perform hag_private.stage_subscription_request(p_name,p_adult,p_channel,p_destination,p_topics,p_consent,p_version);
  select id into m from hag_private.hag_contact_methods where channel=p_channel and destination=p_destination;
  if m is null or exists(select 1 from hag_private.hag_suppressions where contact_method_id=m and active) then return null; end if;
- select array_agg(id order by id) into ids from hag_private.hag_subscriptions where contact_method_id=m and status='pending' and topic_code=any(p_topics);
+ select array_agg(id order by id) into ids from hag_private.hag_subscriptions where contact_method_id=m and status='pending' and topic_code=any(p_topics) and exists(select 1 from hag_private.hag_consent_events e where e.subscription_id=hag_subscriptions.id and e.event_kind='requested' and e.consent_version='draft-3c3-v1' and e.consent_text=hag_private.subscription_wording(p_channel));
  if ids is null then return null; end if;
  return hag_private.subscription_new_token(m,'confirm',ids);
 end $$;
@@ -133,7 +133,7 @@ begin
  end if;
  if p_purpose='confirm' then
   if suppressed then return null; end if;
-  for row_s in select s.id,s.topic_code from hag_private.hag_subscriptions s join hag_private.hag_topics t on t.code=s.topic_code and t.purpose=s.topic_purpose where s.contact_method_id=cap.method_id and s.id=any(cap.snapshot) and s.status='pending' and t.active loop
+  for row_s in select s.id,s.topic_code from hag_private.hag_subscriptions s join hag_private.hag_topics t on t.code=s.topic_code and t.purpose=s.topic_purpose where s.contact_method_id=cap.method_id and s.id=any(cap.snapshot) and s.status='pending' and t.active and exists(select 1 from hag_private.hag_consent_events e where e.subscription_id=s.id and e.event_kind='requested' and e.consent_version='draft-3c3-v1' and e.consent_text=hag_private.subscription_wording(c)) loop
    insert into hag_private.hag_consent_events(subscription_id,event_kind,consent_version,consent_text,source,channel) values(row_s.id,'confirmed','draft-3c3-v1',hag_private.subscription_wording(c),case when c='email' then 'email_confirmation' else 'sms_confirmation' end,c) returning id into ev;
    update hag_private.hag_subscriptions set status='active',confirmation_event_id=ev where id=row_s.id;
   end loop;
@@ -144,12 +144,12 @@ begin
  select coalesce(jsonb_agg(jsonb_build_object('topic',topic_code,'status',status) order by topic_code),'[]'::jsonb) into result from hag_private.hag_subscriptions where contact_method_id=cap.method_id;
  return jsonb_build_object('channel',c,'suppressed',suppressed,'preferences',result,'edit_token',hag_private.subscription_new_token(cap.method_id,'edit'));
 end $$;
-create function hag_private.subscription_edit(p_raw text,p_add text[],p_remove text[],p_consent boolean,p_version text)
+create function hag_private.subscription_edit(p_raw text,p_add text[],p_remove text[],p_adult boolean,p_consent boolean,p_version text)
 returns boolean language plpgsql volatile security definer set search_path='' as $$
 declare cap hag_private.subscription_capabilities; c text; t text; sid uuid; st text; ev uuid; suppressed boolean;
 begin
  if not hag_private.subscription_allow('redeem-global','all',1,120) then return false; end if;
- if not hag_private.subscription_topics_valid(p_add) or not hag_private.subscription_topics_valid(p_remove) or p_add&&p_remove or cardinality(p_add)+cardinality(p_remove)=0 or p_version is distinct from 'draft-3c3-v1' or (cardinality(p_add)>0 and p_consent is distinct from true) then return false; end if;
+ if not hag_private.subscription_topics_valid(p_add) or not hag_private.subscription_topics_valid(p_remove) or p_add&&p_remove or cardinality(p_add)+cardinality(p_remove)=0 or p_version is distinct from 'draft-3c3-v1' or (cardinality(p_add)>0 and (p_adult is distinct from true or p_consent is distinct from true)) then return false; end if;
  cap:=hag_private.subscription_take(p_raw,'edit');
  if cap.method_id is null then return false; end if;
  select channel into c from hag_private.hag_contact_methods where id=cap.method_id;
@@ -190,8 +190,8 @@ revoke all on function hag_private.subscription_take(text,text) from public,anon
 revoke all on function hag_private.subscription_request(text,boolean,text,text,text[],boolean,text) from public,anon,authenticated,service_role;
 revoke all on function hag_private.subscription_access_request(text,text,text) from public,anon,authenticated,service_role;
 revoke all on function hag_private.subscription_redeem(text,text) from public,anon,authenticated,service_role;
-revoke all on function hag_private.subscription_edit(text,text[],text[],boolean,text) from public,anon,authenticated,service_role;
+revoke all on function hag_private.subscription_edit(text,text[],text[],boolean,boolean,text) from public,anon,authenticated,service_role;
 grant execute on function hag_private.subscription_request(text,boolean,text,text,text[],boolean,text) to service_role;
 grant execute on function hag_private.subscription_access_request(text,text,text) to service_role;
 grant execute on function hag_private.subscription_redeem(text,text) to service_role;
-grant execute on function hag_private.subscription_edit(text,text[],text[],boolean,text) to service_role;
+grant execute on function hag_private.subscription_edit(text,text[],text[],boolean,boolean,text) to service_role;

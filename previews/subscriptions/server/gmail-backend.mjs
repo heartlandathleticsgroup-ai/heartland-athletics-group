@@ -70,12 +70,15 @@ export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixt
    if(!s)return reply(400,{ok:false});
    const verifier=vault.open(s.verifier,"state:"+d+":"+a.actor+":"+a.session);
    const t=await exchange({grant_type:"authorization_code",code,redirect_uri:CALLBACK,code_verifier:verifier});
-   if(!tokenValid(t)||!secret(t.body?.refresh_token)){if(secret(t.body?.refresh_token))await revoke(t.body.refresh_token);return reply(400,{ok:false});}
+   if(!tokenValid(t)||!secret(t.body?.refresh_token)){if(secret(t.body?.refresh_token))await revoke(t.body.refresh_token);else if(secret(t.body?.access_token))await revoke(t.body.access_token);return reply(400,{ok:false});}
    // Sending identity cannot be proven with gmail.send alone. Connection is
    // stored disabled; a separately authorized alias acceptance test is required.
-   if(!validateAdmin(await verifyAdmin(req),now())){await revoke(t.body.refresh_token);return reply(403,{ok:false});}
-   if(!await control.store(s.generation,vault.seal({token:t.body.refresh_token},"refresh"),vault.version)){await revoke(t.body.refresh_token);return reply(409,{ok:false});}
-   return reply(200,{connected:true,enabled:false});
+   try{
+    const fresh=await verifyAdmin(req);
+    if(!validateAdmin(fresh,now())||fresh.actor!==a.actor||fresh.session!==a.session){await revoke(t.body.refresh_token);return reply(403,{ok:false});}
+    if(!await control.store(s.generation,vault.seal({token:t.body.refresh_token},"refresh"),vault.version)){await revoke(t.body.refresh_token);return reply(409,{ok:false});}
+    return reply(200,{connected:true,enabled:false});
+   }catch{await revoke(t.body.refresh_token);return reply(503,{ok:false});}
   }catch{return reply(503,{ok:false});}
  }
  async function pump(){

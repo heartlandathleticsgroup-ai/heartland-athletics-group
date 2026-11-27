@@ -24,13 +24,13 @@ const req=body=>new Request("https://preview.invalid/subscriptions",{method:"POS
 const form={name:"Fixture",adult:true,email:{enabled:true,destination:"fixture@example.invalid",topics:["hag-announcements"],consent:true},sms:{enabled:false,destination:"",topics:[],consent:false}};
 const a=await runtime.handle(req({action:"subscribe",requestId:randomUUID(),version:CONSENT_VERSION,form}));
 assert.equal(a.status,202);assert.deepEqual(Object.keys(await a.json()),["message"]);
-assert.ok(calls.some(([q,args])=>q.includes("subscription_enqueue_email")&&args[4]==="fixture@example.invalid"));
+assert.ok(calls.some(([q,args])=>q.includes("subscription_email_opt_in")&&args[3]==="fixture@example.invalid"));assert.ok(!calls.some(([q])=>q.includes("subscription_enqueue_email")));
 assert.ok(!calls.some(([q])=>q.includes("subscription_gateway_issue(")));
 assert.deepEqual(runtime.drainSyntheticMessages(),[]);
 const access=await runtime.handle(req({action:"access",requestId:randomUUID(),purpose:"unsubscribe",form:{channel:"email",destination:"fixture@example.invalid"}}));
-assert.equal(access.status,202);assert.equal(calls.filter(([q])=>q.includes("subscription_enqueue_email")).length,2);
+assert.equal(access.status,202);assert.equal(calls.filter(([q])=>q.includes("subscription_enqueue_email")).length,1);
 assert.equal(await runtime.pumpSyntheticEmail(),"accepted");
 assert.ok(workerCalls.some(([q])=>q==="SET LOCAL ROLE hag_email_worker"));
 assert.ok(!workerCalls.some(([q])=>q.includes("subscription_enqueue_email")));
 const badWorker=createBoundExecutor(pool,{kind:"worker",max:1});await assert.rejects(badWorker("select fixture $1",[]),/Private runtime unavailable/);
-console.log("PASS: isolated runtime, bounded executor, rollback, distinct worker identity, atomic email-only issuance and no raw capability fallback");
+console.log("PASS: isolated runtime, bounded executor, rollback, distinct worker identity, single-opt-in email signup and access-only outbox and no raw capability fallback");

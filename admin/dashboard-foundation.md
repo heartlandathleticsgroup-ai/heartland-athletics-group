@@ -11,12 +11,11 @@ Future modules should design reusable domain records with stable IDs, timestamps
 
 Separate internal administration records from intentionally public projections. Financial, contact, youth/player and family information is private by default; sharing must be separately authorized and consent-aware. Only approved public fields may flow to a future app. Keep administrative auth separate from public consumer identity, enforce access in backend policies, require fresh step-up for sensitive operations, and maintain audit history. Plan backward-compatible contracts and opt-in integrations; do not introduce speculative dependencies.
 
-## Website-first roadmap
-- 3C.2A: dashboard foundation and app-ready status; device acceptance.
-- 3C.2B: content management, reusable drafts/review/publishing contracts; start read-only or draft-only, no live publishing before review.
-- 3C.2C: events and Gus Macker, reusable public event projections.
-- 3C.2D: sponsor management, separate private commitments from approved public recognition.
-- 3C.2E: Enforcers, private roster/guardian information separated from approved public content.
-- 3C.2F: inquiries, retain Formspree delivery; review secure intake and privacy before integration.
-- 3C.2G: mobile integration — deferred indefinitely, separate owner approval, no schedule.
-Each active phase gets separate implementation, security review and acceptance. The app module is a status/roadmap panel only.
+## Communication-first roadmap (owner-approved 2026-11-27)
+- 3C.2A: foundation and inactive app panel; device acceptance still required.
+- 3C.2B: read-only contacts, inquiries, email/SMS topic subscriptions, preferences, consent history, suppressions, inactive email/SMS campaigns. Preserve original 13 inquiry categories and nine subscription topics. No public form changes.
+- 3C.3: public opt-in/preference forms, separate channel/topic consent and confirmation, opt-out; no inquiry auto-subscription.
+- 3C.4: secure inquiry intake, Formspree replacement only after saved-once, failure, spam, duplicate, consent, delivery, export, access and rollback acceptance.
+- 3D: email campaigns, 3E: SMS campaigns, 3F: delivery reporting/audit. Each requires separate approval; no providers, purchases or sends now.
+- Future: website content, events, sponsorships, Enforcers; app remains inactive indefinitely.
+The new public RPC is SECURITY INVOKER, restricted to authenticated callers and checks the existing live-session admin gate; existing forced RLS/SELECT-only policies also apply. Only six fixed projections, 50 records per page with one lookahead, bounded offset and channel filter, no dynamic SQL or mutation. Records are rendered with textContent and cleared on module switches or lock; late responses discarded. No persistent record cache or private data in static files. Approved passkeys and password+TOTP retain existing read permissions. No fresh step-up changes; future mutations and export require a separate security review. The API version is 1, internal admin-only, not a public mobile API. No counts of unique subscribers inferred from topic opt-ins; suppressed active subscriptions excluded from topic counts. Data currently empty except topics; Formspree remains separate. Rollback: revert UI PR and revoke authenticated execute on the new RPC; do not drop tables or alter existing policies.

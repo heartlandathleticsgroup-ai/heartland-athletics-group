@@ -31,4 +31,5 @@ for(const kind of ["control","worker","preferences"]){
 console.log("PASS: packaged Deno entrypoints start in disabled mode with no network permissions");
 JS
 (cd "$dir"; env HAG_GMAIL_RUNTIME_STATE=disabled "$deno" run --cached-only --frozen --allow-env=HAG_GMAIL_RUNTIME_STATE disabled-check.mjs)
+bash tests/gmail-release-tls-ci.sh "$deno"
 echo "PASS: locked dependency and review-only deployment package"

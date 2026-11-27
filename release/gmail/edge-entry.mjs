@@ -18,10 +18,20 @@ function getRuntime(){
  runtime=createReleaseRuntime({config,postgres,fetcher:globalThis.fetch.bind(globalThis)});
  return runtime;
 }
+// Supabase's internal router may strip /functions/v1 from the request path.
+const names={control:"hag-gmail-control",worker:"hag-gmail-worker",preferences:"hag-subscriptions"};
+export function canonicalEdgeRequest(req,kind){
+ const name=names[kind];if(!name)throw Error("Invalid entrypoint");
+ const url=new URL(req.url),p=url.pathname,short="/"+name,long="/functions/v1/"+name;
+ const path=p===short||p.startsWith(short+"/")?"/functions/v1"+p:p===long||p.startsWith(long+"/")?p:null;
+ if(!path)throw Error("Unexpected function route");
+ const init={method:req.method,headers:req.headers};if(req.body&&req.method!=="GET"&&req.method!=="HEAD"){init.body=req.body;init.duplex="half";}
+ return new Request("https://unrqbfngcgvqnytxbtgj.supabase.co"+path+url.search,init);
+}
 export function handler(kind){
  if(!["control","worker","preferences"].includes(kind))throw Error("Invalid runtime entrypoint");
  return async req=>{
-  try{return await getRuntime()[kind](req);}
+  try{return await getRuntime()[kind](canonicalEdgeRequest(req,kind));}
   catch{return new Response('{"ok":false}',{status:503,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Referrer-Policy":"no-referrer"}});}
  };
 }

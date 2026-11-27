@@ -2,16 +2,17 @@ import assert from "node:assert/strict";
 import {renderTestEmail} from "../previews/subscriptions/server/email-templates.mjs";
 import {createEmailSimulation} from "../previews/subscriptions/server/email-simulation.mjs";
 let now=1000000,allowed=true,checks=0;
-const fixture=(token,purpose="confirm")=>({channel:"email",destination:"fixture@example.invalid",purpose,token:token.repeat(64),issuedAt:now});
-for(const purpose of ["confirm","manage","unsubscribe"]){
+const fixture=(token,purpose="manage")=>({channel:"email",destination:"fixture@example.invalid",purpose,token:token.repeat(64),issuedAt:now});
+for(const purpose of ["manage","unsubscribe"]){
  const m=renderTestEmail(fixture("a",purpose));assert.match(m.text,/https:\/\/preview\.invalid\/preferences#/);assert.match(m.html,/href="https:\/\/preview\.invalid\/preferences#/);assert.doesNotMatch(m.html,/<img|<script|utm_/i);
 }
 assert.throws(()=>renderTestEmail({...fixture("a"),destination:"user@example.com"}));
+assert.throws(()=>renderTestEmail(fixture("a","confirm")));
 assert.throws(()=>renderTestEmail({...fixture("a"),token:'<script>'}));
 const q=createEmailSimulation({now:()=>now,eligible:async()=>{checks++;return allowed;},script:["ambiguous","transient","permanent"]});
 const a=fixture("a");
 await Promise.all(Array.from({length:8},()=>q.accept(a)));assert.equal(q.stats().length,1);
-await assert.rejects(q.accept({...a,purpose:"manage"}));
+await assert.rejects(q.accept({...a,purpose:"unsubscribe"}));
 await Promise.all([q.pump(),q.pump()]);assert.equal(q.acceptedCount(),1);assert.equal(q.stats()[0].state,"retry");assert.equal(q.stats()[0].attempts,1);
 now+=30000;await q.pump();assert.equal(q.acceptedCount(),1);assert.equal(q.stats()[0].state,"accepted");assert.equal(q.stats()[0].payloadRetained,false);
 assert.equal(checks,2);await q.accept(a);await q.pump();assert.equal(q.acceptedCount(),1);

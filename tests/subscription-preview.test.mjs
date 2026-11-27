@@ -7,9 +7,9 @@ const sms=()=>({enabled:true,destination:"+12025550123",topics:["gus-macker-regi
 const base=()=>({name:" QA Fixture ",adult:true,email:email(),sms:off()});
 assert.equal(TOPICS.length,9);
 assert.equal(new Set(TOPICS.map(t=>t[0])).size,9);
-assert.deepEqual(validateRequest(base()),{name:"QA Fixture",adultConfirmed:true,requests:[{channel:"email",destination:"qa@example.invalid",topics:["hag-announcements"],consentVersion:CONSENT_VERSION,consentText:CONSENT.email,status:"pending"}]});
+assert.deepEqual(validateRequest(base()),{name:"QA Fixture",adultConfirmed:true,requests:[{channel:"email",destination:"qa@example.invalid",topics:["hag-announcements"],consentVersion:CONSENT_VERSION,consentText:CONSENT.email,status:"active"}]});
 const both=validateRequest({...base(),sms:sms()});
-assert.equal(both.requests.length,2);
+assert.equal(both.requests.length,2);assert.equal(both.requests[0].status,"active");assert.equal(both.requests[1].status,"pending");
 assert.deepEqual(both.requests[0].topics,["hag-announcements"]);
 assert.deepEqual(both.requests[1].topics,["gus-macker-registration"]);
 assert.notEqual(both.requests[0].consentText,both.requests[1].consentText);
@@ -26,4 +26,4 @@ assert.match(html,/UNPUBLISHED TEST PREVIEW/);
 assert.doesNotMatch(html,/<input[^>]+\bchecked\b/i);
 assert.match(html,/<button type="submit" disabled id="validate"/);
 assert.doesNotMatch(js,/\b(fetch|XMLHttpRequest|sendBeacon|localStorage|sessionStorage|innerHTML|eval)\b/);
-console.log("PASS: separate consent, topics, normalization, pending-only status, preference input, and offline safeguards");
+console.log("PASS: separate consent, topics, normalization, channel-specific intended status, preference input, and offline safeguards");

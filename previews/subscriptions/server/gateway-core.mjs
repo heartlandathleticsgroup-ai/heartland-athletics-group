@@ -3,8 +3,8 @@ import {validateRequest,validatePreferenceAccess,TOPICS,CONSENT_VERSION} from ".
 const ORIGIN="https://heartlandathleticsgroup.com", MAX=8192;
 // Bounded per-process ingress budget; distributed database budget is separate.
 export function createIngressGuardCore(canonicalSource,{clock=Date.now}={}){
- let minute=-1,total=0;const counts=new Map();
- return src=>{const key=canonicalSource(src);if(!key)return false;const now=Math.floor(clock()/60000);if(now!==minute){minute=now;total=0;counts.clear();}if(total>=600)return false;total++;const n=counts.get(key)||0;if(n>=40)return false;counts.set(key,n+1);return true;};
+ let minute=-1;const ordinary={total:0,counts:new Map()},optout={total:0,counts:new Map()};
+ return (src,lane="ordinary")=>{const key=canonicalSource(src);if(!key||!["ordinary","optout"].includes(lane))return false;const now=Math.floor(clock()/60000);if(now!==minute){minute=now;for(const state of [ordinary,optout]){state.total=0;state.counts.clear();}}const state=lane==="optout"?optout:ordinary;if(state.total>=(lane==="optout"?120:600))return false;state.total++;const n=state.counts.get(key)||0;if(n>=(lane==="optout"?20:40))return false;state.counts.set(key,n+1);return true;};
 }
 const token=v=>typeof v==="string"&&/^[0-9a-f]{64}$/.test(v);
 const id=v=>typeof v==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v);
@@ -43,17 +43,18 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource}){
   const bad=()=>response(400,{message:"Invalid request."},origin);
   try{
    if(!origin)return response(403,{message:"Request not allowed."});
-   const url=new URL(req.url);if(url.protocol!=="https:"||url.pathname!=="/subscriptions"||url.search)return bad();
+   const url=new URL(req.url);if(url.protocol!=="https:"||!["/subscriptions","/subscriptions/unsubscribe"].includes(url.pathname)||url.search)return bad();
+   const optout=url.pathname==="/subscriptions/unsubscribe";
    if(req.method==="OPTIONS"){
     if(req.headers.get("access-control-request-method")!=="POST"||!["","content-type"].includes((req.headers.get("access-control-request-headers")||"").trim().toLowerCase()))return bad();
     return response(204,null,true);
    }
    if(req.method!=="POST")return response(405,{message:"Request not allowed."},true);
    const src=canonicalSource(source(req));if(!src)return response(503,{message:"Service unavailable."},true);
-   if(!await ingress(src))return response(429,{message:"Try again later."},true);
+   if(!await ingress(src,optout?"optout":"ordinary"))return response(429,{message:"Try again later."},true);
    if(!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(req.headers.get("content-type")||"")||req.headers.has("content-encoding"))return bad();
    let x;try{x=await body(req);}catch{return bad();}
-   if(!x||typeof x.action!=="string")return bad();
+   if(!x||typeof x.action!=="string"||optout!==(x.action==="unsubscribe"))return bad();
    let data,items;
    try{
     switch(x.action){

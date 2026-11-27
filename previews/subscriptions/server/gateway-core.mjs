@@ -63,7 +63,7 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource,at
     switch(x.action){
      case "subscribe":
       if(!exact(x,["action","requestId","version","form"])||!id(x.requestId)||x.version!==CONSENT_VERSION)throw Error();
-      data=validateRequest(x.form);items=data.requests.map(v=>({...v,name:data.name,adult:true,purpose:"confirm"}));break;
+      data=validateRequest(x.form);items=data.requests.map(v=>({...v,name:data.name,adult:true,purpose:v.channel==="sms"?"confirm":"opt-in"}));break;
      case "access":
       if(!exact(x,["action","requestId","purpose","form"])||!id(x.requestId)||!["manage","unsubscribe"].includes(x.purpose))throw Error();
       items=[{...validatePreferenceAccess(x.form),purpose:x.purpose}];break;
@@ -92,7 +92,7 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource,at
     }
     if(x.action==="inspect"){
      const v=await db.inspect(x.token);
-     if(!v||!["email","sms"].includes(v.channel)||!topics(v.topics)||!v.topics.length)return response(200,{ok:false},true);
+     if(!v||v.channel!=="sms"||!topics(v.topics)||!v.topics.length)return response(200,{ok:false},true);
      return response(200,{ok:true,channel:v.channel,topics:v.topics},true);
     }
     if(x.action==="edit"){

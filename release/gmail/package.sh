@@ -24,4 +24,9 @@ verify_jwt = false
 verify_jwt = false
 TOML
 cp "$root/release/gmail/consolidated-migration.sql" "$root/release/gmail/operational-rollback.sql" "$out/"
+mkdir -p "$out/public/preferences" "$out/public/admin"
+cp "$root/release/gmail/public/preferences/"* "$out/public/preferences/"
+cp "$root/release/gmail/runtime/consent.mjs" "$out/public/preferences/consent.mjs"
+cp "$root/admin/index.html" "$root/admin/auth.js" "$root/admin/gmail-controls.mjs" "$out/public/admin/"
+# This is an overlay, not a replacement for existing site files. Keep both release locks false.
 printf '%s\n' "$out"

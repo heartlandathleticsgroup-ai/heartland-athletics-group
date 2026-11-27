@@ -29,6 +29,7 @@ export function createFixtureDatabase({now=Date.now,random=()=>crypto.getRandomV
    const pending=item.topics.filter(t=>m.topics.get(t)==="pending");
    return pending.length?issueToken(m,"confirm",pending):null;
   },
+  async inspect(raw){const t=tokens.get(raw);if(!t||t.p!=="confirm"||t.used||t.expires<=now()||t.m.suppressed)return null;const topics=t.topics.filter(x=>t.m.topics.get(x)==="pending");return topics.length?{channel:t.m.channel,topics}:null;},
   async redeem(raw,p){
    const t=take(raw,p);if(!t)return null;const m=t.m;
    if(p==="confirm"){if(m.suppressed)return null;let n=0;for(const topic of t.topics)if(m.topics.get(topic)==="pending"){m.topics.set(topic,"active");n++;}return n?{ok:true}:null;}

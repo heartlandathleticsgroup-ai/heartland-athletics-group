@@ -1,5 +1,5 @@
 // Presentation only: no credentials, data queries, storage or authorization decisions.
-export const MODULES=Object.freeze(["overview","website","events","sponsors","enforcers","inquiries","mobile","security"]);
+export const MODULES=Object.freeze(["overview","contacts","inquiries","subscribers","preferences","consent","suppressions","email","sms","website","events","sponsors","enforcers","mobile","security"]);
 export function selectModule(root,id){
  if(!MODULES.includes(id)||!root||root.hidden)return false;
  const buttons=Array.from(root.querySelectorAll("[data-module]"));

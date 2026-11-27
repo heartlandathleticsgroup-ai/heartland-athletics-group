@@ -34,10 +34,11 @@ async function body(req){
   return JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(bytes));
  }finally{clearTimeout(timer);void reader.cancel().catch(()=>{});}
 }
-export function createGatewayCore({db,delivery,source,ingress,canonicalSource}){
+export function createGatewayCore({db,delivery,source,ingress,canonicalSource,atomicEmail=false}){
  // Required ingress guard handles all requests including malformed bodies.
  // Runtime must supply canonical trusted source; never read forwarded IP headers here.
  if(!db||!delivery||delivery.mode!=="simulation"||typeof source!=="function"||typeof ingress!=="function"||typeof canonicalSource!=="function")throw Error("Isolated simulation dependencies required");
+ if(atomicEmail&&(typeof db.enqueueEmail!=="function"||typeof db.issueSms!=="function"))throw Error("Atomic email adapter required");
  return async req=>{
   const origin=req.headers.get("origin")===ORIGIN;
   const bad=()=>response(400,{message:"Invalid request."},origin);
@@ -79,7 +80,9 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource}){
     if(issuing){
      // One channel per atomic issue key; duplicates never repeat simulated delivery.
      for(const item of items){
-      try{const issuedAt=Date.now();const raw=await db.issue(x.requestId,x.action,item);
+      try{
+      if(atomicEmail&&item.channel==="email"){await db.enqueueEmail(x.requestId,x.action,item);continue;}
+      const issuedAt=Date.now();const raw=await (atomicEmail?db.issueSms(x.requestId,x.action,item):db.issue(x.requestId,x.action,item));
       if(token(raw))await delivery.accept({channel:item.channel,destination:item.destination,purpose:item.purpose,token:raw,issuedAt});}catch{/* Do not leak outcomes or skip another channel. */}
      }
      return generic();

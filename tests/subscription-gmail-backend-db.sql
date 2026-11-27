@@ -136,3 +136,22 @@ begin
 end $qa$;
 select 'PASS: durable callback flow, disable invalidation, disabled-only rotation CAS and audited no-resend reconciliation' as result;
 rollback;
+
+begin;
+do $qa$
+declare a uuid:=gen_random_uuid(); s uuid:=gen_random_uuid(); g bigint; v jsonb;
+begin
+ execute 'set local role hag_gmail_control';
+ if not hag_private.gmail_launch_put(repeat('a',64),a,s,'encrypted-launch') then raise exception 'launch put';end if;
+ v:=hag_private.gmail_launch_take(repeat('a',64));
+ if v is null or v->>'ciphertext' is distinct from 'encrypted-launch' or hag_private.gmail_launch_take(repeat('a',64)) is not null then raise exception 'launch replay';end if;
+ g:=(v->>'generation')::bigint;
+ if hag_private.gmail_begin_at_generation(repeat('b',64),a,s,'encrypted-verifier',g) is null then raise exception 'launch generation start failed';end if;
+ if not hag_private.gmail_launch_put(repeat('c',64),a,s,'encrypted-launch') then raise exception 'launch put';end if;
+ perform hag_private.gmail_disable(false);
+ if hag_private.gmail_launch_take(repeat('c',64)) is not null or hag_private.gmail_begin_at_generation(repeat('d',64),a,s,'encrypted-verifier',g) is not null then raise exception 'stale launch after disable';end if;
+ execute 'reset role';
+ if has_function_privilege('authenticated','hag_private.gmail_launch_take(text)','execute') or has_function_privilege('hag_gmail_dispatch','hag_private.gmail_launch_put(text,uuid,uuid,text)','execute') then raise exception 'launch grant privilege leak';end if;
+end $qa$;
+select 'PASS: static-site launch grant single-use, generation fencing and emergency invalidation' as result;
+rollback;

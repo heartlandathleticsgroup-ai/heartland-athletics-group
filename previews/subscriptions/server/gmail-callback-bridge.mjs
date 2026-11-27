@@ -1,0 +1,59 @@
+// Unpublished bridge: same-origin server page; fixture mode only.
+// A short-lived opaque HttpOnly cookie binds the callback to an encrypted
+// user bearer stored server-side. No refresh token, code or bearer in a URL.
+import {randomBytes,createHash} from "node:crypto";
+const hash=s=>createHash("sha256").update(s).digest("hex");
+const opaque=()=>randomBytes(32).toString("base64url");
+const valid=s=>typeof s==="string"&&/^[A-Za-z0-9_-]{43}$/.test(s);
+const COOKIE="__Host-hag-gmail-flow";
+const ORIGIN="https://preview.invalid";
+const cookie=(s,max)=>COOKIE+"="+s+"; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age="+max;
+const denied=()=>new Response(JSON.stringify({ok:false}),{status:403,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Referrer-Policy":"no-referrer"}});
+function readCookie(req){const values=(req.headers.get("cookie")||"").split(";").map(x=>x.trim()).filter(x=>x.startsWith(COOKIE+"="));return values.length===1?values[0].slice(COOKIE.length+1):null;}
+export function createFlowDb(query){
+ const scalar=async(q,a)=>{const r=await query(q,a);if(r?.rows?.length!==1)throw Error("Flow unavailable");return r.rows[0].value;};
+ return {put:(d,s,c)=>scalar("select hag_private.gmail_flow_put($1,$2,$3) as value",[d,s,c]),take:(d,s)=>scalar("select hag_private.gmail_flow_take($1,$2) as value",[d,s])};
+}
+export function createCallbackBridge({mode,backend,flows,vault,userProof,now=Date.now}){
+ if(mode!=="isolated-test"||typeof backend!=="function"||!flows||!vault||typeof userProof!=="function")throw Error("Isolated bridge only");
+ // Only this request-scoped closure provides the bearer to the trusted verifier.
+ // No inbound identity/assurance header is forwarded as proof.
+ return async req=>{
+  try{
+   const u=new URL(req.url);
+   if(u.origin!==ORIGIN)return denied();
+   if(u.pathname==="/oauth/gmail/start"){
+    if(req.method!=="POST"||req.headers.get("origin")!==ORIGIN||u.search)return denied();
+    const bearer=req.headers.get("authorization")?.match(/^Bearer (fixture-[A-Za-z0-9_-]{8,200})$/)?.[1];
+    if(!bearer)return denied();
+    const proof=await userProof(bearer);if(!proof)return denied();
+    const result=await backend(req,bearer);if(result.status!==200)return result;
+    const data=await result.json(),state=data?.parameters?.state;if(!valid(state))return denied();
+    const id=opaque(),d=hash(id),s=hash(state);
+    const ciphertext=vault.seal({bearer,actor:proof.actor,session:proof.session,expires:now()+300000},"flow:"+d+":"+s);
+    if(!await flows.put(d,s,ciphertext))return denied();
+    const headers=new Headers(result.headers);headers.set("Set-Cookie",cookie(id,300));headers.set("Cache-Control","no-store");
+    // Return only inert OAuth parameters in this fixture. Never navigate to Google.
+    return new Response(JSON.stringify(data),{status:200,headers});
+   }
+   if(u.pathname==="/oauth/gmail/callback"){
+    if(req.method!=="GET"||u.searchParams.getAll("state").length!==1)return denied();
+    const id=readCookie(req),state=u.searchParams.get("state");
+    if(!valid(id)||!valid(state))return denied();
+    const d=hash(id),s=hash(state),enc=await flows.take(d,s);
+    if(!enc)return denied();
+    const f=vault.open(enc,"flow:"+d+":"+s);
+    if(!Number.isFinite(f.expires)||f.expires<=now())return denied();
+    const proof=await userProof(f.bearer);
+    if(!proof||proof.actor!==f.actor||proof.session!==f.session)return denied();
+    const result=await backend(req,f.bearer);
+    // Discard callback output; strip code/state from browser URL even on failure.
+    return new Response(null,{status:303,headers:{"Location":ORIGIN+"/oauth/gmail/result?status="+(result.status===200?"complete":"failed"),"Set-Cookie":cookie("",0),"Cache-Control":"no-store","Referrer-Policy":"no-referrer"}});
+   }
+   // Other control routes require a fresh user bearer, never the flow cookie.
+   if(req.method!=="POST"||req.headers.get("origin")!==ORIGIN||u.search)return denied();
+   const bearer=req.headers.get("authorization")?.match(/^Bearer (fixture-[A-Za-z0-9_-]{8,200})$/)?.[1];if(!bearer)return denied();
+   return backend(req,bearer);
+  }catch{return denied();}
+ };
+}

@@ -18,7 +18,7 @@ begin
  select secret into strict k from hag_private.subscription_rate_key where singleton;
  if p_action<>'unsubscribe' and not hag_private.subscription_allow('gateway-global','all',1,240) then return false; end if;
  bucket:=encode(extensions.hmac(convert_to(p_source,'UTF8'),k,'sha256'),'hex');
- delete from hag_private.subscription_abuse where window_start<clock_timestamp()-interval '1 day';
+ -- Maintenance runs outside request transactions.
  return hag_private.subscription_allow(case when p_action='unsubscribe' then 'gateway-optout-source' else 'gateway-source' end,bucket,1,20);
 end $$;
 create function hag_private.subscription_gateway_issue(p_id uuid,p_action text,p_name text,p_adult boolean,p_channel text,p_destination text,p_topics text[],p_consent boolean,p_version text,p_purpose text)
@@ -30,7 +30,7 @@ begin
  if not hag_private.subscription_issue_budget(p_channel,p_destination) then return null; end if;
  if p_action='subscribe' and (p_name is null or char_length(btrim(p_name)) not between 1 and 120 or p_name ~ '[[:cntrl:]]' or p_adult is distinct from true or p_consent is distinct from true or p_version is distinct from 'draft-3c3-v1' or not hag_private.subscription_topics_valid(p_topics) or cardinality(p_topics)=0 or p_purpose is distinct from 'confirm') then return null; end if;
  if p_action='access' and (p_purpose is null or p_purpose not in ('manage','unsubscribe')) then return null; end if;
- delete from hag_private.subscription_issue_keys where created_at<clock_timestamp()-interval '1 day';
+
  insert into hag_private.subscription_issue_keys(request_id,channel) values(p_id,p_channel) on conflict do nothing returning request_id into claimed;
  if claimed is null then return null; end if;
  -- Prior request/access functions consume the issuance budget themselves. Use a private

@@ -1,0 +1,24 @@
+name: Administration dashboard foundation review
+on:
+  push:
+    branches: [admin/phase-3c2a-dashboard-foundation]
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Test exact staged commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet --no-tags --branch admin/phase-3c2a-dashboard-foundation https://github.com/heartlandathleticsgroup-ai/heartland-athletics-group.git "$RUNNER_TEMP/hag-dashboard"
+          cd "$RUNNER_TEMP/hag-dashboard"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node --check admin/dashboard.mjs
+          node --check admin/auth.js
+          node tests/admin-dashboard.test.mjs
+          node tests/admin-auth-state.test.mjs
+          node tests/admin-passkey.test.mjs
+          git diff --exit-code origin/main...HEAD -- admin/auth.js admin/auth-state.mjs admin/verified-passkey.mjs admin/admin.css supabase

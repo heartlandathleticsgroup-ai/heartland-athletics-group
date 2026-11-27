@@ -58,6 +58,12 @@ create function hag_private.subscription_topics_valid(a text[])
 returns boolean language sql stable set search_path='' as $$
  select coalesce(cardinality(a) between 0 and 9 and (cardinality(a)=0 or array_ndims(a)=1) and (select count(distinct x) from unnest(a) x)=cardinality(a) and not exists(select 1 from unnest(a) x where not exists(select 1 from hag_private.hag_topics t where t.code=x and t.purpose='subscription' and t.active and t.code in ('hag-announcements','enforcers-updates','enforcers-tryouts','gus-macker-local','gus-macker-registration','camps-clinics','tournaments-events','sponsorship-updates','volunteer-updates'))),false)
 $$;
+-- Withdrawal is allowed for retired topics, and does not depend on agreeing to new consent.
+create function hag_private.subscription_removal_topics_valid(a text[])
+returns boolean language sql stable set search_path='' as $
+ select coalesce(cardinality(a) between 0 and 9 and (cardinality(a)=0 or array_ndims(a)=1) and (select count(distinct x) from unnest(a) x)=cardinality(a) and not exists(select 1 from unnest(a) x where not exists(select 1 from hag_private.hag_topics t where t.code=x and t.purpose='subscription')),false)
+$;
+revoke all on function hag_private.subscription_removal_topics_valid(text[]) from public,anon,authenticated,service_role;
 create function hag_private.subscription_wording(c text)
 returns text language sql immutable set search_path='' as $$
  select case c when 'email' then 'I agree to receive marketing email from Heartland Athletics Group for the email topics I select. I can unsubscribe at any time. Consent is optional.' when 'sms' then 'I agree to receive recurring automated marketing text messages from Heartland Athletics Group at the number I provide, for the SMS topics I select. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for help. Consent is not a condition of purchase.' end
@@ -113,7 +119,7 @@ begin
 end $$;
 create function hag_private.subscription_redeem(p_raw text,p_purpose text)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$
-declare cap hag_private.subscription_capabilities; c text; row_s record; ev uuid; result jsonb; suppressed boolean;
+declare cap hag_private.subscription_capabilities; c text; row_s record; ev uuid; result jsonb; suppressed boolean; confirmed_count integer:=0;
 begin
  if p_purpose is null or p_purpose not in ('confirm','manage','unsubscribe') then return null; end if;
  -- Unsubscribe must not be blocked by a shared global counter. Future gateway still bounds requests.
@@ -136,7 +142,9 @@ begin
   for row_s in select s.id,s.topic_code from hag_private.hag_subscriptions s join hag_private.hag_topics t on t.code=s.topic_code and t.purpose=s.topic_purpose where s.contact_method_id=cap.method_id and s.id=any(cap.snapshot) and s.status='pending' and t.active and exists(select 1 from hag_private.hag_consent_events e where e.subscription_id=s.id and e.event_kind='requested' and e.consent_version='draft-3c3-v1' and e.consent_text=hag_private.subscription_wording(c)) loop
    insert into hag_private.hag_consent_events(subscription_id,event_kind,consent_version,consent_text,source,channel) values(row_s.id,'confirmed','draft-3c3-v1',hag_private.subscription_wording(c),case when c='email' then 'email_confirmation' else 'sms_confirmation' end,c) returning id into ev;
    update hag_private.hag_subscriptions set status='active',confirmation_event_id=ev where id=row_s.id;
+   confirmed_count:=confirmed_count+1;
   end loop;
+  if confirmed_count=0 then return null; end if;
   update hag_private.hag_contact_methods set verified_at=coalesce(verified_at,clock_timestamp()) where id=cap.method_id;
   return jsonb_build_object('ok',true);
  end if;
@@ -149,7 +157,7 @@ returns boolean language plpgsql volatile security definer set search_path='' as
 declare cap hag_private.subscription_capabilities; c text; t text; sid uuid; st text; ev uuid; suppressed boolean;
 begin
  if not hag_private.subscription_allow('redeem-global','all',1,120) then return false; end if;
- if not hag_private.subscription_topics_valid(p_add) or not hag_private.subscription_topics_valid(p_remove) or p_add&&p_remove or cardinality(p_add)+cardinality(p_remove)=0 or p_version is distinct from 'draft-3c3-v1' or (cardinality(p_add)>0 and (p_adult is distinct from true or p_consent is distinct from true)) then return false; end if;
+ if not hag_private.subscription_topics_valid(p_add) or not hag_private.subscription_removal_topics_valid(p_remove) or p_add&&p_remove or cardinality(p_add)+cardinality(p_remove)=0 or (cardinality(p_add)>0 and (p_version is distinct from 'draft-3c3-v1' or p_adult is distinct from true or p_consent is distinct from true)) then return false; end if;
  cap:=hag_private.subscription_take(p_raw,'edit');
  if cap.method_id is null then return false; end if;
  select channel into c from hag_private.hag_contact_methods where id=cap.method_id;
@@ -176,7 +184,10 @@ begin
  end loop;
  update hag_private.hag_contact_methods set verified_at=coalesce(verified_at,clock_timestamp()) where id=cap.method_id;
  -- Prevent stale edit/confirm capabilities from undoing a verified preference change.
- update hag_private.subscription_capabilities set used_at=clock_timestamp() where method_id=cap.method_id and used_at is null and purpose in ('confirm','manage','edit');
+ update hag_private.subscription_capabilities set used_at=clock_timestamp() where method_id=cap.method_id and used_at is null and purpose in ('manage','edit');
+ -- Confirmation snapshots remain safe: withdrawn rows cannot become active via an old link.
+ -- Invalidate snapshots that intersect a modified topic, preserving unrelated pending links.
+ update hag_private.subscription_capabilities k set used_at=clock_timestamp() where k.method_id=cap.method_id and k.used_at is null and k.purpose='confirm' and exists(select 1 from hag_private.hag_subscriptions s where s.contact_method_id=cap.method_id and s.id=any(k.snapshot) and s.topic_code=any(p_add||p_remove));
  return true;
 end $$;
 revoke all on function hag_private.stage_subscription_request(text,boolean,text,text,text[],boolean,text) from service_role;

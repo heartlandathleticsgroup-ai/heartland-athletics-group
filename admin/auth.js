@@ -1,18 +1,20 @@
 import {nextPanel,isSixDigit,expired} from "./auth-state.mjs";
 import {signInWithVerifiedPasskey} from "./verified-passkey.mjs";
 import {attachCommunications} from "./communications.mjs";
+import {attachGmailControls} from "./gmail-controls.mjs";
 const BASE="https://unrqbfngcgvqnytxbtgj.supabase.co", PUBLISHABLE_KEY="sb_publishable_JeTzqF2gS0-pEHLs3VLOmg_GmK22bon";
 const $=id=>document.getElementById(id);
 const panels=["login","enroll","challenge","authorized"];
 const notices={login:"Sign in with your approved administrator account.",enroll:"An authenticator is required before administrative access.",challenge:"Complete authenticator verification.",authorized:"Secure administrator session verified.",denied:"Access denied or session expired. Sign in again."};
 const STORAGE="hag-admin-auth-v1", CLOCK="hag-admin-clock-v1";
 let communications=null;
+let gmailControls=null;
 let client=null,busy=false,started=0,last=0,active=false,enrollment=null,currentPanel=null;
 const say=s=>{$("notice").textContent=s;};
 function passkeyAvailable(){return !!(window.isSecureContext&&window.PublicKeyCredential&&navigator.credentials&&client?.auth?.passkey?.startAuthentication&&client?.auth?.registerPasskey);}
 function clearEnrollment(){enrollment=null;$("enroll-details").hidden=true;$("qr").removeAttribute("src");$("setup-key").textContent="";$("enroll-code").value="";$("start-enroll").disabled=false;}
 function show(panel){
- if(panel!=="authorized")communications?.clear();
+ if(panel!=="authorized"){communications?.clear();gmailControls?.clear();}
  panels.forEach(p=>{$(p+"-panel").hidden=p!==panel;});
  currentPanel=panel;$("signout").hidden=panel==="login";
  $("passkey-login").hidden=!passkeyAvailable();$("passkey-hint").hidden=!passkeyAvailable();$("register-passkey").hidden=!passkeyAvailable();
@@ -118,6 +120,8 @@ async function init(){
    if(!allowed())throw Error("Access unavailable");
    return data(await client.rpc("hag_communications_read",{p_view:view,p_offset:offset,p_channel:channel}));
   },allowed);
+  // Release-locked: no provider request or bearer retrieval is wired to production.
+  gmailControls=attachGmailControls($("authorized-panel"),{allowed});
   const {session}=data(await client.auth.getSession());
   if(!session){show("login");clearClock();return;}
   const saved=JSON.parse(sessionStorage.getItem(CLOCK)||"null");

@@ -1,3 +1,4 @@
+import {Buffer} from "node:buffer";
 import assert from "node:assert/strict";
 import {createReleaseRuntime} from "../release/gmail/runtime/runtime.mjs";
 import {checkedDbOptions} from "../release/gmail/runtime/driver.mjs";

@@ -5,6 +5,7 @@
       --text: #1b1b1b;
       --muted: #5f6675;
       --gold: #f5b500;
+      --gold-on-light: #946500;
       --blue: #0057ff;
       --shadow: 0 24px 70px rgba(0, 0, 0, 0.22);
       --radius: 24px;
@@ -1249,8 +1250,10 @@
   color: var(--muted);
 }
 
+/* Accessible gold labels on white cards, including cards inside dark sections. */
+.content-card .eyebrow,
 .section-dark .content-card .eyebrow {
-  color: var(--gold);
+  color: var(--gold-on-light);
 }
 
 

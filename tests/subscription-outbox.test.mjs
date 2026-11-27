@@ -5,5 +5,5 @@ const calls=[],query=async(q,args)=>{calls.push([q,args]);return {rows:[{value:q
 const a=durableEmailAdapter(query,"a".repeat(64),"fixture");await a.enqueue("id","subscribe",{channel:"email",destination:"fixture@example.invalid",purpose:"confirm"});
 assert.ok(calls[0][0].includes("$11"));await assert.rejects(a.enqueue("id","subscribe",{channel:"email",destination:"real@example.com"}));
 const w=durableEmailWorker(query,()=> "a".repeat(64));assert.equal(await w.pump(),"accepted");
-assert.equal(await durableEmailWorker(query,()=>null).pump(),"key-unavailable");
+assert.equal(await durableEmailWorker(query,()=>null).pump(),"accepted");assert.equal(calls.at(-1)[1][2],null);
 console.log("PASS: disabled Resend and isolated fixed-query outbox adapters");

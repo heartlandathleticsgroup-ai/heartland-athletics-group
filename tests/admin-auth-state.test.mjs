@@ -1,0 +1,16 @@
+import {nextPanel,isSixDigit,expired} from "../admin/auth-state.mjs";
+import assert from "node:assert/strict";
+const now=100000000;
+assert.equal(nextPanel("authorized",[]),"authorized");
+assert.equal(nextPanel("enroll",[]),"enroll");
+assert.equal(nextPanel("challenge",[{id:"fixture"}]),"challenge");
+assert.equal(nextPanel("challenge",[]),"denied");
+for(const v of [null,undefined,"denied","aal2",true,"unexpected"])assert.equal(nextPanel(v,[]),"denied");
+assert.equal(isSixDigit("012345"),true);
+for(const v of ["12345","1234567","12345a"," 123456",123456,null])assert.equal(isSixDigit(v),false);
+assert.equal(expired(now,now-1000,now-10000),false);
+assert.equal(expired(now,now-20*60*1000,now-20*60*1000),true);
+assert.equal(expired(now,now-1000,now-12*60*60*1000),true);
+assert.equal(expired(now,now+1,now),true);
+assert.equal(expired(now,NaN,now),true);
+console.log("Authentication state and session clock assertions passed.");

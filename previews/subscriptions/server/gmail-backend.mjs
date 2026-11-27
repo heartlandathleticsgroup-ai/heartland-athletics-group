@@ -18,6 +18,7 @@ export function createCredentialVault({key,version}){
 export function gmailControlDb(query){
  const scalar=async(sql,args)=>{const r=await query(sql,args);if(r?.rows?.length!==1)throw Error("Database unavailable");return r.rows[0].value;};
  return {begin:(d,a,s,v)=>scalar("select hag_private.gmail_begin($1,$2::uuid,$3::uuid,$4) as value",[d,a,s,v]),
+ beginAtGeneration:(d,a,s,v,g)=>scalar("select hag_private.gmail_begin_at_generation($1,$2::uuid,$3::uuid,$4,$5::bigint) as value",[d,a,s,v,g]),
  take:(d,a,s)=>scalar("select hag_private.gmail_take($1,$2::uuid,$3::uuid) as value",[d,a,s]),
  store:(g,c,v)=>scalar("select hag_private.gmail_store($1::bigint,$2,$3) as value",[g,c,v]),
  status:()=>scalar("select hag_private.gmail_status() as value",[]),
@@ -49,7 +50,7 @@ async function reviewBody(req){
  }finally{clearTimeout(timer);void reader.cancel().catch(()=>{});}
 }
 function reply(status,body){return new Response(JSON.stringify(body),{status,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Referrer-Policy":"no-referrer","X-Content-Type-Options":"nosniff"}});}
-export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixtureRequest,clientId,clientSecret,outboxKeys,nextVault=null,now=Date.now}){
+export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixtureRequest,clientId,clientSecret,outboxKeys,nextVault=null,expectedGeneration=null,now=Date.now}){
  if(mode!=="isolated-test"||typeof fixtureRequest!=="function"||typeof verifyAdmin!=="function"||clientId!=="fixture.apps.googleusercontent.com"||!secret(clientSecret)||!control||!dispatch||!vault||typeof outboxKeys!=="function")throw Error("Synthetic backend only");
  const call=async(url,form,access)=>{const headers=access?{"Authorization":"Bearer "+access,"Content-Type":"application/json"}:{"Content-Type":"application/x-www-form-urlencoded"};const body=access?JSON.stringify(form):new URLSearchParams(form).toString();return fixtureRequest({url,method:"POST",headers,body,redirect:"error",timeoutMs:5000});};
  const revoke=async token=>{try{return (await call(REVOKE,{token})).status===200;}catch{return false;}};
@@ -94,7 +95,8 @@ export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixt
    if(u.pathname.endsWith("/start")){
     const s=await control.status();if(s.connected)return reply(409,{ok:false});
     const p=createOfflineAuthorizationPlan({clientId,redirectUri:CALLBACK}),d=digest(p.parameters.state);
-    const g=await control.begin(d,a.actor,a.session,vault.seal(p.verifier,"state:"+d+":"+a.actor+":"+a.session));
+    const encrypted=vault.seal(p.verifier,"state:"+d+":"+a.actor+":"+a.session);
+    const g=expectedGeneration===null?await control.begin(d,a.actor,a.session,encrypted):await control.beginAtGeneration(d,a.actor,a.session,encrypted,expectedGeneration);
     if(g===null)return reply(409,{ok:false});
     return reply(200,{parameters:p.parameters}); // no actual redirect
    }

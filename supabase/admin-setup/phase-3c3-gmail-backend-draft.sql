@@ -98,6 +98,7 @@ begin
  begin v:=extensions.pgp_sym_decrypt(j.payload,p_key)::jsonb;exception when others then return null;end;
  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('hag-subscription:email:'||(v->>'destination'),0));
  select * into c from hag_private.gmail_connection where singleton for update;
+ if (select count(*) from hag_private.gmail_dispatch_receipt where outcome='ambiguous-hold-no-resend' and reviewed_at is null)>=500 then return null;end if;
  if not c.enabled or c.credential is null or j.lease_until<=clock_timestamp() or j.deadline<=clock_timestamp() then return null;end if;
  if (v->>'destination') !~ '^[a-z0-9._+%-]+@[a-z0-9.-]+[.]invalid$' or not hag_private.subscription_email_delivery_eligible(v->>'token',v->>'destination',v->>'purpose') then
   update hag_private.subscription_email_outbox set state='cancelled',payload=null,finished_at=clock_timestamp(),lease=null,lease_until=null where id=j.id;return null;
@@ -170,3 +171,80 @@ create function public.hag_gmail_admin_proof()
 returns jsonb language sql stable security invoker set search_path='' as $$ select hag_private.gmail_admin_proof() $$;
 revoke all on function public.hag_gmail_admin_proof() from public,anon,authenticated,service_role;
 grant execute on function public.hag_gmail_admin_proof() to authenticated;
+
+-- Phase 3C.3E.7 callback binding and operator safeguards; isolated draft only.
+create table hag_private.gmail_callback_flow (
+ digest text primary key check(digest ~ '^[a-f0-9]{64}$'),
+ state_digest text not null unique references hag_private.gmail_oauth_state(digest) on delete cascade,
+ ciphertext text not null check(length(ciphertext) between 1 and 8192),
+ expires_at timestamptz not null default clock_timestamp()+interval '5 minutes'
+);
+alter table hag_private.gmail_callback_flow enable row level security;
+alter table hag_private.gmail_callback_flow force row level security;
+revoke all on hag_private.gmail_callback_flow from public,anon,authenticated,service_role,hag_gmail_control,hag_gmail_dispatch;
+create function hag_private.gmail_flow_put(p_digest text,p_state text,p_cipher text)
+returns boolean language plpgsql volatile security definer set search_path='' as $$
+begin
+ if p_digest is null or p_digest !~ '^[a-f0-9]{64}$' or p_state is null or p_cipher is null or length(p_cipher) not between 1 and 8192 then return false;end if;
+ perform 1 from hag_private.gmail_connection where singleton for update;
+ if not exists(select 1 from hag_private.gmail_oauth_state s join hag_private.gmail_connection c on c.generation=s.generation where s.digest=p_state and s.expires_at>clock_timestamp() and c.credential is null) then return false;end if;
+ delete from hag_private.gmail_callback_flow where expires_at<=clock_timestamp();
+ insert into hag_private.gmail_callback_flow(digest,state_digest,ciphertext) values(p_digest,p_state,p_cipher) on conflict do nothing;
+ return found;
+end $$;
+create function hag_private.gmail_flow_take(p_digest text,p_state text)
+returns text language plpgsql volatile security definer set search_path='' as $$
+declare v text;
+begin
+ perform 1 from hag_private.gmail_connection where singleton for update;
+ delete from hag_private.gmail_callback_flow where digest=p_digest and state_digest=p_state and expires_at>clock_timestamp() returning ciphertext into v;
+ return v;
+end $$;
+-- Key rotation requires a disabled connection; ciphertext only, compare-and-swap.
+create function hag_private.gmail_rotation_read()
+returns jsonb language sql stable security definer set search_path='' as $$
+ select jsonb_build_object('generation',generation,'credential',credential,'key_version',key_version)
+ from hag_private.gmail_connection where singleton and not enabled and credential is not null
+$$;
+create function hag_private.gmail_rotation_commit(p_generation bigint,p_old_version text,p_new_version text,p_cipher text)
+returns boolean language plpgsql volatile security definer set search_path='' as $$
+begin
+ if p_new_version is null or p_new_version !~ '^[A-Za-z0-9_-]{1,32}$' or p_new_version=p_old_version or p_cipher is null or length(p_cipher) not between 1 and 16384 then return false;end if;
+ update hag_private.gmail_connection set credential=p_cipher,key_version=p_new_version,generation=generation+1
+ where singleton and not enabled and credential is not null and generation=p_generation and key_version=p_old_version;
+ if not found then return false;end if;
+ delete from hag_private.gmail_oauth_state;
+ return true;
+end $$;
+alter table hag_private.gmail_dispatch_receipt add column reviewed_at timestamptz,add column reviewed_by uuid,add column review_disposition text check(review_disposition in ('closed-unverified-no-resend','provider-acceptance-observed-no-resend'));
+create function hag_private.gmail_review_list()
+returns jsonb language sql stable security definer set search_path='' as $$
+ select coalesce(jsonb_agg(to_jsonb(q) order by q.created_at,q.job_id),'[]'::jsonb) from (
+ select job_id,created_at,outcome,started_at is not null as started from hag_private.gmail_dispatch_receipt
+ where outcome='ambiguous-hold-no-resend' and reviewed_at is null and created_at<statement_timestamp()-interval '1 minute'
+ order by created_at,job_id limit 50) q
+$$;
+create function hag_private.gmail_review_close(p_job uuid,p_actor uuid,p_disposition text)
+returns boolean language plpgsql volatile security definer set search_path='' as $$
+begin
+ if p_actor is null or p_disposition is null or p_disposition not in ('closed-unverified-no-resend','provider-acceptance-observed-no-resend') then return false;end if;
+ update hag_private.gmail_dispatch_receipt set reviewed_at=clock_timestamp(),reviewed_by=p_actor,review_disposition=p_disposition,finished_at=coalesce(finished_at,clock_timestamp())
+ where job_id=p_job and outcome='ambiguous-hold-no-resend' and reviewed_at is null and created_at<clock_timestamp()-interval '1 minute';
+ return found;
+end $$;
+-- Cleanup only expired state and old closed metadata; never remove open holds.
+create function hag_private.gmail_cleanup()
+returns integer language plpgsql volatile security definer set search_path='' as $$
+declare n int;
+begin
+ delete from hag_private.gmail_oauth_state where expires_at<=clock_timestamp();
+ delete from hag_private.gmail_callback_flow where expires_at<=clock_timestamp();
+ delete from hag_private.gmail_dispatch_receipt where job_id in (
+ select job_id from hag_private.gmail_dispatch_receipt where
+ (reviewed_at<clock_timestamp()-interval '90 days' or (outcome<>'ambiguous-hold-no-resend' and finished_at<clock_timestamp()-interval '90 days'))
+ order by created_at limit 500 for update skip locked);
+ get diagnostics n=row_count;return n;
+end $$;
+revoke all on function hag_private.gmail_flow_put(text,text,text),hag_private.gmail_flow_take(text,text),hag_private.gmail_rotation_read(),hag_private.gmail_rotation_commit(bigint,text,text,text),hag_private.gmail_review_list(),hag_private.gmail_review_close(uuid,uuid,text),hag_private.gmail_cleanup() from public,anon,authenticated,service_role,hag_gmail_control,hag_gmail_dispatch,hag_subscription_runtime,hag_email_worker,hag_subscription_maintenance;
+grant execute on function hag_private.gmail_flow_put(text,text,text),hag_private.gmail_flow_take(text,text),hag_private.gmail_rotation_read(),hag_private.gmail_rotation_commit(bigint,text,text,text),hag_private.gmail_review_list(),hag_private.gmail_review_close(uuid,uuid,text) to hag_gmail_control;
+grant execute on function hag_private.gmail_cleanup() to hag_subscription_maintenance;

@@ -64,3 +64,16 @@ assert.deepEqual(await (await runtime.handle(post("status"))).json(),{connected:
 assert.equal(await runtime.pump(),"empty");assert.ok(poolCalls.includes("SET LOCAL ROLE hag_gmail_control"));assert.ok(poolCalls.includes("SET LOCAL ROLE hag_gmail_dispatch"));
 assert.throws(()=>createGmailStagedRuntime({...opts,controlPool:cp,dispatchPool:cp,resolveSession:async()=>null,userRpc:async()=>null}));
 console.log("PASS: user-context admin proof and isolated bounded Gmail control/dispatch runtime");
+
+const newVault=createCredentialVault({key:"c".repeat(64),version:"next-fixture"});
+let rotRecord={generation:12,key_version:vault.version,credential:vault.seal({token:"fixture-refresh-token"},"refresh")},closed=false;
+const rotControl={...control,async rotationRead(){return rotRecord;},async rotationCommit(g,o,n,c){if(g!==rotRecord.generation||o!==rotRecord.key_version)return false;rotRecord={generation:g+1,key_version:n,credential:c};return true;},async reviewList(){return closed?[]:[{job_id:job,created_at:"synthetic",started:true,private:"hidden"}];},async reviewClose(j,a,d){assert.equal(j,job);assert.equal(a,actor);assert.equal(d,"closed-unverified-no-resend");if(closed)return false;closed=true;return true;},async disable(d){return d?rotRecord:{};}};
+const operator=createGmailBackend({...opts,control:rotControl,nextVault:newVault});
+assert.deepEqual(await (await operator.handle(post("rotate"))).json(),{ok:true,enabled:false});
+assert.equal(rotRecord.key_version,newVault.version);assert.deepEqual(newVault.open(rotRecord.credential,"refresh"),{token:"fixture-refresh-token"});
+assert.equal((await operator.handle(post("rotate"))).status,409);
+const holds=await (await operator.handle(post("review"))).json();assert.equal(holds.holds.length,1);assert.equal(holds.holds[0].private,undefined);
+const closeReq=()=>new Request("https://preview.invalid/oauth/gmail/review-close",{method:"POST",headers:{origin:"https://preview.invalid","content-type":"application/json"},body:JSON.stringify({job,disposition:"closed-unverified-no-resend"})});
+assert.equal((await operator.handle(closeReq())).status,200);assert.equal((await operator.handle(closeReq())).status,409);assert.deepEqual(await (await operator.handle(post("review"))).json(),{holds:[]});
+assert.equal((await (await operator.handle(post("disconnect"))).json()).providerRevoked,true);
+console.log("PASS: administrative rotation and review API, no ciphertext projection, one-use closure, rotated-key revocation");

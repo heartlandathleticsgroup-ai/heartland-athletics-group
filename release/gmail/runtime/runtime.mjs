@@ -20,6 +20,14 @@ function keyring(current,next){
  const m=new Map();for(const item of [current,next])if(item){if(!goodKey(item.key)||typeof item.version!=="string"||! /^[a-zA-Z0-9_-]{1,32}$/.test(item.version)||m.has(item.version))throw Error("Invalid key configuration");m.set(item.version,item.key);}
  return v=>m.get(v)||null;
 }
+// pg_net sends an empty JSON body by default. Bound it strictly; never parse
+// arbitrary job instructions from a scheduler request.
+async function emptyWorkerBody(req){
+ if(!req.body)return true;
+ if(req.headers.has("content-encoding")||!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(req.headers.get("content-type")||""))return false;
+ const reader=req.body.getReader();let timer;const chunks=[];let n=0;
+ try{const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error("Timeout")),1000);});while(true){const {done,value}=await Promise.race([reader.read(),timeout]);if(done)break;n+=value.byteLength;if(n>32)return false;chunks.push(value);}return /^\s*\{\s*\}\s*$/.test(Buffer.concat(chunks).toString("utf8"));}catch{return false;}finally{clearTimeout(timer);void reader.cancel().catch(()=>{});}
+}
 function flags(cfg){
  if(!cfg||cfg.runtime!=="approved-runtime")return {configured:false,oauth:false,send:false,preferences:false};
  // Separate release controls. A disabled deployment does not even create
@@ -56,9 +64,10 @@ export function createReleaseRuntime({config,postgres,fetcher,now=Date.now}){
  const pump=createGmailBackend({...common,verifyAdmin:async()=>null}).pump;
  const worker=async req=>{
   const u=new URL(req.url);
-  if(u.href!==PRIVATE_WORKER||req.method!=="POST"||req.body||req.headers.has("origin"))return response(403,{ok:false});
+  if(u.href!==PRIVATE_WORKER||req.method!=="POST"||req.headers.has("origin"))return response(403,{ok:false});
   const token=req.headers.get("authorization")?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
   if(!token||!timingSafeEqual(digest(token),digest(config.workerKey)))return response(403,{ok:false});
+  if(!await emptyWorkerBody(req))return response(400,{ok:false});
   if(!f.send)return response(503,{ok:false,disabled:true});
   if(workerBusy)return response(429,{ok:false});
   workerBusy=true;

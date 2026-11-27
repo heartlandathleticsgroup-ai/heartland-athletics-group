@@ -5,7 +5,7 @@ const wait=async(fn,label)=>{for(let i=0;i<150;i++){if(fn())return;await new Pro
 const load=new Promise(r=>frame.addEventListener("load",r,{once:true}));frame.src="/center.html";await load;
 const d=frame.contentDocument,$=id=>d.getElementById(id);
 const text=(id,s)=>$(id).textContent.includes(s);
-const click=id=>$(id).click();
+const click=async id=>{await wait(()=>!$(id).disabled,"control still busy: "+id);$(id).click();};
 const choose=(id,v)=>{const el=$(id);el.value=v;el.dispatchEvent(new frame.contentWindow.Event("change"));};
 const setCheck=(el,v)=>{el.checked=v;el.dispatchEvent(new frame.contentWindow.Event("change"));};
 const inbox=()=>[...$("inbox").querySelectorAll("button")];
@@ -24,22 +24,22 @@ try{
  }
  frame.style.width="390px";
  setCheck($("start-topics").querySelector("input"),true);setCheck($("adult"),true);setCheck($("consent"),true);
- click("start-submit");await wait(()=>link("Confirm subscription"),"confirmation missing");
+ await click("start-submit");await wait(()=>link("Confirm subscription"),"confirmation missing");
  await go("Confirm subscription");await wait(()=>text("status","confirmed"),"confirmation failed");
  await go("Confirm subscription");await wait(()=>text("error","invalid, expired"),"replay not rejected");
- click("access");await go("Manage preferences");await wait(()=>!$("manage-panel").hidden,"manage failed");
+ await click("access");await go("Manage preferences");await wait(()=>!$("manage-panel").hidden,"manage failed");
  check(d.activeElement===$("manage-heading"),"verified focus");
  check(text("manage-detail","Verified email only"),"channel scope");
  check(d.documentElement.scrollWidth<=frame.contentWindow.innerWidth,"manage overflow");
  const add=[...$("edit-topics").querySelectorAll("input")].find(x=>x.value==="camps-clinics");
  setCheck(add,true);check(!$("edit-consent").hidden&&!$("edit-agree").checked,"new consent not fresh");
- click("save");await wait(()=>text("error","Confirm adult"),"missing consent accepted");
- setCheck($("edit-adult"),true);setCheck($("edit-agree"),true);click("save");await wait(()=>text("status","saved"),"save failed");
- click("optout-link");await go("Unsubscribe");await wait(()=>text("status","unsubscribe completed"),"unsubscribe failed");
- click("access");await wait(()=>inbox().filter(x=>x.textContent.includes("Manage preferences")).length>=2,"new access link missing");
- click("expire");await go("Manage preferences");await wait(()=>text("error","invalid, expired"),"expired link accepted");
+ await click("save");await wait(()=>text("error","Confirm adult"),"missing consent accepted");
+ setCheck($("edit-adult"),true);setCheck($("edit-agree"),true);await click("save");await wait(()=>text("status","saved"),"save failed");
+ await click("optout-link");await go("Unsubscribe");await wait(()=>text("status","unsubscribe completed"),"unsubscribe failed");
+ await click("access");await wait(()=>!$("access").disabled,"access request still busy");await wait(()=>inbox().filter(x=>x.textContent.includes("Manage preferences")).length>=2,"new access link missing; status: "+$("status").textContent+"; error: "+$("error").textContent);
+ await click("expire");await go("Manage preferences");await wait(()=>text("error","invalid, expired"),"expired link accepted");
  choose("channel","sms");check(!$("adult").checked&&!$("consent").checked,"channel consent retained");
- click("reset");check(inbox().length===0&&$("manage-panel").hidden&&$("action-panel").hidden,"reset failed");
+ await click("reset");check(inbox().length===0&&$("manage-panel").hidden&&$("action-panel").hidden,"reset failed");
  result.textContent="PASS: five viewport widths; labelled controls, focus, touch target, live status, confirmation, replay, verified edit, unsubscribe, expiry and reset";
 }catch(e){result.textContent="FAIL: "+e.message;}
 </script></html>

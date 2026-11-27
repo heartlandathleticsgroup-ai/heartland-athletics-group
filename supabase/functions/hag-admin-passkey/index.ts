@@ -1,4 +1,4 @@
-import {ORIGIN,verifiedPasskey} from "./verify.mjs";
+import {ORIGIN,validateAssertion,verifiedPasskey} from "./verify.mjs";
 const BASE="https://unrqbfngcgvqnytxbtgj.supabase.co";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Methods":"POST, OPTIONS","Access-Control-Allow-Headers":"apikey, content-type, authorization, x-client-info","Vary":"Origin","Cache-Control":"no-store","Content-Type":"application/json"};
 const reply=(status:number,value:unknown)=>new Response(JSON.stringify(value),{status,headers:cors});
@@ -15,6 +15,11 @@ Deno.serve(async req=>{
   const anon=Deno.env.get("SUPABASE_ANON_KEY"),service=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if(Deno.env.get("SUPABASE_URL")!==BASE||!anon||!service)return reply(503,{error:"Unavailable"});
   const input=JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(body));
+  validateAssertion(input);
+  // Global database-backed budget; do not trust client-supplied IP headers.
+  const budget=await fetch(BASE+"/rest/v1/rpc/hag_take_passkey_budget",{method:"POST",headers:{apikey:service,Authorization:"Bearer "+service,"Content-Type":"application/json"},body:"{}",redirect:"error",signal:AbortSignal.timeout(4000)});
+  if(!budget.ok)return reply(503,{error:"Unavailable"});
+  if((await budget.json())!==true)return reply(429,{error:"Passkey sign-in temporarily limited. Use password and authenticator."});
   const tokens=await verifiedPasskey(input,{base:BASE,anon,service});
   return reply(200,tokens);
  }catch{return reply(401,{error:"Passkey sign-in unavailable. Use password and authenticator."});}

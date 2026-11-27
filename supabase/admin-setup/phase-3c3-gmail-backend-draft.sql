@@ -277,13 +277,25 @@ begin
  return found;
 end $$;
 create function hag_private.gmail_launch_take(p_digest text)
-returns text language plpgsql volatile security definer set search_path='' as $$
-declare g bigint;v text;
+returns jsonb language plpgsql volatile security definer set search_path='' as $$
+declare g bigint;v hag_private.gmail_launch_grant;
 begin
  select generation into g from hag_private.gmail_connection where singleton and credential is null for update;
  if g is null then return null;end if;
- delete from hag_private.gmail_launch_grant where digest=p_digest and expires_at>clock_timestamp() and generation=g returning ciphertext into v;
- return v;
-end $$;
+ delete from hag_private.gmail_launch_grant where digest=p_digest and expires_at>clock_timestamp() and generation=g returning * into v;
+ if v.digest is null then return null;end if;
+ return jsonb_build_object('generation',v.generation,'ciphertext',v.ciphertext);
+end $;
 revoke all on function hag_private.gmail_launch_put(text,uuid,uuid,text),hag_private.gmail_launch_take(text) from public,anon,authenticated,service_role,hag_gmail_control,hag_gmail_dispatch,hag_subscription_runtime,hag_email_worker,hag_subscription_maintenance;
 grant execute on function hag_private.gmail_launch_put(text,uuid,uuid,text),hag_private.gmail_launch_take(text) to hag_gmail_control;
+
+create function hag_private.gmail_begin_at_generation(p_digest text,p_actor uuid,p_session uuid,p_verifier text,p_expected bigint)
+returns bigint language plpgsql volatile security definer set search_path='' as $$
+declare g bigint;
+begin
+ select generation into g from hag_private.gmail_connection where singleton for update;
+ if g is distinct from p_expected or p_expected is null then return null;end if;
+ return hag_private.gmail_begin(p_digest,p_actor,p_session,p_verifier);
+end $$;
+revoke all on function hag_private.gmail_begin_at_generation(text,uuid,uuid,text,bigint) from public,anon,authenticated,service_role,hag_gmail_control,hag_gmail_dispatch,hag_subscription_runtime,hag_email_worker,hag_subscription_maintenance;
+grant execute on function hag_private.gmail_begin_at_generation(text,uuid,uuid,text,bigint) to hag_gmail_control;

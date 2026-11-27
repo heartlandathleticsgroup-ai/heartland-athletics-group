@@ -63,7 +63,7 @@ const post=(route,headers={},body)=>rt.control(new Request(CONTROL_BASE+"/oauth/
 const work=(secret=config.workerKey,headers={})=>rt.worker(new Request(workerUrl,{method:"POST",headers:{authorization:"Bearer "+secret,...headers}}));
 const pref=(p,source=origin)=>rt.preferences(new Request(prefUrl+(p.action==="unsubscribe"?"/unsubscribe":""),{method:"POST",headers:{origin:source,"content-type":"application/json"},body:JSON.stringify(p)}));
 assert.equal((await post("status",{origin:"https://evil.invalid"})).status,403);assert.equal(requestCount,0);
-assert.equal((await work("0".repeat(64))).status,403);assert.equal((await work(config.workerKey,{origin})).status,403);assert.equal(requestCount,0);
+assert.equal((await work("0".repeat(64))).status,403);assert.equal((await work(config.workerKey,{origin})).status,403);assert.equal((await rt.worker(new Request(workerUrl,{method:"POST",headers:{authorization:"Bearer "+config.workerKey,"content-type":"application/json"},body:JSON.stringify({job:"untrusted"})}))).status,400);assert.equal(requestCount,0);
 assert.deepEqual(await (await post("status")).json(),{connected:false,enabled:false});
 const prep=await (await post("prepare")).json(),launched=await rt.control(new Request(prep.launchUrl,{method:"POST",headers:{origin,"content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant:prep.grant})}));
 assert.equal(launched.status,303);const cookie=launched.headers.get("set-cookie").split(";")[0],google=new URL(launched.headers.get("location"));
@@ -75,7 +75,7 @@ const off={enabled:false,destination:"",topics:[],consent:false},form={name:"Fic
 assert.equal((await pref({action:"subscribe",requestId:job,version:"draft-3c3-v1",form})).status,202);assert.equal(signups,1);assert.equal(enqueues,0);
 assert.equal((await pref({action:"subscribe",requestId:job,version:"draft-3c3-v1",form:{...form,email:off,sms:{enabled:true,destination:"+12025550123",topics:["hag-announcements"],consent:true}}})).status,400);
 assert.equal((await pref({action:"access",requestId:job,purpose:"manage",form:{channel:"email",destination:"release-test@example.com"}})).status,202);assert.equal(enqueues,1);
-assert.deepEqual(await (await work()).json(),{outcome:"empty"});assert.equal(sendCount,0);
+assert.deepEqual(await (await rt.worker(new Request(workerUrl,{method:"POST",headers:{authorization:"Bearer "+config.workerKey,"content-type":"application/json"},body:"{}"}))).json(),{outcome:"empty"});assert.equal(sendCount,0);
 enabled=true;assert.deepEqual(await (await work()).json(),{outcome:"accepted-not-delivered"});assert.equal(finished,"accepted-not-delivered");assert.equal(sendCount,1);assert.deepEqual(await (await work()).json(),{outcome:"empty"});
 assert.equal((await pref({action:"manage",token:"a".repeat(64)})).status,200);
 assert.equal((await pref({action:"unsubscribe",token:"a".repeat(64)})).status,200);

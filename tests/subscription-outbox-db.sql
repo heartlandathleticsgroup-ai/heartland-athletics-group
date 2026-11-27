@@ -2,7 +2,7 @@
 do $qa$
 declare k text:=repeat('a',64); d text:='outbox@example.invalid'; rid uuid:=gen_random_uuid(); j uuid; a jsonb; oldlease uuid; ev uuid:=gen_random_uuid(); n int; outcome text;
 begin
- if has_table_privilege('hag_email_worker','hag_private.subscription_email_outbox','select') or has_function_privilege('anon','hag_private.subscription_email_claim()','execute') or has_function_privilege('hag_subscription_runtime','hag_private.subscription_email_sim_step(uuid,uuid,text,text,text)','execute') then raise exception 'permission boundary';end if;
+ if has_table_privilege('hag_email_worker','hag_private.subscription_email_outbox','select') or has_function_privilege('anon','hag_private.subscription_email_claim()','execute') or has_function_privilege('hag_subscription_runtime','hag_private.subscription_email_sim_step(uuid,uuid,text,text,text)','execute') or has_function_privilege('hag_subscription_runtime','hag_private.subscription_gateway_issue(uuid,text,text,boolean,text,text,text[],boolean,text,text)','execute') or has_function_privilege('hag_email_worker','hag_private.subscription_email_sim_event(uuid,uuid,text)','execute') then raise exception 'permission boundary';end if;
  delete from hag_private.subscription_abuse;
  execute 'set local role hag_subscription_runtime';
  perform hag_private.subscription_enqueue_email(rid,'subscribe','Fixture',true,d,array['hag-announcements'],true,'draft-3c3-v1','confirm',k,'fixture-v1');
@@ -27,6 +27,8 @@ begin
  execute 'set local role hag_email_worker';
  a:=hag_private.subscription_email_claim();
  if hag_private.subscription_email_sim_step(j,(a->>'lease')::uuid,k,'fixture-v1','accept')<>'accepted' then raise exception 'reconciliation failed';end if;
+ execute 'reset role';
+ execute 'set local role hag_email_sim_event_ingestor';
  if not hag_private.subscription_email_sim_event(ev,j,'delivered') or hag_private.subscription_email_sim_event(ev,j,'delivered') then raise exception 'event idempotency';end if;
  execute 'reset role';
  if (select count(*) from hag_private.subscription_email_sim_acceptance where job_id=j)<>1 or (select reserved from hag_private.subscription_email_quota where period='day')<>1 or exists(select 1 from hag_private.subscription_email_outbox where id=j and payload is not null) then raise exception 'terminal accounting';end if;

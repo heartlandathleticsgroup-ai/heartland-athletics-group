@@ -41,3 +41,19 @@ response=()=>new Response('{"access_token":"fixture-token-value"}',{headers:{"co
 assert.equal((await http({url:token,method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams({client_id:"fixture.apps.googleusercontent.com",client_secret:"fixture-client-secret",grant_type:"refresh_token",refresh_token:"fixture-refresh-token"}).toString()})).status,200);
 assert.throws(()=>createGoogleHttpBoundary({mode:"production",mockFetch:()=>null}));assert.throws(()=>createGoogleHttpBoundary({mode:"isolated-test",mockFetch:globalThis.fetch}));
 console.log("PASS: callback cookie binding, replay/expiry/session rejection, no bearer exposure, fixed endpoints, bounded JSON, no redirect and single synthetic recipient");
+
+const {createStaticLaunchBridge}=await import("../previews/subscriptions/server/gmail-launch-bridge.mjs");
+let launchRecords=new Map(),gen=1,launchClock=100000,launchProof={actor:"a",session:"s",gate:"authorized",sessionActive:true,stepUpAt:launchClock},launchCalls=0;
+const staticBridge=createStaticLaunchBridge({mode:"isolated-test",vault,now:()=>launchClock,userProof:async b=>b===bearer?launchProof:null,launches:{async put(d,a,s,c){launchRecords.set(d,{ciphertext:c,generation:gen});return true;},async take(d){const r=launchRecords.get(d);launchRecords.delete(d);return r?.generation===gen?r:null;}},callback:async(req,g)=>{launchCalls++;assert.equal(req.headers.get("authorization"),"Bearer "+bearer);assert.equal(g,gen);return new Response("inert",{status:200});}});
+const adminOrigin="https://heartlandathleticsgroup.com";
+const prepare=(origin=adminOrigin)=>staticBridge(new Request("https://preview.invalid/oauth/gmail/prepare",{method:"POST",headers:{origin,authorization:"Bearer "+bearer}}));
+const launch=(grant,origin=adminOrigin)=>staticBridge(new Request("https://preview.invalid/oauth/gmail/launch",{method:"POST",headers:{origin,"content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant})}));
+assert.equal((await prepare("https://evil.invalid")).status,403);
+let prep=await prepare();assert.equal(prep.status,200);assert.equal(prep.headers.get("access-control-allow-origin"),adminOrigin);assert.equal(prep.headers.get("set-cookie"),null);
+let grant=(await prep.json()).grant;assert.match(grant,/^[A-Za-z0-9_-]{43}$/);assert.ok(!JSON.stringify([...launchRecords]).includes(bearer));
+assert.equal((await launch(grant,"https://evil.invalid")).status,403);assert.equal((await launch(grant)).status,200);assert.equal((await launch(grant)).status,403);
+grant=(await (await prepare()).json()).grant;gen++;assert.equal((await launch(grant)).status,403);
+grant=(await (await prepare()).json()).grant;launchClock+=60001;assert.equal((await launch(grant)).status,403);
+launchProof.stepUpAt=launchClock;grant=(await (await prepare()).json()).grant;launchProof.session="other";assert.equal((await launch(grant)).status,403);
+assert.equal(launchCalls,1);
+console.log("PASS: static admin origin handoff, opaque launch grant, first-party start, replay, generation, session and expiry rejection");

@@ -4,7 +4,7 @@
 Proposed effective date: [upon approved SMS launch]
 
 ## Program
-Heartland Athletics Group LLC will offer optional recurring automated marketing text messages to adults who expressly opt in and verify their mobile number. Messages may include selected H.A.G. news, Heartland Enforcers updates and tryouts, Gus Macker – Quincy event and registration updates, camps and clinics, tournaments, sponsorship and volunteer opportunities. SMS is separate from email; no inquiry or registration automatically enrolls you.
+Heartland Athletics Group LLC, serving the Quincy, Illinois and Tri-State region, will offer optional recurring automated marketing text messages to adults who expressly opt in and verify their mobile number. Messages may include selected H.A.G. news, Heartland Enforcers updates and tryouts, Gus Macker – Quincy event and registration updates, camps and clinics, tournaments, sponsorship and volunteer opportunities. SMS is separate from email; no inquiry or registration automatically enrolls you.
 
 ## Consent
 By affirmatively selecting the SMS consent box, providing a mobile number you are authorized to use and completing verification, you agree to receive recurring automated marketing text messages from Heartland Athletics Group LLC about the SMS topics you select. Consent is not required to purchase, register or participate. You must be at least 18 years old. Message frequency varies. Message and data rates may apply. Consult your wireless plan for applicable charges.

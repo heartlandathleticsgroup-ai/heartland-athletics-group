@@ -17,6 +17,7 @@ function show(panel){
  if(panel!=="authorized"){communications?.clear();gmailControls?.clear();}
  panels.forEach(p=>{$(p+"-panel").hidden=p!==panel;});
  currentPanel=panel;$("signout").hidden=panel==="login";
+ gmailControls?.refreshAccess?.();
  $("passkey-login").hidden=!passkeyAvailable();$("passkey-hint").hidden=!passkeyAvailable();$("register-passkey").hidden=!passkeyAvailable();
  if(panel!=="enroll")clearEnrollment();
  if(panel!=="challenge")$("challenge-code").value="";
@@ -61,7 +62,7 @@ async function run(fn,onError="Unable to complete this security step. Try again 
  try{
   if(active&&expired(Date.now(),last,started)){await lock("Session ended. Sign in again.");return;}
   await fn();
- }catch{say(onError);}finally{controls.forEach((x,i)=>x.disabled=wasDisabled[i]);busy=false;}
+ }catch{say(onError);}finally{controls.forEach((x,i)=>x.disabled=wasDisabled[i]);busy=false;gmailControls?.refreshAccess?.();}
 }
 function on(id,event,fn){$(id).addEventListener(event,ev=>{ev.preventDefault();void fn();});}
 on("login-form","submit",()=>run(async()=>{

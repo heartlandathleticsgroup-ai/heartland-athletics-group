@@ -6,13 +6,14 @@ const dispositions=["closed-unverified-no-resend","provider-acceptance-observed-
 const actions=new Set(["status","disable","disconnect","rotate","review","review-close","prepare"]);
 export function createGmailAdminClient({mode,allowed,getBearer,request}){
  // Do not accept global fetch or enable real provider actions in this draft.
- if(mode!=="isolated-acceptance"||typeof allowed!=="function"||typeof getBearer!=="function"||typeof request!=="function"||request===globalThis.fetch)throw Error("Gmail controls are not released");
+ const isolated=mode==="isolated-acceptance";
+ if((!isolated&&!(mode==="release-candidate"&&GMAIL_RELEASE_ENABLED))||typeof allowed!=="function"||typeof getBearer!=="function"||typeof request!=="function"||(isolated&&request===globalThis.fetch))throw Error("Gmail controls are not released");
  return async(action,body,signal)=>{
   if(!actions.has(action)||!allowed()||signal?.aborted)throw Error("Administrative access unavailable");
   if(action==="review-close"&&(!body||Object.keys(body).length!==2||!uuid(body.job)||!dispositions.includes(body.disposition)))throw Error("Invalid review");
   if(action!=="review-close"&&body!==undefined)throw Error("Unexpected body");
   const bearer=await getBearer();
-  if(typeof bearer!=="string"||!/^fixture-[A-Za-z0-9_-]{8,200}$/.test(bearer)||!allowed()||signal?.aborted)throw Error("Administrative access unavailable");
+  if(typeof bearer!=="string"||!(isolated?/^fixture-[A-Za-z0-9_-]{8,200}$/.test(bearer):bearer.length<=4096&&/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(bearer))||!allowed()||signal?.aborted)throw Error("Administrative access unavailable");
   const headers={Authorization:"Bearer "+bearer};if(body!==undefined)headers["Content-Type"]="application/json";
   const res=await request(GMAIL_CONTROL_BASE+"/"+action,{method:"POST",headers,body:body===undefined?undefined:JSON.stringify(body),credentials:"omit",cache:"no-store",redirect:"error",referrerPolicy:"no-referrer",signal});
   if(!allowed()||signal?.aborted)throw Error("Administrative access unavailable");
@@ -39,14 +40,18 @@ export function createGmailAdminClient({mode,allowed,getBearer,request}){
   throw Error("Invalid control result");
  };
 }
-export function attachGmailControls(root,{allowed,api=null}={}){
+export function submitGmailLaunch({grant,launchUrl}){
+ if(!GMAIL_RELEASE_ENABLED||! /^[A-Za-z0-9_-]{43}$/.test(grant)||launchUrl!==GMAIL_CONTROL_BASE+"/launch")throw Error("Launch not released");
+ const form=document.createElement("form");form.method="POST";form.action=launchUrl;form.target="_self";form.hidden=true;const input=document.createElement("input");input.type="hidden";input.name="grant";input.value=grant;form.append(input);document.body.append(form);form.submit();form.remove();
+}
+export function attachGmailControls(root,{allowed,api=null,launch=submitGmailLaunch}={}){
  const panel=root?.querySelector("[data-gmail-controls]");if(!panel)return {clear(){}};
  const status=panel.querySelector("[data-gmail-status]"),notice=panel.querySelector("[data-gmail-notice]"),list=panel.querySelector("[data-gmail-holds]");
  const buttons=[...panel.querySelectorAll("[data-gmail-action]")];
  let epoch=0,busy=false,controller=null,connection=null,holds=[];
  function paint(){
   status.textContent=connection?(connection.connected?"Connected":"Disconnected")+" · "+(connection.enabled?"Enabled":"Disabled"):"Not connected to a released runtime";
-  for(const b of buttons){const a=b.dataset.gmailAction;b.disabled=!api||!allowed?.()||busy||(a==="disable"&&!connection?.enabled)||(a==="disconnect"&&!connection?.connected)||(a==="rotate"&&(!connection?.connected||connection.enabled));}
+  for(const b of buttons){const a=b.dataset.gmailAction;b.disabled=!api||!allowed?.()||busy||(a==="prepare"&&(!connection||connection.connected))||(a==="disable"&&!connection?.enabled)||(a==="disconnect"&&!connection?.connected)||(a==="rotate"&&(!connection?.connected||connection.enabled));}
   list.replaceChildren();
   for(const row of holds){
    const p=document.createElement("p");p.textContent="Job "+row.job+" · "+(row.started?"Dispatch started":"Reserved")+" · "+row.createdAt;
@@ -64,6 +69,7 @@ export function attachGmailControls(root,{allowed,api=null}={}){
   try{
    if(action!=="status"){
     const v=await api(action,body,signal);if(!current())return;
+    if(action==="prepare"){launch(v);return;}
     if(action==="disconnect"&&!v.providerRevoked)notice.textContent="Local connection disabled. Google revocation requires manual verification.";
    }
    const c=await api("status",undefined,signal);if(!current())return;

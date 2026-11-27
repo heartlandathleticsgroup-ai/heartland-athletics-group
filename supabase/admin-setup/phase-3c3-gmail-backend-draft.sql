@@ -152,7 +152,8 @@ begin
  -- The existing gate checks current active staff, auth.users, auth.sessions,
  -- verified TOTP enrollment, and approved passkey session where appropriate.
  select max(t.at) into recent from (
- select greatest(m.created_at,m.updated_at) as at from auth.mfa_amr_claims m
+ -- Use the original factor assertion timestamp conservatively; refreshing a row must not extend step-up.
+ select m.created_at as at from auth.mfa_amr_claims m
  where m.session_id=sid and m.authentication_method='totp' and claims->>'aal'='aal2'
  union all
  select g.verified_at from hag_private.hag_verified_passkey_sessions g

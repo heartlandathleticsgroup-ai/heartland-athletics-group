@@ -17,3 +17,5 @@ python3 tests/subscription-concurrency.py
 psql -X -q -v ON_ERROR_STOP=1 -h "$dir" -d hag_qa -f tests/subscription-email-db.sql
 
 psql -X -q -v ON_ERROR_STOP=1 -h "$dir" -d hag_qa -f tests/subscription-outbox-db.sql
+
+python3 tests/subscription-outbox-concurrency.py

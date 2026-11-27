@@ -63,12 +63,12 @@ function open(item){
 function showVerified(data){
  clearVerified();
  verified={channel:data.channel,token:data.editToken,states:new Map(data.preferences.map(p=>[p.topic,p.status])),suppressed:data.suppressed};
- $("manage-detail").textContent="Verified "+(verified.channel==="email"?"email":"SMS")+" only. "+(verified.suppressed?"This channel is suppressed. New subscriptions cannot be added.":"Pending topics need explicit confirmation or verified consent before becoming active.");
+ $("manage-detail").textContent="Verified "+(verified.channel==="email"?"email":"SMS")+" only. "+(verified.suppressed?"This channel is suppressed. New subscriptions cannot be added.":"Pending topics remain pending until their confirmation link is redeemed. Uncheck to withdraw.");
  $("edit-wording").textContent=CONSENT[verified.channel];
  for(const [code,label] of TOPICS){
-  const state=verified.states.get(code)||"not subscribed";const cb=topic($("edit-topics"),code,label,state,state==="active",verified.suppressed&&state!=="active"&&state!=="pending");
-  // Pending starts unchecked; leaving it unchecked is no change, not withdrawal.
-  if(state==="pending")cb.indeterminate=true;
+  const state=verified.states.get(code)||"not subscribed";const cb=topic($("edit-topics"),code,label,state,state==="active"||state==="pending",verified.suppressed&&state!=="active"&&state!=="pending");
+  // Pending starts selected but is not active. Uncheck to withdraw; confirm via its original link.
+  if(state==="pending")cb.dataset.pending="true";
   cb.addEventListener("change",()=>{cb.indeterminate=false;cb.dataset.touched="true";updateEditConsent();});
  }
  $("manage-panel").hidden=false;$("manage-heading").focus();updateEditConsent();
@@ -78,8 +78,8 @@ function changes(){
  if(!verified)return {add,remove};
  for(const cb of $("edit-topics").querySelectorAll("input")){
   const state=verified.states.get(cb.value);
-  if(cb.checked&&state!=="active")add.push(cb.value);
-  if(!cb.checked&&(state==="active"||state==="pending"&&cb.dataset.touched==="true"))remove.push(cb.value);
+  if(cb.checked&&state!=="active"&&state!=="pending")add.push(cb.value);
+  if(!cb.checked&&(state==="active"||state==="pending"))remove.push(cb.value);
  }
  return {add,remove};
 }

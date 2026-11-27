@@ -42,7 +42,7 @@ export function createGmailAdminClient({mode,allowed,getBearer,request}){
 }
 export function submitGmailLaunch({grant,launchUrl}){
  if(!GMAIL_RELEASE_ENABLED||! /^[A-Za-z0-9_-]{43}$/.test(grant)||launchUrl!==GMAIL_CONTROL_BASE+"/launch")throw Error("Launch not released");
- const form=document.createElement("form");form.method="POST";form.action=launchUrl;form.target="_self";form.hidden=true;const input=document.createElement("input");input.type="hidden";input.name="grant";input.value=grant;form.append(input);document.body.append(form);form.submit();form.remove();
+ const form=document.createElement("form");form.method="POST";form.action=launchUrl;form.target="_self";form.hidden=true;const input=document.createElement("input");input.type="hidden";input.name="grant";input.value=grant;form.append(input);document.body.append(form);form.submit();window.addEventListener("pagehide",()=>{input.value="";form.remove();},{once:true});
 }
 export function attachGmailControls(root,{allowed,api=null,launch=submitGmailLaunch}={}){
  const panel=root?.querySelector("[data-gmail-controls]");if(!panel)return {clear(){}};
@@ -51,7 +51,7 @@ export function attachGmailControls(root,{allowed,api=null,launch=submitGmailLau
  let epoch=0,busy=false,controller=null,connection=null,holds=[];
  function paint(){
   status.textContent=connection?(connection.connected?"Connected":"Disconnected")+" · "+(connection.enabled?"Enabled":"Disabled"):"Not connected to a released runtime";
-  for(const b of buttons){const a=b.dataset.gmailAction;b.disabled=!api||!allowed?.()||busy||(a==="prepare"&&(!connection||connection.connected))||(a==="disable"&&!connection?.enabled)||(a==="disconnect"&&!connection?.connected)||(a==="rotate"&&(!connection?.connected||connection.enabled));}
+  for(const b of buttons){const a=b.dataset.gmailAction;b.disabled=!api||!allowed?.()||busy||(a==="prepare"&&(!connection||connection.connected))||(a==="disconnect"&&!connection?.connected)||(a==="rotate"&&(!connection?.connected||connection.enabled));}
   list.replaceChildren();
   for(const row of holds){
    const p=document.createElement("p");p.textContent="Job "+row.job+" · "+(row.started?"Dispatch started":"Reserved")+" · "+row.createdAt;
@@ -79,5 +79,5 @@ export function attachGmailControls(root,{allowed,api=null,launch=submitGmailLau
   finally{if(version===epoch){busy=false;if(!allowed?.()){connection=null;holds=[];}paint();}}
  }
  for(const b of buttons)b.addEventListener("click",()=>void run(b.dataset.gmailAction));
- paint();return {clear};
+ paint();return {clear,refreshAccess:paint};
 }

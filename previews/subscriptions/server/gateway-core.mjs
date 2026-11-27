@@ -13,6 +13,7 @@ const codes=new Set(TOPICS.map(x=>x[0]));
 const topics=v=>Array.isArray(v)&&v.length<=9&&new Set(v).size===v.length&&v.every(x=>codes.has(x));
 const fixture=(c,d)=>c==="email"?d.endsWith(".invalid"):/^\+1[2-9][0-9]{2}55501[0-9]{2}$/.test(d);
 export const GENERIC="If the request is eligible, instructions can be provided through the selected contact method.";
+export const SIGNUP="Request received. Eligible email selections take effect without a confirmation email. Text subscriptions require mobile verification.";
 function response(status,data,origin=false){
  const headers={"Cache-Control":"no-store","Pragma":"no-cache","Referrer-Policy":"no-referrer","X-Content-Type-Options":"nosniff","Content-Type":"application/json; charset=utf-8","Vary":"Origin"};
  if(origin)headers["Access-Control-Allow-Origin"]=ORIGIN;
@@ -38,6 +39,7 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource,at
  // Required ingress guard handles all requests including malformed bodies.
  // Runtime must supply canonical trusted source; never read forwarded IP headers here.
  if(!db||!delivery||delivery.mode!=="simulation"||typeof source!=="function"||typeof ingress!=="function"||typeof canonicalSource!=="function")throw Error("Isolated simulation dependencies required");
+ if(typeof db.optInEmail!=="function")throw Error("Single-opt-in email adapter required");
  if(atomicEmail&&(typeof db.enqueueEmail!=="function"||typeof db.issueSms!=="function"))throw Error("Atomic email adapter required");
  return async req=>{
   const origin=req.headers.get("origin")===ORIGIN;
@@ -74,13 +76,14 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource,at
     if(items?.some(v=>!fixture(v.channel,v.destination)))throw Error();
    }catch{return bad();}
    const issuing=!!items;
-   const generic=()=>response(202,{message:GENERIC},true);
+   const generic=()=>response(202,{message:x.action==="subscribe"?SIGNUP:GENERIC},true);
    try{
     if(!await db.budget(src,x.action))return issuing?generic():response(429,{message:"Try again later."},true);
     if(issuing){
      // One channel per atomic issue key; duplicates never repeat simulated delivery.
      for(const item of items){
       try{
+      if(item.channel==="email"&&x.action==="subscribe"){await db.optInEmail(x.requestId,item);continue;}
       if(atomicEmail&&item.channel==="email"){await db.enqueueEmail(x.requestId,x.action,item);continue;}
       const issuedAt=Date.now();const raw=await (atomicEmail?db.issueSms(x.requestId,x.action,item):db.issue(x.requestId,x.action,item));
       if(token(raw))await delivery.accept({channel:item.channel,destination:item.destination,purpose:item.purpose,token:raw,issuedAt});}catch{/* Do not leak outcomes or skip another channel. */}

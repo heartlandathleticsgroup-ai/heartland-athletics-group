@@ -130,6 +130,7 @@ returns boolean language plpgsql volatile security definer set search_path='' as
 declare j uuid; g bigint;
 begin
  if p_outcome is null or p_outcome not in ('ambiguous-hold-no-resend','accepted-not-delivered','authorization-required','hold-quota-or-policy-review','permanent-or-configuration-review') then return false;end if;
+ perform 1 from hag_private.gmail_connection where singleton for update;
  update hag_private.gmail_dispatch_receipt set outcome=p_outcome,finished_at=clock_timestamp() where ticket=p_ticket and finished_at is null and (p_outcome<>'accepted-not-delivered' or started_at is not null) returning job_id,generation into j,g;
  if j is null then return false;end if;
  if p_outcome='accepted-not-delivered' then update hag_private.subscription_email_outbox set state='accepted' where id=j;end if;

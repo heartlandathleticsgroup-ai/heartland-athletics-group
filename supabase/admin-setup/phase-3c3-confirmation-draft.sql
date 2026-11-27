@@ -60,9 +60,9 @@ returns boolean language sql stable set search_path='' as $$
 $$;
 -- Withdrawal is allowed for retired topics, and does not depend on agreeing to new consent.
 create function hag_private.subscription_removal_topics_valid(a text[])
-returns boolean language sql stable set search_path='' as $
+returns boolean language sql stable set search_path='' as $withdrawal$
  select coalesce(cardinality(a) between 0 and 9 and (cardinality(a)=0 or array_ndims(a)=1) and (select count(distinct x) from unnest(a) x)=cardinality(a) and not exists(select 1 from unnest(a) x where not exists(select 1 from hag_private.hag_topics t where t.code=x and t.purpose='subscription')),false)
-$;
+$withdrawal$;
 revoke all on function hag_private.subscription_removal_topics_valid(text[]) from public,anon,authenticated,service_role;
 create function hag_private.subscription_wording(c text)
 returns text language sql immutable set search_path='' as $$

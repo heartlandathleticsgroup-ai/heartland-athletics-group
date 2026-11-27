@@ -56,7 +56,7 @@ begin
  if p_credential is null or length(p_credential) not between 1 and 16384 or p_version is null or p_version !~ '^[a-zA-Z0-9_-]{1,32}$' then return false;end if;
  update hag_private.gmail_connection set credential=p_credential,key_version=p_version,enabled=false,generation=generation+1 where singleton and generation=p_generation and credential is null;
  get diagnostics n=row_count;
- if n=1 then delete from hag_private.gmail_oauth_state;end if;
+ if n=1 then delete from hag_private.gmail_oauth_state;delete from hag_private.gmail_launch_grant;end if;
  return n=1;
 end $$;
 create function hag_private.gmail_status()
@@ -70,6 +70,7 @@ begin
  select * into r from hag_private.gmail_connection where singleton for update;
  update hag_private.gmail_connection set enabled=false,generation=generation+1,credential=case when p_disconnect then null else credential end,key_version=case when p_disconnect then null else key_version end where singleton;
  delete from hag_private.gmail_oauth_state;
+ delete from hag_private.gmail_launch_grant;
  -- Only control server can retrieve encrypted revoked credential, never the UI.
  return case when p_disconnect then jsonb_build_object('credential',r.credential,'key_version',r.key_version) else '{}'::jsonb end;
 end $$;
@@ -215,6 +216,7 @@ begin
  where singleton and not enabled and credential is not null and generation=p_generation and key_version=p_old_version;
  if not found then return false;end if;
  delete from hag_private.gmail_oauth_state;
+ delete from hag_private.gmail_launch_grant;
  return true;
 end $$;
 alter table hag_private.gmail_dispatch_receipt add column reviewed_at timestamptz,add column reviewed_by uuid,add column review_disposition text check(review_disposition in ('closed-unverified-no-resend','provider-acceptance-observed-no-resend'));
@@ -240,6 +242,7 @@ declare n int;
 begin
  delete from hag_private.gmail_oauth_state where expires_at<=clock_timestamp();
  delete from hag_private.gmail_callback_flow where expires_at<=clock_timestamp();
+ delete from hag_private.gmail_launch_grant where expires_at<=clock_timestamp();
  delete from hag_private.gmail_dispatch_receipt where job_id in (
  select job_id from hag_private.gmail_dispatch_receipt where
  (reviewed_at<clock_timestamp()-interval '90 days' or (outcome<>'ambiguous-hold-no-resend' and finished_at<clock_timestamp()-interval '90 days'))
@@ -249,3 +252,38 @@ end $$;
 revoke all on function hag_private.gmail_flow_put(text,text,text),hag_private.gmail_flow_take(text,text),hag_private.gmail_rotation_read(),hag_private.gmail_rotation_commit(bigint,text,text,text),hag_private.gmail_review_list(),hag_private.gmail_review_close(uuid,uuid,text),hag_private.gmail_cleanup() from public,anon,authenticated,service_role,hag_gmail_control,hag_gmail_dispatch,hag_subscription_runtime,hag_email_worker,hag_subscription_maintenance;
 grant execute on function hag_private.gmail_flow_put(text,text,text),hag_private.gmail_flow_take(text,text),hag_private.gmail_rotation_read(),hag_private.gmail_rotation_commit(bigint,text,text,text),hag_private.gmail_review_list(),hag_private.gmail_review_close(uuid,uuid,text) to hag_gmail_control;
 grant execute on function hag_private.gmail_cleanup() to hag_subscription_maintenance;
+
+-- One-use launch handoff from static admin origin to a top-level runtime page.
+-- The bearer stays encrypted server-side; the browser carries only an opaque grant.
+create table hag_private.gmail_launch_grant(
+ digest text primary key check(digest ~ '^[a-f0-9]{64}$'),
+ actor uuid not null,session_id uuid not null,generation bigint not null,
+ ciphertext text not null check(length(ciphertext) between 1 and 8192),
+ expires_at timestamptz not null default clock_timestamp()+interval '60 seconds'
+);
+alter table hag_private.gmail_launch_grant enable row level security;
+alter table hag_private.gmail_launch_grant force row level security;
+revoke all on hag_private.gmail_launch_grant from public,anon,authenticated,service_role,hag_gmail_control,hag_gmail_dispatch;
+create function hag_private.gmail_launch_put(p_digest text,p_actor uuid,p_session uuid,p_cipher text)
+returns boolean language plpgsql volatile security definer set search_path='' as $$
+declare g bigint;
+begin
+ if p_digest is null or p_digest !~ '^[a-f0-9]{64}$' or p_actor is null or p_session is null or p_cipher is null or length(p_cipher) not between 1 and 8192 then return false;end if;
+ select generation into g from hag_private.gmail_connection where singleton and credential is null for update;
+ if g is null then return false;end if;
+ delete from hag_private.gmail_launch_grant where expires_at<=clock_timestamp() or actor=p_actor or generation<>g;
+ if (select count(*) from hag_private.gmail_launch_grant)>=20 then return false;end if;
+ insert into hag_private.gmail_launch_grant(digest,actor,session_id,generation,ciphertext) values(p_digest,p_actor,p_session,g,p_cipher) on conflict do nothing;
+ return found;
+end $$;
+create function hag_private.gmail_launch_take(p_digest text)
+returns text language plpgsql volatile security definer set search_path='' as $$
+declare g bigint;v text;
+begin
+ select generation into g from hag_private.gmail_connection where singleton and credential is null for update;
+ if g is null then return null;end if;
+ delete from hag_private.gmail_launch_grant where digest=p_digest and expires_at>clock_timestamp() and generation=g returning ciphertext into v;
+ return v;
+end $$;
+revoke all on function hag_private.gmail_launch_put(text,uuid,uuid,text),hag_private.gmail_launch_take(text) from public,anon,authenticated,service_role,hag_gmail_control,hag_gmail_dispatch,hag_subscription_runtime,hag_email_worker,hag_subscription_maintenance;
+grant execute on function hag_private.gmail_launch_put(text,uuid,uuid,text),hag_private.gmail_launch_take(text) to hag_gmail_control;

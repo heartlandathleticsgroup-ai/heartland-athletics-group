@@ -35,6 +35,7 @@ export function createReleaseRuntime({config,postgres,fetcher,now=Date.now}){
  const controlExec=createReleaseExecutor({postgres,url:config.controlDb,ca:config.ca,kind:"control"});
  const dispatchExec=createReleaseExecutor({postgres,url:config.dispatchDb,ca:config.ca,kind:"dispatch"});
  const gatewayExec=createReleaseExecutor({postgres,url:config.gatewayDb,ca:config.ca,kind:"gateway"});
+ const keyValues=[config.vault.key,config.outbox.key,config.workerKey,config.priorOutbox?.key,config.nextVault?.key].filter(Boolean);if(new Set(keyValues).size!==keyValues.length)throw Error("Keys must be independent");
  const keys=keyring(config.outbox,config.priorOutbox),vault=createCredentialVault(config.vault),nextVault=config.nextVault?createCredentialVault(config.nextVault):null;
  if(nextVault&&(!goodKey(config.nextVault.key)||config.nextVault.key===config.vault.key||config.nextVault.key===config.outbox.key||config.nextVault.key===config.workerKey||nextVault.version===vault.version))throw Error("Invalid key rotation");
  const controlDb=gmailControlDb(controlExec.execute),dispatch=gmailDispatchDb(dispatchExec.execute);

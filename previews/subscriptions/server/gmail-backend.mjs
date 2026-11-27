@@ -21,7 +21,11 @@ export function gmailControlDb(query){
  take:(d,a,s)=>scalar("select hag_private.gmail_take($1,$2::uuid,$3::uuid) as value",[d,a,s]),
  store:(g,c,v)=>scalar("select hag_private.gmail_store($1::bigint,$2,$3) as value",[g,c,v]),
  status:()=>scalar("select hag_private.gmail_status() as value",[]),
- disable:d=>scalar("select hag_private.gmail_disable($1) as value",[d])};
+ disable:d=>scalar("select hag_private.gmail_disable($1) as value",[d]),
+ rotationRead:()=>scalar("select hag_private.gmail_rotation_read() as value",[]),
+ rotationCommit:(g,o,n,c)=>scalar("select hag_private.gmail_rotation_commit($1::bigint,$2,$3,$4) as value",[g,o,n,c]),
+ reviewList:()=>scalar("select hag_private.gmail_review_list() as value",[]),
+ reviewClose:(j,a,d)=>scalar("select hag_private.gmail_review_close($1::uuid,$2::uuid,$3) as value",[j,a,d])};
 }
 export function gmailDispatchDb(query){
  const scalar=async(sql,args)=>{const r=await query(sql,args);if(r?.rows?.length!==1)throw Error("Database unavailable");return r.rows[0].value;};
@@ -34,8 +38,18 @@ export function gmailDispatchDb(query){
 // call existing hag_admin_access_state with user's token, and prove recent step-up.
 // No client-supplied identity or browser-supplied AAL is accepted.
 function validateAdmin(a,now){return a?.gate==="authorized"&&a.sessionActive===true&&uuid(a.actor)&&uuid(a.session)&&Number.isFinite(a.stepUpAt)&&a.stepUpAt<=now&&now-a.stepUpAt<=300000;}
+async function reviewBody(req){
+ if(!/^application\/json(?:\s*;|$)/i.test(req.headers.get("content-type")||"")||req.headers.has("content-encoding")||!req.body)throw Error("Invalid review");
+ const reader=req.body.getReader();let n=0,timer;const chunks=[];
+ try{const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error("Body timeout")),2000);});
+ while(true){const {done,value}=await Promise.race([reader.read(),timeout]);if(done)break;n+=value.byteLength;if(n>1024)throw Error("Body too large");chunks.push(value);}
+ const value=JSON.parse(Buffer.concat(chunks).toString("utf8"));
+ if(!value||Object.keys(value).length!==2||!uuid(value.job)||!["closed-unverified-no-resend","provider-acceptance-observed-no-resend"].includes(value.disposition))throw Error("Invalid review");
+ return value;
+ }finally{clearTimeout(timer);void reader.cancel().catch(()=>{});}
+}
 function reply(status,body){return new Response(JSON.stringify(body),{status,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Referrer-Policy":"no-referrer","X-Content-Type-Options":"nosniff"}});}
-export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixtureRequest,clientId,clientSecret,outboxKeys,now=Date.now}){
+export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixtureRequest,clientId,clientSecret,outboxKeys,nextVault=null,now=Date.now}){
  if(mode!=="isolated-test"||typeof fixtureRequest!=="function"||typeof verifyAdmin!=="function"||clientId!=="fixture.apps.googleusercontent.com"||!secret(clientSecret)||!control||!dispatch||!vault||typeof outboxKeys!=="function")throw Error("Synthetic backend only");
  const call=async(url,form,access)=>{const headers=access?{"Authorization":"Bearer "+access,"Content-Type":"application/json"}:{"Content-Type":"application/x-www-form-urlencoded"};const body=access?JSON.stringify(form):new URLSearchParams(form).toString();return fixtureRequest({url,method:"POST",headers,body,redirect:"error",timeoutMs:5000});};
  const revoke=async token=>{try{return (await call(REVOKE,{token})).status===200;}catch{return false;}};
@@ -44,13 +58,33 @@ export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixt
  async function handle(req){
   try{
    const u=new URL(req.url);
-   if(u.origin!==ORIGIN||!["/oauth/gmail/start","/oauth/gmail/callback","/oauth/gmail/status","/oauth/gmail/disable","/oauth/gmail/disconnect"].includes(u.pathname))return reply(404,{ok:false});
+   if(u.origin!==ORIGIN||!["/oauth/gmail/start","/oauth/gmail/callback","/oauth/gmail/status","/oauth/gmail/disable","/oauth/gmail/disconnect","/oauth/gmail/review","/oauth/gmail/review-close","/oauth/gmail/rotate"].includes(u.pathname))return reply(404,{ok:false});
    // A real callback must bridge an authenticated session safely. This fixture
    // requires a trusted verifier on every request, including the GET callback.
    if(u.pathname!=="/oauth/gmail/callback"&&(req.method!=="POST"||req.headers.get("origin")!==ORIGIN||u.search))return reply(403,{ok:false});
    if(u.pathname==="/oauth/gmail/callback"&&req.method!=="GET")return reply(405,{ok:false});
    const a=await verifyAdmin(req);if(!validateAdmin(a,now()))return reply(403,{ok:false});
    if(u.pathname.endsWith("/status")){const s=await control.status();return reply(200,{connected:s.connected===true,enabled:s.enabled===true});}
+   if(u.pathname.endsWith("/review")){
+    const rows=await control.reviewList();
+    if(!Array.isArray(rows)||rows.length>50)return reply(503,{ok:false});
+    return reply(200,{holds:rows.map(v=>({job_id:v.job_id,created_at:v.created_at,outcome:"ambiguous-hold-no-resend",started:v.started===true}))});
+   }
+   if(u.pathname.endsWith("/review-close")){
+    let v;try{v=await reviewBody(req);}catch{return reply(400,{ok:false});}
+    const fresh=await verifyAdmin(req);if(!validateAdmin(fresh,now())||fresh.actor!==a.actor||fresh.session!==a.session)return reply(403,{ok:false});
+    const ok=await control.reviewClose(v.job,a.actor,v.disposition);return reply(ok?200:409,{ok});
+   }
+   if(u.pathname.endsWith("/rotate")){
+    if(!nextVault||nextVault.version===vault.version)return reply(409,{ok:false});
+    const current=await control.rotationRead();
+    if(!current||current.key_version!==vault.version)return reply(409,{ok:false});
+    const value=vault.open(current.credential,"refresh");
+    if(!secret(value?.token))return reply(409,{ok:false});
+    const fresh=await verifyAdmin(req);if(!validateAdmin(fresh,now())||fresh.actor!==a.actor||fresh.session!==a.session)return reply(403,{ok:false});
+    const ok=await control.rotationCommit(current.generation,vault.version,nextVault.version,nextVault.seal(value,"refresh"));
+    return reply(ok?200:409,{ok,enabled:false});
+   }
    if(u.pathname.endsWith("/disable")){await control.disable(false);return reply(200,{enabled:false});}
    if(u.pathname.endsWith("/disconnect")){
     const s=await control.disable(true);let revoked=false;

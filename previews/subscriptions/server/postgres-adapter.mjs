@@ -7,6 +7,7 @@ export function postgresAdapter(query){
  return {
   budget:(source,action)=>scalar("select hag_private.subscription_gateway_budget($1,$2) as value",[source,action]),
   issue:(id,action,item)=>scalar("select hag_private.subscription_gateway_issue($1::uuid,$2,$3,$4,$5,$6,$7::text[],$8,$9,$10) as value",[id,action,item.name??null,item.adult??null,item.channel,item.destination,item.topics??null,item.consentText!==undefined?true:null,item.consentVersion??null,item.purpose]),
+  emailEligible:v=>scalar("select hag_private.subscription_email_delivery_eligible($1,$2,$3) as value",[v.token,v.destination,v.purpose]),
   inspect:token=>scalar("select hag_private.subscription_confirm_scope($1) as value",[token]),
   redeem:(token,purpose)=>scalar("select hag_private.subscription_redeem($1,$2) as value",[token,purpose]),
   edit:x=>scalar("select hag_private.subscription_edit($1,$2::text[],$3::text[],$4,$5,$6) as value",[x.token,x.add,x.remove,x.adult,x.consent,x.version])

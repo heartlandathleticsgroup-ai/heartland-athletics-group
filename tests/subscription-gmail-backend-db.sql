@@ -102,3 +102,37 @@ begin
 end $auth$;
 select 'PASS: read-only admin bridge reuses gate, fresh TOTP or approved passkey, denies stale or revoked proof' as result;
 rollback;
+
+begin;
+do $qa$
+declare a uuid:=gen_random_uuid(); s uuid:=gen_random_uuid(); g bigint; j uuid:=gen_random_uuid(); t uuid:=gen_random_uuid(); v jsonb;
+begin
+ execute 'set local role hag_gmail_control';
+ g:=hag_private.gmail_begin(repeat('a',64),a,s,'encrypted-verifier');
+ if not hag_private.gmail_flow_put(repeat('b',64),repeat('a',64),'encrypted-bearer') then raise exception 'flow put failed';end if;
+ if hag_private.gmail_flow_take(repeat('b',64),repeat('c',64)) is not null then raise exception 'wrong state accepted';end if;
+ if hag_private.gmail_flow_take(repeat('b',64),repeat('a',64)) is distinct from 'encrypted-bearer' or hag_private.gmail_flow_take(repeat('b',64),repeat('a',64)) is not null then raise exception 'flow replay';end if;
+ if not hag_private.gmail_flow_put(repeat('d',64),repeat('a',64),'encrypted-bearer') then raise exception 'flow put failed';end if;
+ perform hag_private.gmail_disable(false);
+ if hag_private.gmail_flow_take(repeat('d',64),repeat('a',64)) is not null then raise exception 'disable did not invalidate flow';end if;
+ g:=(hag_private.gmail_status()->>'generation')::bigint;
+ if not hag_private.gmail_store(g,'old-ciphertext','old-key') then raise exception 'credential store';end if;
+ v:=hag_private.gmail_rotation_read();g:=(v->>'generation')::bigint;
+ if not hag_private.gmail_rotation_commit(g,'old-key','new-key','new-ciphertext') or hag_private.gmail_rotation_commit(g,'old-key','other-key','other') then raise exception 'rotation fencing';end if;
+ v:=hag_private.gmail_rotation_read();
+ if v->>'credential'<>'new-ciphertext' or v->>'key_version'<>'new-key' then raise exception 'rotation wrong';end if;
+ g:=(v->>'generation')::bigint;
+ if not hag_private.gmail_enable_fixture(g) then raise exception 'enable fixture';end if;
+ if hag_private.gmail_rotation_read() is not null or hag_private.gmail_rotation_commit(g,'new-key','other-key','other') then raise exception 'enabled rotation';end if;
+ execute 'reset role';
+ insert into hag_private.gmail_dispatch_receipt(job_id,ticket,generation,outcome,message_digest,created_at) values(j,t,g,'ambiguous-hold-no-resend',repeat('a',64),clock_timestamp()-interval '2 minutes');
+ execute 'set local role hag_gmail_control';
+ if not exists(select 1 from jsonb_array_elements(hag_private.gmail_review_list()) x where x->>'job_id'=j::text) then raise exception 'held job missing';end if;
+ if not hag_private.gmail_review_close(j,a,'closed-unverified-no-resend') or hag_private.gmail_review_close(j,a,'closed-unverified-no-resend') then raise exception 'review replay';end if;
+ if exists(select 1 from jsonb_array_elements(hag_private.gmail_review_list()) x where x->>'job_id'=j::text) then raise exception 'closed job still listed';end if;
+ execute 'reset role';
+ if not exists(select 1 from hag_private.gmail_dispatch_receipt where job_id=j and reviewed_by=a and outcome='ambiguous-hold-no-resend') then raise exception 'review changed factual outcome';end if;
+ if has_function_privilege('authenticated','hag_private.gmail_flow_take(text,text)','execute') or has_function_privilege('hag_gmail_dispatch','hag_private.gmail_rotation_read()','execute') or has_function_privilege('hag_gmail_dispatch','hag_private.gmail_review_close(uuid,uuid,text)','execute') then raise exception 'privilege leak';end if;
+end $qa$;
+select 'PASS: durable callback flow, disable invalidation, disabled-only rotation CAS and audited no-resend reconciliation' as result;
+rollback;

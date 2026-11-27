@@ -30,16 +30,16 @@ function renderInbox(){
  }
 }
 function collect(){links.push(...sim.takeMessages());if(links.length>30)links=links.slice(-30);renderInbox();}
-function issueResult(r){
+function issueResult(r,signupChannel=null){
  if(r.status!==202){error(r.status===429?"Too many test requests. Try again later.":"Check the selected topics and consent, then try again.");return;}
- collect();status("If eligible, a test link is available in the simulated inbox. No real message was sent.");
+ collect();status(signupChannel==="email"?"Email signup request received. Eligible email selections are active without a confirmation message.": "If eligible, a test link is available in the simulated inbox. No real message was sent.");
 }
 $("start").addEventListener("submit",ev=>{ev.preventDefault();void run(async()=>{
  clearVerified();clearAction();const c=$("channel").value,topics=[...$("start-topics").querySelectorAll("input:checked")].map(x=>x.value);
  const choice={enabled:true,destination:dest(c),topics,consent:$("consent").checked};
  const form={name:"Synthetic fixture",adult:$("adult").checked,email:c==="email"?choice:off(),sms:c==="sms"?choice:off()};
  if(!topics.length){error("Choose at least one topic.");return;}
- issueResult(await sim.subscribe(form));resetChoices();
+ issueResult(await sim.subscribe(form),c);resetChoices();
 });});
 for(const [id,purpose] of [["access","manage"],["optout-link","unsubscribe"]])$(id).addEventListener("click",()=>void run(async()=>{clearVerified();clearAction();const channel=$("channel").value;issueResult(await sim.access({channel,destination:dest(channel)},purpose));}));
 async function open(item){

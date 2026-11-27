@@ -21,7 +21,11 @@ create role hag_subscription_gateway_login login nosuperuser nocreatedb nocreate
 grant hag_subscription_runtime to hag_subscription_gateway_login;
 create schema hag_private;
 grant usage on schema hag_private to hag_subscription_runtime;
-create function hag_private.release_tls_fixture(p text[]) returns jsonb language sql security invoker set search_path='' as $$ select jsonb_build_object('ssl',(select ssl from pg_stat_ssl where pid=pg_backend_pid()),'items',p,'role',current_user) $$;
+-- Test-only narrow metadata probe: SET ROLE hides session user's SSL stats.
+create function hag_private.release_tls_is_encrypted() returns boolean language sql security definer set search_path='' as $ select ssl from pg_catalog.pg_stat_ssl where pid=pg_catalog.pg_backend_pid() $;
+revoke all on function hag_private.release_tls_is_encrypted() from public;
+grant execute on function hag_private.release_tls_is_encrypted() to hag_subscription_runtime;
+create function hag_private.release_tls_fixture(p text[]) returns jsonb language sql security invoker set search_path='' as $ select jsonb_build_object('ssl',hag_private.release_tls_is_encrypted(),'items',p,'role',current_user) $;
 revoke all on function hag_private.release_tls_fixture(text[]) from public;
 grant execute on function hag_private.release_tls_fixture(text[]) to hag_subscription_runtime;
 SQL

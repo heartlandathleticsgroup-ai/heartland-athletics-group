@@ -19,7 +19,8 @@ export function createGoogleHttpBoundary({mode,mockFetch}){
   if(!endpoints.has(url)||method!=="POST"||typeof body!=="string"||body.length>max)throw Error("Transport request denied");
   const h=new Headers(headers);const send=url===SEND;
   if(send){if(h.get("content-type")!=="application/json"||!/^Bearer fixture-[A-Za-z0-9_-]{8,200}$/.test(h.get("authorization")||""))throw Error("Transport request denied");const obj=JSON.parse(body);if(Object.keys(obj).length!==1||typeof obj.raw!=="string"||!/^[A-Za-z0-9_-]+$/.test(obj.raw))throw Error("Transport request denied");
-   const raw=Buffer.from(obj.raw,"base64url").toString("utf8");if(!/^To: [a-z0-9._+%-]+@[a-z0-9.-]+\.invalid\r?$/im.test(raw)||/^(?:Bcc|Cc|Resent-To):/im.test(raw))throw Error("Synthetic recipient required");
+   const raw=Buffer.from(obj.raw,"base64url").toString("utf8"),head=raw.split("\r\n\r\n",1)[0],lines=head.split("\r\n");
+   if(lines.length!==7||lines[0]!=="From: Heartland Athletics Group <no-reply@heartlandathleticsgroup.com>"||lines[1]!=="Reply-To: info@heartlandathleticsgroup.com"||!/^To: [a-z0-9._+%-]+@[a-z0-9.-]+\.invalid$/.test(lines[2])||!/^Subject: (Manage your H\.A\.G\. email preferences|Unsubscribe from H\.A\.G\. marketing email)$/.test(lines[3])||!/^Message-ID: <[a-f0-9-]{36}@preview\.invalid>$/.test(lines[4])||lines[5]!=="MIME-Version: 1.0"||!/^Content-Type: multipart\/alternative; boundary="hag-[a-f0-9-]{36}"$/.test(lines[6]))throw Error("Synthetic recipient required");
   }else{
    if(h.get("authorization")||h.get("content-type")!=="application/x-www-form-urlencoded")throw Error("Transport request denied");
    const p=new URLSearchParams(body),keys=[...p.keys()];if(new Set(keys).size!==keys.length)throw Error("Transport request denied");

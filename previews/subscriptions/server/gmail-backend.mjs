@@ -53,6 +53,7 @@ function reply(status,body){return new Response(JSON.stringify(body),{status,hea
 export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixtureRequest,clientId,clientSecret,outboxKeys,nextVault=null,expectedGeneration=null,now=Date.now}){
  if(mode!=="isolated-test"||typeof fixtureRequest!=="function"||typeof verifyAdmin!=="function"||clientId!=="fixture.apps.googleusercontent.com"||!secret(clientSecret)||!control||!dispatch||!vault||typeof outboxKeys!=="function")throw Error("Synthetic backend only");
  const call=async(url,form,access)=>{const headers=access?{"Authorization":"Bearer "+access,"Content-Type":"application/json"}:{"Content-Type":"application/x-www-form-urlencoded"};const body=access?JSON.stringify(form):new URLSearchParams(form).toString();return fixtureRequest({url,method:"POST",headers,body,redirect:"error",timeoutMs:5000});};
+ const vaultFor=version=>version===vault.version?vault:nextVault?.version===version?nextVault:null;
  const revoke=async token=>{try{return (await call(REVOKE,{token})).status===200;}catch{return false;}};
  const exchange=async form=>call(TOKEN,{client_id:clientId,client_secret:clientSecret,...form});
  const tokenValid=r=>r?.status===200&&scopeIsSendOnly(r.body?.scope)&&r.body?.token_type==="Bearer"&&secret(r.body?.access_token)&&Number.isInteger(r.body?.expires_in)&&r.body.expires_in>0&&r.body.expires_in<=3600;
@@ -89,7 +90,7 @@ export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixt
    if(u.pathname.endsWith("/disable")){await control.disable(false);return reply(200,{enabled:false});}
    if(u.pathname.endsWith("/disconnect")){
     const s=await control.disable(true);let revoked=false;
-    if(s?.credential&&s.key_version===vault.version){try{revoked=await revoke(vault.open(s.credential,"refresh").token);}catch{/* Local disable is durable; provider revocation may need manual action. */}}
+    if(s?.credential&&vaultFor(s.key_version)){try{revoked=await revoke(vaultFor(s.key_version).open(s.credential,"refresh").token);}catch{/* Local disable is durable; provider revocation may need manual action. */}}
     return reply(200,{connected:false,enabled:false,providerRevoked:revoked});
    }
    if(u.pathname.endsWith("/start")){
@@ -125,8 +126,8 @@ export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixt
    reservation=await dispatch.reserve(job,key,job.key_version);if(!reservation)return "not-reserved";
    let outcome="ambiguous-hold-no-resend";
    try{
-    if(reservation.key_version!==vault.version)throw Error("Unavailable credential key");
-    const refresh=vault.open(reservation.credential,"refresh").token;
+    const credentialVault=vaultFor(reservation.key_version);if(!credentialVault)throw Error("Unavailable credential key");
+    const refresh=credentialVault.open(reservation.credential,"refresh").token;
     if(!secret(refresh))throw Error("Invalid fixture token");
     const t=await exchange({grant_type:"refresh_token",refresh_token:refresh});
     if(!tokenValid(t)){outcome="authorization-required";}

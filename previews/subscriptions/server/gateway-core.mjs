@@ -79,8 +79,8 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource}){
     if(issuing){
      // One channel per atomic issue key; duplicates never repeat simulated delivery.
      for(const item of items){
-      try{const raw=await db.issue(x.requestId,x.action,item);
-      if(token(raw))await delivery.accept({channel:item.channel,destination:item.destination,purpose:item.purpose,token:raw});}catch{/* Do not leak outcomes or skip another channel. */}
+      try{const issuedAt=Date.now();const raw=await db.issue(x.requestId,x.action,item);
+      if(token(raw))await delivery.accept({channel:item.channel,destination:item.destination,purpose:item.purpose,token:raw,issuedAt});}catch{/* Do not leak outcomes or skip another channel. */}
      }
      return generic();
     }

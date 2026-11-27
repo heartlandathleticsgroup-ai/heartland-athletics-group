@@ -42,6 +42,6 @@ export function createStagedRuntime({ordinaryPool,optoutPool,workerPool,trustedS
  const delivery={mode:"simulation",accept:v=>{if(v.channel!=="sms")throw Error("Atomic email required");return sms.accept(v);}};
  const guard=createIngressGuard();
  const ordinary=createGateway({db:{...normal,enqueueEmail:email.enqueue},delivery,source:trustedSource,ingress:guard,atomicEmail:true});
- const withdraw=createGateway({db:{...optout,enqueueEmail:async()=>{throw Error("Unsubscribe only");},issueSms:async()=>{throw Error("Unsubscribe only");}},delivery,source:trustedSource,ingress:guard,atomicEmail:true});
+ const withdraw=createGateway({db:{...optout,optInEmail:async()=>{throw Error("Unsubscribe only");},enqueueEmail:async()=>{throw Error("Unsubscribe only");},issueSms:async()=>{throw Error("Unsubscribe only");}},delivery,source:trustedSource,ingress:guard,atomicEmail:true});
  return {handle:req=>new URL(req.url).pathname==="/subscriptions/unsubscribe"?withdraw(req):ordinary(req),drainSyntheticMessages:()=>sms.drain(),pumpSyntheticEmail:()=>worker.pump()};
 }

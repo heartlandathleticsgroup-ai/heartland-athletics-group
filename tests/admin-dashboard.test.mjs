@@ -30,3 +30,11 @@ assert.equal(root.hidden,true);
 assert.doesNotMatch(js,/\b(fetch|localStorage|sessionStorage|innerHTML|eval)\b|\.rpc\(|\.auth\./);
 for(const id of ["login-form","passkey-login","challenge-form","register-passkey","signout"])assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1);
 console.log("Dashboard navigation, markup gate, invalid selection, and no-data assertions passed.");
+
+const mobile=dashboard.match(/<section id="module-mobile"[\s\S]*?<\/section>/)?.[0]||"";
+assert.match(mobile,/Inactive — Future Integration/);
+assert.match(mobile,/No app connection or publishing enabled/);
+assert.doesNotMatch(mobile,/<(?:form|button|input|a)\b/i);
+assert.match(dashboard,/data-module="mobile"[^>]*>Mobile app <span class="module-state">Inactive<\/span>/);
+assert.match(dashboard,/7 website-focused sections · 1 inactive app section/);
+console.log("Inactive mobile status and no integration controls verified.");

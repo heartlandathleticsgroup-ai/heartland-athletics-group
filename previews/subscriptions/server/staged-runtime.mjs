@@ -1,5 +1,6 @@
 // Isolated runtime preparation only. No listener, secrets, real delivery, or default pool.
 import {createGateway,createIngressGuard,createSimulatedDelivery} from "./gateway.mjs";
+import {createEmailSimulation} from "./email-simulation.mjs";
 import {postgresAdapter} from "./postgres-adapter.mjs";
 export function createBoundExecutor(pool,{max=4}={}){
  if(!pool||typeof pool.connect!=="function"||!Number.isInteger(max)||max<1||max>8)throw Error("Invalid isolated pool");
@@ -31,10 +32,12 @@ export function createStagedRuntime({ordinaryPool,optoutPool,trustedSource,mode}
  if(mode!=="isolated-test"||ordinaryPool===optoutPool||typeof trustedSource!=="function")throw Error("Isolated runtime only");
  const normal=postgresAdapter(createBoundExecutor(ordinaryPool,{max:4}));
  const optout=postgresAdapter(createBoundExecutor(optoutPool,{max:2}));
- const delivery=createSimulatedDelivery();
+ const sms=createSimulatedDelivery();
+ const email=createEmailSimulation({eligible:v=>normal.emailEligible(v)});
+ const delivery={mode:"simulation",accept:v=>v.channel==="email"?email.accept(v):sms.accept(v)};
  const guard=createIngressGuard();
  // Separate pool capacity for existing opt-out tokens; no provider delivery.
  const make=db=>createGateway({db,delivery,source:trustedSource,ingress:guard});
  const ordinary=make(normal),withdraw=make(optout);
- return {handle:req=>new URL(req.url).pathname==="/subscriptions/unsubscribe"?withdraw(req):ordinary(req),drainSyntheticMessages:()=>delivery.drain()};
+ return {handle:req=>new URL(req.url).pathname==="/subscriptions/unsubscribe"?withdraw(req):ordinary(req),drainSyntheticMessages:()=>sms.drain(),pumpSyntheticEmail:()=>email.pump(),emailStats:()=>email.stats(),closeSyntheticEmail:()=>email.close()};
 }

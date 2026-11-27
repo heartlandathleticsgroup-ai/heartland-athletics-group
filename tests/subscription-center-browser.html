@@ -43,6 +43,16 @@ try{
  await click("expire");await go("Manage preferences");await wait(()=>text("error","invalid, expired"),"expired link accepted");
  choose("channel","sms");check(!$("adult").checked&&!$("consent").checked,"channel consent retained");
  await click("reset");check(inbox().length===0&&$("manage-panel").hidden&&$("action-panel").hidden,"reset failed");
- result.textContent="PASS: five viewport widths; labelled controls, focus, touch target, live status, confirmation, replay, verified edit, unsubscribe, expiry and reset";
+ const admin=document.createElement("iframe");admin.title="Gmail administrative preview";admin.style.cssText="width:320px;height:900px;border:0";document.body.append(admin);
+ const al=new Promise(r=>admin.addEventListener("load",r,{once:true}));admin.src="/gmail-admin.html";await al;
+ const ad=admin.contentDocument,el=id=>ad.getElementById(id);
+ await wait(()=>!el("disable").disabled,"admin preview did not initialize");
+ for(const width of [320,390,768,1280]){admin.style.width=width+"px";await new Promise(r=>setTimeout(r,50));check(ad.documentElement.scrollWidth<=admin.contentWindow.innerWidth,"admin overflow "+width);}
+ check(el("rotate").disabled,"rotation enabled while sending");
+ el("disable").click();await wait(()=>!el("rotate").disabled,"disable did not allow rotation");check(el("status").textContent.includes("Disabled"),"disable status incorrect");
+ el("rotate").click();await wait(()=>!el("rotate").disabled,"rotate still busy");
+ const close=el("holds").querySelector("button");check(!!close,"held dispatch missing");close.click();await wait(()=>el("holds").textContent.includes("No unresolved dispatches"),"review did not close");
+ el("disconnect").click();await wait(()=>el("status").textContent.includes("Disconnected"),"disconnect failed");check(el("disable").disabled&&el("rotate").disabled,"disconnected control active");
+ result.textContent="PASS: Gmail administrative preview disable, rotation, no-resend review, disconnect and responsive widths; five viewport widths; labelled controls, focus, touch target, live status, confirmation, replay, verified edit, unsubscribe, expiry and reset";
 }catch(e){result.textContent="FAIL: "+e.message;}
 </script></html>

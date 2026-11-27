@@ -21,3 +21,5 @@ main:has(#authorized-panel:not([hidden])){max-width:1120px}
 @media(max-width:340px){.module-nav{grid-template-columns:1fr}}
 
 .module-state{display:block;font-size:.75rem;font-weight:500;line-height:1.3;margin-top:2px;color:inherit}
+
+.records{display:grid;gap:12px;margin-top:12px}.record-card{margin:0;padding:12px;background:#f3f5fa;border:1px solid #dfe3ed;border-radius:9px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:6px 10px}.record-card dt{font-weight:700;color:#505b6a;font-size:.85rem}.record-card dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}.record-pagination{display:flex;gap:8px}.record-pagination button{flex:1;min-width:0}.module-panel label{margin-top:10px}@media(max-width:430px){.record-card{grid-template-columns:minmax(0,1fr);gap:2px}.record-card dd{margin-bottom:8px}}

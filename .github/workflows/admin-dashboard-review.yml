@@ -1,7 +1,7 @@
 name: Administration dashboard foundation review
 on:
   push:
-    branches: [admin/phase-3c2a-dashboard-foundation, admin/phase-3c2a-app-ready]
+    branches: [admin/phase-3c2a-dashboard-foundation, admin/phase-3c2a-app-ready, admin/phase-3c2b-communications]
   pull_request:
     branches: [main]
     paths: ["admin/**", "tests/admin-*.mjs", ".github/workflows/admin-dashboard-review.yml"]
@@ -24,8 +24,10 @@ jobs:
           node --check admin/dashboard.mjs
           node --check admin/auth.js
           node tests/admin-dashboard.test.mjs
+          node --check admin/communications.mjs
+          node tests/admin-communications.test.mjs
           node tests/admin-auth-state.test.mjs
           node tests/admin-passkey.test.mjs
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-            git diff --exit-code origin/main...HEAD -- admin/auth.js admin/auth-state.mjs admin/verified-passkey.mjs admin/admin.css supabase
+            git diff --exit-code origin/main...HEAD -- admin/auth-state.mjs admin/verified-passkey.mjs admin/admin.css supabase/functions
           fi

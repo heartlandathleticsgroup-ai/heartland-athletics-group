@@ -28,4 +28,5 @@ jobs:
           node tests/admin-communications.test.mjs
           node tests/admin-auth-state.test.mjs
           node tests/admin-passkey.test.mjs
-          git diff --exit-code origin/main...HEAD -- admin/auth.js admin/auth-state.mjs admin/verified-passkey.mjs supabase
+          git diff --exit-code origin/main...HEAD -- admin/auth.js admin/auth-state.mjs admin/verified-passkey.mjs supabase/functions supabase/admin-setup/phase-3c2b-communications.sql
+          test "$(git diff --name-only origin/main...HEAD -- supabase)" = "supabase/admin-setup/phase-3c3-pending-draft.sql"

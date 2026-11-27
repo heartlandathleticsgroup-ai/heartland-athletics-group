@@ -1,7 +1,7 @@
 import {nextPanel,isSixDigit,expired} from "./auth-state.mjs";
 import {signInWithVerifiedPasskey} from "./verified-passkey.mjs";
 import {attachCommunications} from "./communications.mjs";
-import {attachGmailControls} from "./gmail-controls.mjs";
+import {attachGmailControls,createGmailAdminClient,GMAIL_RELEASE_ENABLED} from "./gmail-controls.mjs";
 const BASE="https://unrqbfngcgvqnytxbtgj.supabase.co", PUBLISHABLE_KEY="sb_publishable_JeTzqF2gS0-pEHLs3VLOmg_GmK22bon";
 const $=id=>document.getElementById(id);
 const panels=["login","enroll","challenge","authorized"];
@@ -120,8 +120,9 @@ async function init(){
    if(!allowed())throw Error("Access unavailable");
    return data(await client.rpc("hag_communications_read",{p_view:view,p_offset:offset,p_channel:channel}));
   },allowed);
-  // Release-locked: no provider request or bearer retrieval is wired to production.
-  gmailControls=attachGmailControls($("authorized-panel"),{allowed});
+  // No provider operations unless an independently approved release flips the lock.
+  const gmailApi=GMAIL_RELEASE_ENABLED?createGmailAdminClient({mode:"release-candidate",allowed,getBearer:async()=>{if(!allowed())throw Error("Access unavailable");const {session}=data(await client.auth.getSession());if(!allowed()||!session)throw Error("Access unavailable");return session.access_token;},request:globalThis.fetch.bind(globalThis)}):null;
+  gmailControls=attachGmailControls($("authorized-panel"),{allowed,api:gmailApi});
   const {session}=data(await client.auth.getSession());
   if(!session){show("login");clearClock();return;}
   const saved=JSON.parse(sessionStorage.getItem(CLOCK)||"null");

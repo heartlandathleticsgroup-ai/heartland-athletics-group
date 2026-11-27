@@ -17,22 +17,28 @@ if (toggle && navLinks) {
 
 const revealElements = document.querySelectorAll(".reveal");
 
-if ("IntersectionObserver" in window) {
+// Never hide content. Animate only sections that begin below the viewport.
+if ("IntersectionObserver" in window &&
+    !(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) {
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
+          entry.target.classList.remove("reveal-pending");
           entry.target.classList.add("visible");
           observer.unobserve(entry.target);
         }
       });
     },
-    { threshold: 0.15 }
+    { threshold: 0 }
   );
 
-  revealElements.forEach((element) => observer.observe(element));
-} else {
-  revealElements.forEach((element) => element.classList.add("visible"));
+  revealElements.forEach((element) => {
+    if (element.getBoundingClientRect().top >= window.innerHeight) {
+      element.classList.add("reveal-pending");
+      observer.observe(element);
+    }
+  });
 }
 
 const interestSelect = document.querySelector('select[name="interest"]');

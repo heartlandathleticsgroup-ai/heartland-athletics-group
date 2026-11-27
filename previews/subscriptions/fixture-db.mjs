@@ -41,7 +41,7 @@ export function createFixtureDatabase({now=Date.now,random=()=>crypto.getRandomV
   async inspect(raw){const t=tokens.get(raw);if(!t||t.p!=="confirm"||t.used||t.expires<=now()||t.m.suppressed)return null;const topics=t.topics.filter(x=>t.m.topics.get(x)==="pending");return topics.length?{channel:t.m.channel,topics}:null;},
   async redeem(raw,p){
    const t=take(raw,p);if(!t)return null;const m=t.m;
-   if(p==="confirm"){if(m.suppressed)return null;let n=0;for(const topic of t.topics)if(m.topics.get(topic)==="pending"){m.topics.set(topic,"active");n++;}return n?{ok:true}:null;}
+   if(p==="confirm"){if(m.channel!=="sms"||m.suppressed)return null;let n=0;for(const topic of t.topics)if(m.topics.get(topic)==="pending"){m.topics.set(topic,"active");n++;}return n?{ok:true}:null;}
    if(p==="unsubscribe"){for(const topic of m.topics.keys())m.topics.set(topic,"withdrawn");m.suppressed=true;invalidate(m);return {ok:true};}
    return {channel:m.channel,suppressed:m.suppressed,preferences:view(m),edit_token:issueToken(m,"edit")};
   },

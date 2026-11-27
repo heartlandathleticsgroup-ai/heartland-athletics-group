@@ -12,7 +12,8 @@ export function durableEmailWorker(query,keys){
  return {async pump(outcome="accept"){
  const result=await query("select hag_private.subscription_email_claim() as value",[]);
  const job=result.rows?.[0]?.value;if(!job)return "empty";
- const key=keys(job.key_version);if(typeof key!=="string"||! /^[a-f0-9]{64}$/.test(key))return "key-unavailable";
+ // Reconciliation must remain possible even if an old encryption key was retired.
+ let key=null;try{const candidate=keys(job.key_version);if(typeof candidate==="string"&&/^[a-f0-9]{64}$/.test(candidate))key=candidate;}catch{/* Fail closed; SQL can reconcile existing acceptance without decrypting. */}
  const step=await query("select hag_private.subscription_email_sim_step($1::uuid,$2::uuid,$3,$4,$5) as value",[job.id,job.lease,key,job.key_version,outcome]);
  return step.rows?.[0]?.value;
  }};

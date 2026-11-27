@@ -1,6 +1,13 @@
 // UNPUBLISHED. No network server, provider credentials or production entry point.
 import {validateRequest,validatePreferenceAccess,TOPICS,CONSENT_VERSION} from "../consent.mjs";
+import {isIP} from "node:net";
 const ORIGIN="https://heartlandathleticsgroup.com", MAX=8192;
+function canonicalSource(s){if(typeof s!=="string"||!isIP(s))return null;return isIP(s)===4?s:new URL("http://["+s+"]/").hostname.slice(1,-1);}
+// Bounded per-process ingress budget; distributed database budget is separate.
+export function createIngressGuard({clock=Date.now}={}){
+ let minute=-1,total=0;const counts=new Map();
+ return src=>{const key=canonicalSource(src);if(!key)return false;const now=Math.floor(clock()/60000);if(now!==minute){minute=now;total=0;counts.clear();}if(total>=600)return false;total++;const n=counts.get(key)||0;if(n>=40)return false;counts.set(key,n+1);return true;};
+}
 const token=v=>typeof v==="string"&&/^[0-9a-f]{64}$/.test(v);
 const id=v=>typeof v==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v);
 const exact=(v,ks)=>v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(v).length===ks.length&&ks.every(k=>Object.hasOwn(v,k));
@@ -44,7 +51,7 @@ export function createGateway({db,delivery,source,ingress}){
     return response(204,null,true);
    }
    if(req.method!=="POST")return response(405,{message:"Request not allowed."},true);
-   const src=source(req);if(typeof src!=="string"||src.length<1||src.length>64)return response(503,{message:"Service unavailable."},true);
+   const src=canonicalSource(source(req));if(!src)return response(503,{message:"Service unavailable."},true);
    if(!await ingress(src))return response(429,{message:"Try again later."},true);
    if(!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(req.headers.get("content-type")||"")||req.headers.has("content-encoding"))return bad();
    let x;try{x=await body(req);}catch{return bad();}
@@ -73,8 +80,8 @@ export function createGateway({db,delivery,source,ingress}){
     if(issuing){
      // One channel per atomic issue key; duplicates never repeat simulated delivery.
      for(const item of items){
-      const raw=await db.issue(x.requestId,x.action,item);
-      if(token(raw))await delivery.accept({channel:item.channel,destination:item.destination,purpose:item.purpose,token:raw});
+      try{const raw=await db.issue(x.requestId,x.action,item);
+      if(token(raw))await delivery.accept({channel:item.channel,destination:item.destination,purpose:item.purpose,token:raw});}catch{/* Do not leak outcomes or skip another channel. */}
      }
      return generic();
     }

@@ -2,7 +2,6 @@
 // Service-area label is not a valid commercial-email postal footer.
 // Future authorized production renderer must require private server-side postal configuration; never commit the street address. No real delivery here.
 const copy=Object.freeze({
- confirm:{subject:"Confirm your H.A.G. email subscription",action:"Review and confirm",intro:"We received a request to subscribe this email address to updates from Heartland Athletics Group LLC. Review the selected topics and consent before confirming.",expiry:"This link expires 30 minutes after it was issued. If you did not request this, ignore this email. You will not be subscribed without confirmation."},
  manage:{subject:"Manage your H.A.G. email preferences",action:"Review my preferences",intro:"A request was made to view or change the email preferences associated with this address. Use the secure link to review your choices.",expiry:"This link expires 30 minutes after it was issued. If you did not request it, ignore this email."},
  unsubscribe:{subject:"Unsubscribe from H.A.G. marketing email",action:"Unsubscribe from email",intro:"Use the link to stop all Heartland Athletics Group LLC marketing email for this address. Your SMS preferences are unaffected. No login or new consent is required.",expiry:"This link expires 60 days after it was issued. You may also contact us directly to opt out."}
 });

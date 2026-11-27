@@ -11,7 +11,7 @@ export function createPreferenceSimulation({now=Date.now}={}){
  async function call(payload){
   // Construct an in-process server request fixture. Browsers may discard forbidden
   // Origin headers on Request instances; no fetch or network request is made.
-  const request={url:"https://preview.invalid/subscriptions",method:"POST",headers:new Headers({origin:"https://heartlandathleticsgroup.com","content-type":"application/json"}),body:new Blob([JSON.stringify(payload)],{type:"application/json"}).stream()};
+  const request={url:"https://preview.invalid/subscriptions"+(payload.action==="unsubscribe"?"/unsubscribe":""),method:"POST",headers:new Headers({origin:"https://heartlandathleticsgroup.com","content-type":"application/json"}),body:new Blob([JSON.stringify(payload)],{type:"application/json"}).stream()};
   const response=await handle(request);
   return {status:response.status,body:await response.json()};
  }

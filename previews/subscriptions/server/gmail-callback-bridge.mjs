@@ -9,6 +9,7 @@ const COOKIE="__Host-hag-gmail-flow";
 const ORIGIN="https://preview.invalid";
 const cookie=(s,max)=>COOKIE+"="+s+"; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age="+max;
 const denied=()=>new Response(JSON.stringify({ok:false}),{status:403,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Referrer-Policy":"no-referrer"}});
+const resultRedirect=ok=>new Response(null,{status:303,headers:{"Location":ORIGIN+"/oauth/gmail/result?status="+(ok?"complete":"failed"),"Set-Cookie":cookie("",0),"Cache-Control":"no-store","Referrer-Policy":"no-referrer"}});
 function readCookie(req){const values=(req.headers.get("cookie")||"").split(";").map(x=>x.trim()).filter(x=>x.startsWith(COOKIE+"="));return values.length===1?values[0].slice(COOKIE.length+1):null;}
 export function createFlowDb(query){
  const scalar=async(q,a)=>{const r=await query(q,a);if(r?.rows?.length!==1)throw Error("Flow unavailable");return r.rows[0].value;};
@@ -37,23 +38,24 @@ export function createCallbackBridge({mode,backend,flows,vault,userProof,now=Dat
     return new Response(JSON.stringify(data),{status:200,headers});
    }
    if(u.pathname==="/oauth/gmail/callback"){
-    if(req.method!=="GET"||u.searchParams.getAll("state").length!==1)return denied();
+    if(req.method!=="GET")return denied();
+    if(u.searchParams.getAll("state").length!==1)return resultRedirect(false);
     const id=readCookie(req),state=u.searchParams.get("state");
-    if(!valid(id)||!valid(state))return denied();
+    if(!valid(id)||!valid(state))return resultRedirect(false);
     const d=hash(id),s=hash(state),enc=await flows.take(d,s);
-    if(!enc)return denied();
+    if(!enc)return resultRedirect(false);
     const f=vault.open(enc,"flow:"+d+":"+s);
-    if(!Number.isFinite(f.expires)||f.expires<=now())return denied();
+    if(!Number.isFinite(f.expires)||f.expires<=now())return resultRedirect(false);
     const proof=await userProof(f.bearer);
-    if(!proof||proof.actor!==f.actor||proof.session!==f.session)return denied();
+    if(!proof||proof.actor!==f.actor||proof.session!==f.session)return resultRedirect(false);
     const result=await backend(req,f.bearer);
     // Discard callback output; strip code/state from browser URL even on failure.
-    return new Response(null,{status:303,headers:{"Location":ORIGIN+"/oauth/gmail/result?status="+(result.status===200?"complete":"failed"),"Set-Cookie":cookie("",0),"Cache-Control":"no-store","Referrer-Policy":"no-referrer"}});
+    return resultRedirect(result.status===200);
    }
    // Other control routes require a fresh user bearer, never the flow cookie.
    if(req.method!=="POST"||req.headers.get("origin")!==ORIGIN||u.search)return denied();
    const bearer=req.headers.get("authorization")?.match(/^Bearer (fixture-[A-Za-z0-9_-]{8,200})$/)?.[1];if(!bearer)return denied();
    return backend(req,bearer);
-  }catch{return denied();}
+  }catch{try{const u=new URL(req.url);if(u.origin===ORIGIN&&u.pathname==="/oauth/gmail/callback"&&req.method==="GET")return resultRedirect(false);}catch{}return denied();}
  };
 }

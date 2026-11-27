@@ -4,7 +4,7 @@
 Proposed effective date: [upon approved publication]
 
 ## Who we are
-Heartland Athletics Group LLC (H.A.G., we, us) operates heartlandathleticsgroup.com in Quincy, Illinois, including information about Heartland Enforcers Basketball Club, Gus Macker – Quincy, camps, clinics, tournaments and related opportunities. This policy covers information collected through our website and proposed email and SMS subscription program. Separate registrations, waivers, third-party websites and future apps may have additional notices.
+Heartland Athletics Group LLC (H.A.G., we, us) operates heartlandathleticsgroup.com and serves the Quincy, Illinois and Tri-State region, including information about Heartland Enforcers Basketball Club, Gus Macker – Quincy, camps, clinics, tournaments and related opportunities. This policy covers information collected through our website and proposed email and SMS subscription program. Separate registrations, waivers, third-party websites and future apps may have additional notices.
 
 ## Information we collect
 When you contact us, we receive the name, email address, phone number, selected inquiry category and message you provide. Our existing inquiry form uses Formspree to transmit submissions. An inquiry is not consent to marketing.
@@ -33,8 +33,8 @@ Links to national event organizers, sponsors, registration services and other si
 
 ## Contact
 Heartland Athletics Group LLC
-Quincy, Illinois
+Serving Quincy, Illinois and the Tri-State region
 Email: info@heartlandathleticsgroup.com
 Phone: (217) 577-0815
 Website: https://heartlandathleticsgroup.com/contact/
-[Confirm monitored privacy/support channel and valid business mailing address before publication.]
+[Confirm monitored privacy/support channel before publication. Owner has separately confirmed the business mailing address in Fowler, Illinois; exact street address is restricted to approved private configuration, provider verification and required email footers. Do not publish it on the website or in this repository.]

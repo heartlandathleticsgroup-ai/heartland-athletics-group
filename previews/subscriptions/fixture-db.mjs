@@ -1,6 +1,6 @@
 // Synthetic-only, in-memory database for the unpublished preference center.
 // No actual database, network transport, browser storage, or real destinations.
-import {TOPICS} from "../consent.mjs";
+import {TOPICS} from "./consent.mjs";
 const codes=new Set(TOPICS.map(t=>t[0]));
 export function createFixtureDatabase({now=Date.now,random=()=>crypto.getRandomValues(new Uint8Array(32))}={}){
  const methods=new Map(),tokens=new Map(),keys=new Set(),buckets=new Map();

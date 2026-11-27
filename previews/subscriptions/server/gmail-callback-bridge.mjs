@@ -23,6 +23,11 @@ export function createCallbackBridge({mode,backend,flows,vault,userProof,now=Dat
   try{
    const u=new URL(req.url);
    if(u.origin!==ORIGIN)return denied();
+   if(u.pathname==="/oauth/gmail/result"){
+    if(req.method!=="GET")return denied();
+    // Do not reflect URL fields or disclose connection state without authentication.
+    return new Response("Authorization flow ended. Return to the administrative portal and check connection status.",{status:200,headers:{"Content-Type":"text/plain; charset=utf-8","Cache-Control":"no-store","Referrer-Policy":"no-referrer","Content-Security-Policy":"default-src 'none'; frame-ancestors 'none'","X-Content-Type-Options":"nosniff"}});
+   }
    if(u.pathname==="/oauth/gmail/start"){
     if(req.method!=="POST"||req.headers.get("origin")!==ORIGIN||u.search)return denied();
     const bearer=req.headers.get("authorization")?.match(/^Bearer (fixture-[A-Za-z0-9_-]{8,200})$/)?.[1];

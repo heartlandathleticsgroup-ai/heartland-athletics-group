@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import {randomUUID,randomBytes} from "node:crypto";
-import {createGateway,createSimulatedDelivery,GENERIC} from "../previews/subscriptions/server/gateway.mjs";
+import {createGateway,createSimulatedDelivery,createIngressGuard,GENERIC} from "../previews/subscriptions/server/gateway.mjs";
 import {postgresAdapter} from "../previews/subscriptions/server/postgres-adapter.mjs";
 import {CONSENT_VERSION} from "../previews/subscriptions/consent.mjs";
+import {subscriptionEnvelope,accessEnvelope} from "../previews/subscriptions/form-envelope.mjs";
 const origin="https://heartlandathleticsgroup.com",url="https://stage.invalid/subscriptions";
 const capture=createSimulatedDelivery(),claimed=new Set(),tokens=new Map(),calls=[];
 let allowed=true,ingressAllowed=true,src="192.0.2.1",throwIssue=false;
@@ -16,8 +17,8 @@ const gateway=createGateway({db,delivery:capture,source:()=>src,ingress:async()=
 const req=(x,opts={})=>new Request(url,{method:"POST",headers:{origin,"content-type":"application/json",...opts.headers},body:JSON.stringify(x),...opts,...(opts.headers?{headers:{origin,"content-type":"application/json",...opts.headers}}:{})});
 const off={enabled:false,destination:"",topics:[],consent:false};
 const form={name:"Fixture",adult:true,email:{enabled:true,destination:"fixture@example.invalid",topics:["hag-announcements"],consent:true},sms:off};
-const sub={action:"subscribe",requestId:randomUUID(),version:CONSENT_VERSION,form};
-const access={action:"access",requestId:randomUUID(),purpose:"manage",form:{channel:"email",destination:"fixture@example.invalid"}};
+const sub=subscriptionEnvelope(form,randomUUID());
+const access=accessEnvelope({channel:"email",destination:"fixture@example.invalid"},randomUUID());
 const generic=async r=>{assert.equal(r.status,202);assert.deepEqual(await r.json(),{message:GENERIC});assert.equal(r.headers.get("cache-control"),"no-store");};
 await Promise.all(Array.from({length:20},()=>gateway(req(sub)).then(generic)));
 let issued=capture.drain();assert.equal(issued.length,1);const t=issued[0].token;
@@ -48,3 +49,12 @@ const queries=[];const adapter=postgresAdapter(async(q,args)=>{queries.push([q,a
 await adapter.budget(src,"subscribe");await adapter.issue(randomUUID(),"subscribe",{channel:"email",destination:"fixture@example.invalid",name:"Fixture",adult:true,topics:["hag-announcements"],consentText:"canonical",consentVersion:CONSENT_VERSION,purpose:"confirm"});await adapter.redeem("x","confirm");await adapter.edit({token:"x",add:[],remove:["hag-announcements"],adult:false,consent:false,version:CONSENT_VERSION});
 assert.equal(queries.length,4);assert.ok(queries.every(([q,args])=>q.includes("$1")&&Array.isArray(args)&&!q.includes("fixture@example.invalid")));
 console.log("Gateway tests passed: mock concurrent issuance/replay, validation, origin, bounds, generic responses, verified projection and fixed SQL.");
+
+let tick=0;const guard=createIngressGuard({clock:()=>tick});assert.equal(guard("not an IP"),false);
+for(let i=0;i<40;i++)assert.equal(guard("2001:db8::1"),true);
+assert.equal(guard("2001:0db8:0:0:0:0:0:1"),false);
+tick=60000;assert.equal(guard("2001:db8::1"),true);
+const overall=createIngressGuard({clock:()=>0});
+for(let i=0;i<600;i++)assert.equal(overall("2001:db8::"+(i+1).toString(16)),true);
+assert.equal(overall("2001:db8::ffff"),false);
+console.log("Ingress source canonicalization, per-source/global limits and window reset passed.");

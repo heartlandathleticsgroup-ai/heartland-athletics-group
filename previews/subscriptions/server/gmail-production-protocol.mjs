@@ -1,5 +1,5 @@
 // UNPUBLISHED provider adapter. No default transport or live-mode constructor.
-import {GMAIL_SCOPE,GMAIL_FROM,GMAIL_REPLY_TO,scopeIsSendOnly,classifyGmailOutcome} from "./gmail-preparation.mjs";
+import {GMAIL_SCOPE,GMAIL_FROM,GMAIL_REPLY_TO,scopeIsSendOnly} from "./gmail-preparation.mjs";
 const API="https://unrqbfngcgvqnytxbtgj.supabase.co";
 export const CONTROL_BASE=API+"/functions/v1/hag-gmail-control";
 export const CALLBACK_URI=CONTROL_BASE+"/oauth/gmail/callback";
@@ -30,7 +30,7 @@ export function createBoundedHttp({mode,fetchFixture}){
 // already-validated send-only grant, never assume scope on initial exchange.
 export function parseGrant(response,{refresh=false,previousScope=null}={}){
  const b=response?.body;
- if(response?.status!==200||!b||!safeToken(b.access_token)||b.token_type?.toLowerCase()!=="bearer"||!Number.isInteger(b.expires_in)||b.expires_in<1||b.expires_in>3600)return null;
+ if(response?.status!==200||!b||!safeToken(b.access_token)||(typeof b.token_type!=="string"||b.token_type.toLowerCase()!=="bearer")||!Number.isInteger(b.expires_in)||b.expires_in<1||b.expires_in>3600)return null;
  const scope=b.scope===undefined&&refresh?previousScope:b.scope;
  if(!scopeIsSendOnly(scope)||(!refresh&&!safeToken(b.refresh_token))||(refresh&&b.refresh_token!==undefined))return null;
  return {access_token:b.access_token,token_type:"Bearer",scope:GMAIL_SCOPE,expires_in:b.expires_in,...(!refresh?{refresh_token:b.refresh_token}:{})};

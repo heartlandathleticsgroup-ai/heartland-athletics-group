@@ -65,7 +65,7 @@ begin
  and next_at<=clock_timestamp() order by next_at,id limit 1 for update skip locked;
  if j.id is null then return null;end if;
  if j.deadline<=clock_timestamp() or j.attempts>=3 then
-  update hag_private.subscription_email_outbox set state=case when deadline<=clock_timestamp() then 'expired' else 'failed' end,payload=null,finished_at=clock_timestamp(),lease=null,lease_until=null where id=j.id;
+  update hag_private.subscription_email_outbox set state=case when exists(select 1 from hag_private.subscription_email_sim_acceptance a where a.job_id=j.id) then 'accepted' when deadline<=clock_timestamp() then 'expired' else 'failed' end,payload=null,finished_at=clock_timestamp(),lease=null,lease_until=null where id=j.id;
   return null;
  end if;
  update hag_private.subscription_email_outbox set state='leased',lease=gen_random_uuid(),lease_until=clock_timestamp()+interval '45 seconds' where id=j.id returning * into j;

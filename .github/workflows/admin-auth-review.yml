@@ -19,9 +19,16 @@ jobs:
           npm install --ignore-scripts --save-exact --no-fund --no-audit @supabase/supabase-js@2.119.2
           npm audit signatures
           npm audit --omit=dev --audit-level=high
-          test -f node_modules/@supabase/supabase-js/dist/umd/supabase.min.js
-          curl --fail --silent --show-error --location --max-time 30 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.min.js' -o cdn.js
-          cmp node_modules/@supabase/supabase-js/dist/umd/supabase.min.js cdn.js
+          PKG=node_modules/@supabase/supabase-js
+          node -e 'const p=require("./node_modules/@supabase/supabase-js/package.json"); console.log(JSON.stringify({version:p.version,main:p.main,browser:p.browser,unpkg:p.unpkg,jsdelivr:p.jsdelivr,exports:p.exports}))'
+          find "$PKG/dist" -maxdepth 3 -type f | head -80
+          BUNDLE=$(find "$PKG/dist/umd" -maxdepth 1 -type f \( -name 'supabase.js' -o -name 'supabase.min.js' \) | sort | head -1)
+          test -n "$BUNDLE"
+          REL="${BUNDLE#"$PKG/"}"
+          URL="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/$REL"
+          curl --fail --silent --show-error --location --max-time 30 "$URL" -o cdn.js
+          cmp "$BUNDLE" cdn.js
+          printf 'HAG_VERIFIED_URL=%s\n' "$URL"
           printf 'HAG_VERIFIED_SRI=sha384-'
           openssl dgst -sha384 -binary cdn.js | openssl base64 -A
           printf '\n'

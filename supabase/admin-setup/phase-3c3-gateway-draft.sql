@@ -14,7 +14,7 @@ returns boolean language plpgsql volatile security definer set search_path='' as
 declare k bytea; bucket text;
 begin
  -- Source is a canonical IP supplied by a TRUSTED runtime, never a public header.
- if p_source is null or char_length(p_source) not between 1 and 64 or p_action is null or p_action not in ('subscribe','access','confirm','manage','edit','unsubscribe') then return false; end if;
+ if p_source is null or char_length(p_source) not between 1 and 64 or p_action is null or p_action not in ('subscribe','access','inspect','confirm','manage','edit','unsubscribe') then return false; end if;
  select secret into strict k from hag_private.subscription_rate_key where singleton;
  if p_action<>'unsubscribe' and not hag_private.subscription_allow('gateway-global','all',1,240) then return false; end if;
  bucket:=encode(extensions.hmac(convert_to(p_source,'UTF8'),k,'sha256'),'hex');
@@ -65,3 +65,27 @@ begin
  if m is null then return null; end if;
  return hag_private.subscription_new_token(m,p_purpose);
 end $$;
+
+-- Non-consuming confirmation scope lookup; token possession is required.
+-- The returned topics are ONLY currently eligible topics in the original snapshot.
+create function hag_private.subscription_confirm_scope(p_raw text)
+returns jsonb language plpgsql volatile security definer set search_path='' as $$
+declare result jsonb;
+begin
+ if p_raw is null or p_raw !~ '^[0-9a-f]{64}$' then return null; end if;
+ if not hag_private.subscription_allow('redeem-global','all',1,120) then return null; end if;
+ select jsonb_build_object('channel',m.channel,'topics',jsonb_agg(s.topic_code order by s.topic_code))
+ into result
+ from hag_private.subscription_capabilities k
+ join hag_private.hag_contact_methods m on m.id=k.method_id
+ join hag_private.hag_subscriptions s on s.contact_method_id=m.id and s.id=any(k.snapshot)
+ join hag_private.hag_topics t on t.code=s.topic_code and t.purpose=s.topic_purpose
+ where k.token_hash=extensions.digest(p_raw,'sha256') and k.purpose='confirm' and k.used_at is null and k.expires_at>clock_timestamp()
+ and s.status='pending' and t.active
+ and not exists(select 1 from hag_private.hag_suppressions x where x.contact_method_id=m.id and x.active)
+ and exists(select 1 from hag_private.hag_consent_events e where e.subscription_id=s.id and e.event_kind='requested' and e.consent_version='draft-3c3-v1' and e.consent_text=hag_private.subscription_wording(m.channel))
+ group by m.channel;
+ return result;
+end $$;
+revoke all on function hag_private.subscription_confirm_scope(text) from public,anon,authenticated,service_role;
+grant execute on function hag_private.subscription_confirm_scope(text) to service_role;

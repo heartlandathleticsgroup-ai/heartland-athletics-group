@@ -2,7 +2,7 @@ name: Unpublished subscription preview checks
 on:
   pull_request:
     branches: [main]
-    paths: ["previews/subscriptions/**", "tests/subscription-preview.test.mjs", ".github/workflows/subscription-preview-review.yml", "supabase/admin-setup/phase-3c3-*.sql"]
+    paths: ["previews/subscriptions/**", "tests/subscription-preview.test.mjs", "tests/subscription-gateway.test.mjs", ".github/workflows/subscription-preview-review.yml", "supabase/admin-setup/phase-3c3-*.sql"]
   push:
     branches: [admin/phase-3c3-subscription-preview]
 permissions:
@@ -24,9 +24,12 @@ jobs:
           node --check previews/subscriptions/consent.mjs
           node --check previews/subscriptions/preview.mjs
           node tests/subscription-preview.test.mjs
+          node --check previews/subscriptions/server/gateway.mjs
+          node --check previews/subscriptions/server/postgres-adapter.mjs
+          node tests/subscription-gateway.test.mjs
           node tests/admin-dashboard.test.mjs
           node tests/admin-communications.test.mjs
           node tests/admin-auth-state.test.mjs
           node tests/admin-passkey.test.mjs
           git diff --exit-code origin/main...HEAD -- admin/auth.js admin/auth-state.mjs admin/verified-passkey.mjs supabase/functions supabase/admin-setup/phase-3c2b-communications.sql
-          test "$(git diff --name-only origin/main...HEAD -- supabase)" = "$(printf '%s\n' supabase/admin-setup/phase-3c3-confirmation-draft.sql supabase/admin-setup/phase-3c3-confirmation-test.sql supabase/admin-setup/phase-3c3-pending-draft.sql)"
+          test "$(git diff --name-only origin/main...HEAD -- supabase)" = "$(printf '%s\n' supabase/admin-setup/phase-3c3-confirmation-draft.sql supabase/admin-setup/phase-3c3-confirmation-test.sql supabase/admin-setup/phase-3c3-gateway-draft.sql supabase/admin-setup/phase-3c3-gateway-test.sql supabase/admin-setup/phase-3c3-pending-draft.sql)"

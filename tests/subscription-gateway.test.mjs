@@ -46,8 +46,8 @@ assert.equal((await gateway(req({action:"edit",token:result.editToken,add:[],rem
 ingressAllowed=false;assert.equal((await gateway(req(sub))).status,429);ingressAllowed=true;src=null;assert.equal((await gateway(req(sub))).status,503);src="192.0.2.1";
 await generic(await gateway(req({...sub,requestId:randomUUID()},{headers:{"x-forwarded-for":"attacker"}})));assert.equal(calls.filter(c=>c[0]==="budget").at(-1)[1],src);
 const queries=[];const adapter=postgresAdapter(async(q,args)=>{queries.push([q,args]);return {rows:[{value:true}]};});
-await adapter.budget(src,"subscribe");await adapter.issue(randomUUID(),"subscribe",{channel:"email",destination:"fixture@example.invalid",name:"Fixture",adult:true,topics:["hag-announcements"],consentText:"canonical",consentVersion:CONSENT_VERSION,purpose:"confirm"});await adapter.inspect("x");await adapter.redeem("x","confirm");await adapter.edit({token:"x",add:[],remove:["hag-announcements"],adult:false,consent:false,version:CONSENT_VERSION});
-assert.equal(queries.length,5);assert.ok(queries.every(([q,args])=>q.includes("$1")&&Array.isArray(args)&&!q.includes("fixture@example.invalid")));
+await adapter.budget(src,"subscribe");await adapter.issueSms(randomUUID(),"subscribe",{channel:"sms",destination:"+12025550123",name:"Fixture",adult:true,topics:["hag-announcements"],consentText:"canonical",consentVersion:CONSENT_VERSION,purpose:"confirm"});await adapter.inspect("x");await adapter.redeem("x","confirm");await adapter.edit({token:"x",add:[],remove:["hag-announcements"],adult:false,consent:false,version:CONSENT_VERSION});
+assert.equal(queries.length,5);assert.equal(adapter.issue,undefined);assert.throws(()=>adapter.issueSms(randomUUID(),"subscribe",{channel:"email"}));assert.ok(queries.every(([q,args])=>q.includes("$1")&&Array.isArray(args)&&!q.includes("fixture@example.invalid")));
 console.log("Gateway tests passed: mock concurrent issuance/replay, validation, origin, bounds, generic responses, verified projection and fixed SQL.");
 
 let tick=0;const guard=createIngressGuard({clock:()=>tick});assert.equal(guard("not an IP"),false);

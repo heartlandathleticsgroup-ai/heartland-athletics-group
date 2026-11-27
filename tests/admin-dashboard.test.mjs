@@ -1,0 +1,32 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {MODULES,selectModule,attachDashboard} from "../admin/dashboard.mjs";
+const html=readFileSync(new URL("../admin/index.html",import.meta.url),"utf8");
+const js=readFileSync(new URL("../admin/dashboard.mjs",import.meta.url),"utf8");
+assert.equal(MODULES.length,8);
+assert.equal(new Set(MODULES).size,8);
+assert.match(html,/<div id="authorized-panel" hidden>/);
+assert.match(html,/auth\.js\?v=3c1d/);
+const dashboard=html.slice(html.indexOf('<div id="authorized-panel" hidden>'),html.indexOf('<button id="signout"'));
+const buttons=MODULES.map(id=>({dataset:{module:id},attrs:{},setAttribute(k,v){this.attrs[k]=v;},addEventListener(k,fn){this.click=fn;}}));
+const panels=MODULES.map(id=>({dataset:{modulePanel:id},hidden:id!=="overview"}));
+const root={hidden:true,querySelectorAll(s){return s==="[data-module]"?buttons:panels;}};
+assert.equal(selectModule(root,"events"),false);
+assert.equal(panels.filter(x=>!x.hidden).length,1);
+root.hidden=false;
+attachDashboard(root);
+for(const id of MODULES){
+ assert.match(dashboard,new RegExp('data-module="'+id+'"'));
+ assert.match(dashboard,new RegExp('id="module-'+id+'"'));
+ buttons.find(b=>b.dataset.module===id).click();
+ assert.equal(panels.filter(p=>!p.hidden).length,1);
+ assert.equal(panels.find(p=>!p.hidden).dataset.modulePanel,id);
+ assert.equal(buttons.filter(b=>b.attrs["aria-pressed"]==="true").length,1);
+}
+assert.equal(selectModule(root,"unknown"),false);
+root.hidden=true;
+assert.equal(selectModule(root,"overview"),false);
+assert.equal(root.hidden,true);
+assert.doesNotMatch(js,/\b(fetch|localStorage|sessionStorage|innerHTML|eval)\b|\.rpc\(|\.auth\./);
+for(const id of ["login-form","passkey-login","challenge-form","register-passkey","signout"])assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1);
+console.log("Dashboard navigation, markup gate, invalid selection, and no-data assertions passed.");

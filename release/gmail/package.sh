@@ -26,10 +26,10 @@ TOML
 cp "$root/release/gmail/consolidated-migration.sql" "$root/release/gmail/welcome-incremental.sql" "$root/release/gmail/sport-preferences-incremental.sql" "$root/release/gmail/operational-rollback.sql" "$out/"
 cp "$root/release/gmail/disabled-deployment-preflight.sql" "$root/release/gmail/PRIVATE-CONFIGURATION.md" "$root/release/gmail/private-runtime-setup.py" "$out/"
 mkdir -p "$out/public/preferences" "$out/public/admin" "$out/public/subscribe"
-cp "$root/release/gmail/public/preferences/"* "$out/public/preferences/"
+cp "$root/preferences/"* "$out/public/preferences/"
 cp "$root/release/gmail/runtime/consent.mjs" "$out/public/preferences/consent.mjs"
 cp "$root/subscribe/"*.mjs "$root/subscribe/index.html" "$out/public/subscribe/"
 cp "$root/admin/sport-admin.mjs" "$out/public/admin/"
-cp "$root/admin/index.html" "$root/admin/auth.js" "$root/admin/gmail-controls.mjs" "$out/public/admin/"
+cp "$root/admin/index.html" "$root/admin/auth.js" "$root/admin/gmail-controls.mjs" "$root/admin/gmail-connection.mjs" "$out/public/admin/"
 # This is an overlay, not a replacement for existing site files. Keep both release locks false.
 printf '%s\n' "$out"

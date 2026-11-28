@@ -1,0 +1,61 @@
+name: Gmail connection-only review
+on:
+  pull_request:
+    branches: [main]
+    paths: ["release/gmail/**", "admin/gmail-connection.mjs", "admin/auth.js", "admin/index.html", "tests/gmail-connection-only.test.mjs", "tests/gmail-browser-handoff.py", "tests/gmail-connection-edge.test.mjs", ".github/workflows/gmail-connection-only.yml"]
+permissions:
+  contents: read
+jobs:
+  connection-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Test exact commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet --no-tags https://github.com/heartlandathleticsgroup-ai/heartland-athletics-group.git "$RUNNER_TEMP/hag-connection"
+          cd "$RUNNER_TEMP/hag-connection"
+          git fetch origin "$GITHUB_SHA"
+          git checkout --detach "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git diff --exit-code origin/main...HEAD -- admin/auth-state.mjs admin/verified-passkey.mjs admin/cms.mjs admin/admin.css admin/communications.mjs admin/dashboard.mjs supabase/functions index.html gus-macker/index.html
+          node tests/gmail-connection-only.test.mjs
+          python3 tests/gmail-browser-handoff.py
+          node tests/admin-dashboard.test.mjs
+          node tests/admin-communications.test.mjs
+          node tests/admin-auth-state.test.mjs
+          node tests/admin-passkey.test.mjs
+          scratch="$(mktemp -d)"
+          export DENO_DIR="$scratch/cache"
+          curl --fail --silent --show-error --location --proto '=https' --max-time 90 https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-unknown-linux-gnu.zip -o "$scratch/deno.zip"
+          echo "e890975bc2549807bbcc0b584ffafda72cc7c93349dd99c80483dd784f6c4609  $scratch/deno.zip" | sha256sum -c -
+          unzip -q "$scratch/deno.zip" -d "$scratch"
+          sed 's|../release/gmail/connection-edge-entry.mjs|./connection-edge-entry.mjs|' tests/gmail-connection-edge.test.mjs > release/gmail/connection-edge-fixture.mjs
+          (cd release/gmail; "$scratch/deno" cache --frozen --config deno.json connection-edge-entry.mjs connection-edge-fixture.mjs; "$scratch/deno" check --frozen --config deno.json connection-edge-entry.mjs)
+          "$scratch/deno" run --no-prompt tests/gmail-connection-only.test.mjs
+          (cd release/gmail; "$scratch/deno" run --cached-only --frozen --config deno.json --no-prompt --allow-env=HAG_GMAIL_RUNTIME_STATE,HAG_GMAIL_OAUTH_ENABLED,HAG_GMAIL_SEND_ENABLED,HAG_PREFERENCES_ENABLED,HAG_SPORT_PREFERENCES_ENABLED,HAG_GMAIL_CONTROL_DATABASE_URL,HAG_DATABASE_CA_PEM,HAG_GMAIL_CLIENT_ID,HAG_GMAIL_CLIENT_SECRET,HAG_PRIVATE_POSTAL_FOOTER,HAG_PROJECT_PUBLISHABLE_KEY,HAG_GMAIL_VAULT_KEY,HAG_GMAIL_VAULT_KEY_VERSION connection-edge-fixture.mjs)
+  staged-hosted-readiness:
+    if: github.head_ref == 'admin/gmail-connection-only'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read only the staged function status and deny unauthorized operations
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://unrqbfngcgvqnytxbtgj.supabase.co/functions/v1'
+          probe() {
+            local expected="$1" label="$2" path="$3"
+            shift 3
+            local status
+            status="$(curl --silent --show-error --max-time 20 --proto '=https' -o /dev/null -w '%{http_code}' "$@" "$base/$path")"
+            printf '%s: %s (expected %s)\n' "$label" "$status" "$expected"
+            test "$status" = "$expected"
+          }
+          probe 204 'Hosted private control configuration parsed' hag-gmail-control/readiness
+          probe 503 'Connection still locked' hag-gmail-control/oauth/gmail/status -X POST -H 'Origin: https://heartlandathleticsgroup.com'
+          probe 503 'No OAuth launch' hag-gmail-control/oauth/gmail/prepare -X POST -H 'Origin: https://heartlandathleticsgroup.com'
+          probe 503 'Worker still hard locked' hag-gmail-worker
+          probe 503 'Subscriptions still hard locked' hag-subscriptions
+          echo 'PASS: hosted control config shape verified; no credentials read out, OAuth, delivery and signup remain locked'

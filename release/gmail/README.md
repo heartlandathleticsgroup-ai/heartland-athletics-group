@@ -42,3 +42,6 @@ See `PRIVATE-CONFIGURATION.md` and `disabled-deployment-preflight.sql`. This rev
 
 ### Private runtime provisioning
 The owner-local `private-runtime-setup.py` utility is staged, with no hosted execution from CI. It performs an explicit project-targeted, first-time secret setup and temporary narrow TLS role tests, restoring NOLOGIN. See PRIVATE-CONFIGURATION.md. Do not use on an already-provisioned project. The deployed hard lock remains unchanged.
+
+## Production reconciliation — November 27, 2026
+The live connection-only implementation (PRs #33, #35, #36) is authoritative. Do not deploy the older aggregate edge-entry to hag-gmail-control, replace the live Gmail module with gmail-controls.mjs, reapply the historical schema, or reset credentials. The aggregate package is isolated review material only. OAuth successfully stored an encrypted send-only grant at generation 1 after correcting the Google client secret. All delivery and gateway roles remain NOLOGIN; no live messages or public signup approved. Preserve strict-origin browser form handoff and no-referrer API requests. Future dispatch and preferences must be independently gated and deployed without replacing control. The previous draft-only administration Gmail module remains a fixture for existing isolated tests, not a live attachment.

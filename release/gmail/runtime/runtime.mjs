@@ -87,7 +87,7 @@ export function createReleaseRuntime({config,postgres,fetcher,now=Date.now}){
  const sportScalar=async(q,args)=>{const r=await gatewayExec.execute(q,args);if(r?.rows?.length!==1)throw Error("Sport preference unavailable");return r.rows[0].value;};
  const sportDb={
   sportCatalog:()=>sportScalar("select hag_private.sport_public_catalog() as value",[]),
-  sportSignup:(id,name,v)=>sportScalar("select hag_private.sport_email_signup($1::uuid,$2,$3,$4,$5::text[],$6::text[],$7,$8,$9,$10) as value",[id,name,true,v.destination,v.sports,v.updates,true,"draft-sports-v2",config.outbox.key,config.outbox.version]),
+  sportSignup:(id,name,v)=>sportScalar("select hag_private.sport_email_signup($1::uuid,$2,$3,$4,$5::text[],$6::text[],$7,$8,$9,$10) as value",[id,name,true,v.destination,v.sports,v.updates,true,"hag-sports-v1",config.outbox.key,config.outbox.version]),
   sportManage:t=>sportScalar("select hag_private.sport_manage($1) as value",[t]),
   sportEdit:x=>sportScalar("select hag_private.sport_edit($1,$2::text[],$3::text[],$4,$5,$6) as value",[x.token,x.sports,x.updates,x.adult,x.consent,x.version])
  };

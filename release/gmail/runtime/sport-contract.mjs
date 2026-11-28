@@ -1,5 +1,5 @@
 // Review-only sport-aware contract. No transport or provider calls.
-export const VERSION="draft-sports-v2";
+export const VERSION="hag-sports-v1";
 export const ALL="all-sports";
 export const SPORTS=Object.freeze([["basketball","Basketball"],["volleyball","Volleyball"],["baseball","Baseball"],["softball","Softball"],["football","Football"],["soccer","Soccer"]].map(Object.freeze));
 export const UPDATES=Object.freeze([["general","General H.A.G. announcements","general"],["enforcers","Heartland Enforcers Basketball Club","basketball"],["gus-macker","Gus Macker – Quincy","basketball"],["tryouts-registration","Tryouts and registrations","sport"],["camps-clinics","Camps and clinics","sport"],["tournaments-events","Tournaments and events","sport"],["recreational-leagues","Youth recreational leagues","sport"],["sponsorship","Sponsorship opportunities","either"],["volunteer","Volunteer opportunities","either"]].map(Object.freeze));

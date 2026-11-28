@@ -1,5 +1,7 @@
-import {TOPICS,CONSENT_VERSION,normalizeDestination} from "./consent.mjs";
+import {TOPICS,CONSENT_VERSION,normalizeDestination,CONSENT} from "./consent.mjs";
+import {UPDATES,VERSION,SPORT_CONSENT_SUFFIX,validSelection} from "../subscribe/sport-contract.mjs";
 export const PREFERENCE_RELEASE_ENABLED=false;
+export const SPORT_PREFERENCE_RELEASE_ENABLED=false;
 export const ENDPOINT="https://unrqbfngcgvqnytxbtgj.supabase.co/functions/v1/hag-subscriptions";
 const token=x=>typeof x==="string"&&/^[a-f0-9]{64}$/.test(x);
 export function parseFragment(fragment){
@@ -7,7 +9,7 @@ export function parseFragment(fragment){
  return m?{purpose:m[1],token:m[2]}:null;
 }
 export function createPreferenceClient({mode,request}){
- if(typeof request!=="function"||!(mode==="isolated"&&request!==globalThis.fetch||mode==="release"&&PREFERENCE_RELEASE_ENABLED))throw Error("Preferences not released");
+ if(typeof request!=="function"||!(mode==="isolated"&&request!==globalThis.fetch||mode==="release"&&PREFERENCE_RELEASE_ENABLED&&SPORT_PREFERENCE_RELEASE_ENABLED))throw Error("Preferences not released");
  return async payload=>{
   const target=ENDPOINT+(payload.action==="unsubscribe"?"/unsubscribe":"");
   const r=await request(target,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload),cache:"no-store",credentials:"omit",redirect:"error",referrerPolicy:"no-referrer"});
@@ -45,9 +47,44 @@ export function attachPreferences(doc,{call,link,randomId=()=>crypto.randomUUID(
   say(r?.ok===true?"Preferences saved.":"Unable to save. Request a new secure link.",r?.ok!==true);
  }));
 }
+export async function attachSportPreferences(doc,{call,link,randomId=()=>crypto.randomUUID()}){
+ const $=id=>doc.getElementById(id),say=(v,error=false)=>{$(error?"error":"status").textContent=v;};
+ let busy=false,editToken=null,base=null,sp=[],up=[];
+ const run=async fn=>{if(busy)return;busy=true;$("error").textContent="";for(const b of doc.querySelectorAll("button"))b.disabled=true;try{await fn();}catch{say("Unable to complete this request. Try again or contact H.A.G.",true);}finally{busy=false;for(const b of doc.querySelectorAll("button"))b.disabled=false;}};
+ $("request").hidden=false;say("Request a secure email link or use a link you received.");
+ const access=purpose=>run(async()=>{const destination=normalizeDestination("email",$("email").value);await call({action:"access",requestId:randomId(),purpose,form:{channel:"email",destination}});$("email").value="";say("If eligible, a secure link can be sent to that email address.");});
+ $("manage-link").addEventListener("click",()=>void access("manage"));$("unsubscribe-link").addEventListener("click",()=>void access("unsubscribe"));
+ if(!link)return;
+ $("redeem").hidden=false;$("redeem-heading").textContent=link.purpose==="unsubscribe"?"Stop marketing email":"Review email preferences";$("redeem-detail").textContent=link.purpose==="unsubscribe"?"Stop all H.A.G. marketing email. Your SMS choices are not affected.":"Continue to securely view your interests.";$("redeem-button").textContent=link.purpose==="unsubscribe"?"Unsubscribe":"Continue";
+ const selected=a=>a.filter(x=>x.checked).map(x=>x.value);
+ const expansion=()=>base&&(base.status==="withdrawn"&&selected(up).length>0||selected(sp).some(x=>!base.sports.includes(x))||selected(up).some(x=>!base.updates.includes(x)));
+ const consent=()=>{$("new-consent").hidden=!expansion();$("adult").checked=false;$("consent").checked=false;};
+ function options(root,items,values){root.replaceChildren();return items.map(([code,label])=>{const l=doc.createElement("label"),x=doc.createElement("input");x.type="checkbox";x.value=code;x.checked=values.includes(code);x.addEventListener("change",consent);l.append(x," "+label);root.append(l);return x;});}
+ $("redeem-button").addEventListener("click",()=>void run(async()=>{
+ if(!link)return;const purpose=link.purpose,t=link.token;link=null;
+ const r=await call({action:purpose==="manage"?"sport-manage":"unsubscribe",token:t});$("redeem").hidden=true;
+ if(r?.ok!==true){say("Link invalid or expired. Request a new link.",true);return;}
+ if(purpose==="unsubscribe"){say("Unsubscribe completed.");return;}
+ if(!["email","sms"].includes(r.channel)||!token(r.editToken)||!Array.isArray(r.sports)||!Array.isArray(r.updates)||!["active","pending","withdrawn"].includes(r.status)||typeof r.suppressed!=="boolean")throw Error("Invalid preferences");
+ const catalog=(await call({action:"sport-catalog"})).catalog;if(!Array.isArray(catalog)||catalog.length>40)throw Error("Invalid catalog");
+ base=r;editToken=r.editToken;
+ const active=catalog.map(v=>[v.code,v.label]);const inactive=r.sports.filter(v=>v!=="all-sports"&&!active.some(a=>a[0]===v)).map(v=>[v,v+" (retired — remove to save)"]);
+ sp=options($("sports"),[...active,...inactive,["all-sports","All current and future sports"]],r.sports);up=options($("topics"),UPDATES,r.updates);
+ const all=sp.at(-1);for(const x of sp)x.addEventListener("change",()=>{if(x.checked){if(x===all){for(const s of sp)if(s!==all)s.checked=false;}else all.checked=false;}consent();});
+ $("consent-wording").textContent=CONSENT[r.channel]+SPORT_CONSENT_SUFFIX;
+ $("suppressed").textContent=r.suppressed?"This contact method is suppressed. Additions are not allowed.":r.channel==="sms"?"Text additions require renewed confirmation; currently unavailable.":"Change your sports and update types.";
+ $("edit").hidden=false;consent();$("edit-heading").focus();say("Preferences verified.");
+ }));
+ $("save").addEventListener("click",()=>void run(async()=>{
+ if(!editToken||!base)return;const sports=selected(sp),updates=selected(up);
+ if(updates.length&&!validSelection(sports,updates,sp.filter(x=>x.value!=="all-sports").map(x=>x.value))||!updates.length&&sports.length){say("Choose valid interests or clear both groups.",true);return;}
+ if(expansion()&&(base.suppressed||base.channel==="sms"||!$("adult").checked||!$("consent").checked)){say("Additions require eligible channel consent.",true);return;}
+ const t=editToken;editToken=null;const r=await call({action:"sport-edit",token:t,sports,updates,adult:$("adult").checked,consent:$("consent").checked,version:VERSION});
+ $("edit").hidden=true;$("sports").replaceChildren();$("topics").replaceChildren();base=null;sp=[];up=[];say(r?.ok===true?"Preferences saved.":"Unable to save. Request a new secure link.",r?.ok!==true);
+ }));
+}
 if(typeof document!=="undefined"){
  const link=parseFragment(location.hash);
- // Strip capability from the address bar before any API call or user interaction.
  if(location.hash)history.replaceState(null,"",location.pathname+location.search);
- if(PREFERENCE_RELEASE_ENABLED){const call=createPreferenceClient({mode:"release",request:globalThis.fetch.bind(globalThis)});attachPreferences(document,{call,link});}
+ if(PREFERENCE_RELEASE_ENABLED&&SPORT_PREFERENCE_RELEASE_ENABLED){const call=createPreferenceClient({mode:"release",request:globalThis.fetch.bind(globalThis)});void attachSportPreferences(document,{call,link});}
 }

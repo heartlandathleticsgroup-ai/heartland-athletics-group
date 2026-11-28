@@ -70,7 +70,7 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource,at
       if(!sportMode||!exact(x,["action","requestId","version","form"])||!id(x.requestId)||x.version!==SPORT_VERSION||!exact(x.form,["name","adult","email","sms"]))throw Error();
       for(const ch of ["email","sms"])if(!exact(x.form[ch],["enabled","destination","sports","updates","consent"]))throw Error();
       if(x.form.sms.enabled)throw Error();
-      {const catalog=await db.sportCatalog();data=selectionPayload(x.form,catalog.map(v=>v.code));sportItems=data.email;if(!validEmail(sportItems.destination))throw Error();}break;
+      {sportItems=x.form.email;}break;
      case "sport-manage":
       if(!sportMode||!exact(x,["action","token"])||!token(x.token))throw Error();break;
      case "sport-edit":
@@ -82,8 +82,10 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource,at
       if(!exact(x,["action","requestId","purpose","form"])||!id(x.requestId)||!["manage","unsubscribe"].includes(x.purpose))throw Error();
       items=[{...validatePreferenceAccess(x.form),purpose:x.purpose}];break;
      case "inspect":case "confirm":case "manage":case "unsubscribe":
+      if(sportMode&&x.action!=="unsubscribe")throw Error();
       if(!exact(x,["action","token"])||!token(x.token))throw Error();break;
      case "edit":
+      if(sportMode)throw Error();
       if(!exact(x,["action","token","add","remove","adult","consent","version"])||!token(x.token)||!topics(x.add)||!topics(x.remove)||x.add.some(t=>x.remove.includes(t))||!x.add.length&&!x.remove.length||typeof x.adult!=="boolean"||typeof x.consent!=="boolean"||typeof x.version!=="string"||x.version.length>64||(x.add.length&&(x.version!==CONSENT_VERSION||!x.adult||!x.consent)))throw Error();break;
      default:throw Error();
     }
@@ -95,7 +97,7 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource,at
    try{
     if(!await db.budget(src,({"sport-subscribe":"subscribe","sport-manage":"manage","sport-edit":"edit","sport-catalog":"access"})[x.action]||x.action))return issuing?generic():response(429,{message:"Try again later."},true);
     if(x.action==="sport-catalog")return response(200,{catalog:await db.sportCatalog()},true);
-    if(x.action==="sport-subscribe"){await db.sportSignup(x.requestId,data.name,sportItems);return generic();}
+    if(x.action==="sport-subscribe"){try{const catalog=await db.sportCatalog();data=selectionPayload(x.form,catalog.map(v=>v.code));if(!validEmail(data.email.destination))return bad();}catch{return bad();}await db.sportSignup(x.requestId,data.name,data.email);return generic();}
     if(x.action==="sport-manage"){const v=await db.sportManage(x.token);return response(200,v&&token(v.editToken)?{ok:true,...v}:{ok:false},true);}
     if(x.action==="sport-edit")return response(200,{ok:await db.sportEdit(x)===true},true);
     if(issuing){

@@ -17,7 +17,9 @@ begin
  if (select count(*) from hag_private.sport_audience('basketball','camps-clinics','email'))<>2 or (select count(*) from hag_private.sport_audience('volleyball','camps-clinics','email'))<>1 or (select count(*) from hag_private.sport_audience(null,'general','email'))<>1 then raise exception 'audience scope';end if;
  insert into hag_private.sport_catalog(code,label) values('tennis','Tennis');
  if (select count(*) from hag_private.sport_audience('tennis','camps-clinics','email'))<>1 then raise exception 'new sports consent';end if;
- if hag_private.sport_reserve_review(campaign,'basketball','camps-clinics','email')<>2 or hag_private.sport_reserve_review(campaign,'basketball','camps-clinics','email')<>2 or (select count(*) from hag_private.sport_campaign_recipients where campaign_id=campaign)<>2 then raise exception 'duplicate reservation';end if;
+ if hag_private.sport_reserve_review(campaign,'basketball','camps-clinics','email')<>2 then raise exception 'first reservation';end if;
+ if hag_private.sport_reserve_review(campaign,'basketball','camps-clinics','email')<>2 then raise exception 'repeat reservation';end if;
+ if (select count(*) from hag_private.sport_campaign_recipients where campaign_id=campaign)<>2 then raise exception 'duplicate reservation';end if;
  raw:=hag_private.subscription_new_token(a,'manage');j:=hag_private.sport_manage(raw);
  if j->>'channel'<>'email' or hag_private.sport_manage(raw) is not null then raise exception 'manage token replay';end if;
  raw:=j->>'editToken';

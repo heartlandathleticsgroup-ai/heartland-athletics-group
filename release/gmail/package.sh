@@ -27,7 +27,7 @@ cp "$root/release/gmail/consolidated-migration.sql" "$root/release/gmail/welcome
 mkdir -p "$out/public/preferences" "$out/public/admin" "$out/public/subscribe"
 cp "$root/release/gmail/public/preferences/"* "$out/public/preferences/"
 cp "$root/release/gmail/runtime/consent.mjs" "$out/public/preferences/consent.mjs"
-cp "$root/subscribe/sport-contract.mjs" "$out/public/subscribe/"
+cp "$root/subscribe/"*.mjs "$root/subscribe/index.html" "$out/public/subscribe/"
 cp "$root/admin/sport-admin.mjs" "$out/public/admin/"
 cp "$root/admin/index.html" "$root/admin/auth.js" "$root/admin/gmail-controls.mjs" "$out/public/admin/"
 # This is an overlay, not a replacement for existing site files. Keep both release locks false.

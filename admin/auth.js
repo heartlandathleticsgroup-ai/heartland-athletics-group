@@ -47,8 +47,10 @@ async function assess(){
  if(panel==="challenge"){
    $("factor").replaceChildren(...factors.map(f=>{const o=document.createElement("option");o.value=f.id;o.textContent=f.friendly_name||"Authenticator";return o;}));
  }
+ const entering=panel==='authorized'&&currentPanel!==panel;
  show(panel);
  if(panel==="authorized"){
+   if(entering)void cms?.refresh();
    const assurance=data(await client.auth.mfa.getAuthenticatorAssuranceLevel());
    $("register-passkey").hidden=!passkeyAvailable()||assurance.currentLevel!=="aal2";
  }

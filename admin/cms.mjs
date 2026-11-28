@@ -15,7 +15,7 @@ export function attachCMS(root,rpc,allowed){
   for(const [k,p] of Object.entries(panels)){
    p.list.replaceChildren();
    for(const r of rows.filter(x=>x.kind===k)){
-    const card=make('article');card.className='cms-record';card.append(make('strong',r.draft.title),make('p',stateOf(r)));
+    const card=make('article');card.className='cms-record';card.append(make('strong',r.draft.title),make('p',stateOf(r)));if(r.draft.body)card.append(make('p',r.draft.body));if(r.kind==='event')card.append(make('p',[r.draft.date,r.draft.location].filter(Boolean).join(' · ')));
     const buttons=make('div');buttons.className='cms-actions';
     buttons.append(action('Edit draft',()=>edit(k,r)),action('Publish saved draft',()=>{if(p.dirty&&p.current?.id===r.id){p.message.textContent='Save or discard your edits before publishing.';return}if(globalThis.confirm('Publish this saved draft to the H.A.G. website?'))void change(k,'publish',r,null)}));
     if(r.published_revision!=null)buttons.append(action('Unpublish',()=>{if(globalThis.confirm('Remove this item from the CMS public feed?'))void change(k,'unpublish',r,null)}));
@@ -27,7 +27,7 @@ export function attachCMS(root,rpc,allowed){
   const d=root.querySelector('[data-cms-drafts]');if(d)d.textContent=loaded?String(rows.filter(x=>x.published_revision!==x.revision).length):'—';
  }
  function edit(k,r=null,force=false){
-  if(!enabled()&&!force)return;
+  if((!enabled()||busy)&&!force)return;
   const p=panels[k];if(p.dirty&&!force&&!globalThis.confirm('Discard unsaved edits?'))return;
   p.current=r;p.dirty=false;p.form.reset();p.heading.textContent=r?'Edit draft':'New '+k;
   for(const [name,input] of Object.entries(p.inputs)){if(input.type==='checkbox')input.checked=!!r?.draft[name];else input.value=r?.draft[name]||'';}
@@ -35,8 +35,9 @@ export function attachCMS(root,rpc,allowed){
  }
  async function perform(fn){
   if(!enabled()||busy)return;busy=true;const epoch=generation;
-  try{await fn(()=>epoch===generation&&enabled());}catch{if(epoch===generation&&enabled())notify('CMS request failed. Check your session or refresh. No success has been assumed.');}
-  finally{if(epoch===generation)busy=false;}
+  for(const p of Object.values(panels))for(const input of Object.values(p.inputs))input.disabled=true;
+  try{await fn(()=>epoch===generation&&enabled());}catch{if(epoch===generation&&enabled()){notify('CMS request failed. Check your session, field values or sponsor permission and refresh. No success has been assumed.');for(const p of Object.values(panels))if(p.message.textContent==='Working…')p.message.textContent='Request failed. Review status above.';}}
+  finally{if(epoch===generation){busy=false;for(const p of Object.values(panels))for(const input of Object.values(p.inputs))input.disabled=false;}}
  }
  async function refresh(){await perform(async valid=>{notify('Loading content…');const value=await rpc('hag_cms_list',{});if(!valid())return;if(!Array.isArray(value))throw Error('Invalid response');rows=value;loaded=true;render();notify('Content loaded.');});}
  async function change(k,a,r,d){await perform(async valid=>{const p=panels[k];p.message.textContent='Working…';const value=await rpc('hag_cms_change',{p_action:a,p_kind:k,p_id:r?.id||null,p_revision:r?.revision||0,p_draft:d});if(!valid())return;if(!value?.id||value.kind!==k)throw Error('Invalid response');rows=[value,...rows.filter(x=>x.id!==value.id)];loaded=true;if(a==='save')edit(k,value,true);else if(p.current?.id===value.id&&!p.dirty)edit(k,value,true);render();p.message.textContent=a==='save'?'Draft saved. Not published.':a==='publish'?'Published to CMS feed.':'Unpublished.';notify('Content updated.');});}
@@ -55,7 +56,8 @@ export function attachCMS(root,rpc,allowed){
   const buttons=make('div');buttons.className='cms-actions';buttons.append(action('Refresh content',()=>void refresh()),action('New '+k,()=>edit(k)));
   host.append(buttons,heading,form,message,make('h4','Saved entries'),list);
  }
+ root.querySelectorAll('[data-cms-open]').forEach(b=>b.addEventListener('click',()=>{if(enabled())root.querySelector('[data-module="'+b.dataset.cmsOpen+'"]')?.click()}));
  root.querySelectorAll('[data-cms-refresh]').forEach(b=>b.addEventListener('click',()=>void refresh()));
- function clear(){generation++;busy=false;rows=[];loaded=false;for(const p of Object.values(panels)){p.current=null;p.dirty=false;p.form.reset();p.heading.textContent='New entry';p.message.textContent='';}render();notify('Content not loaded.');}
+ function clear(){generation++;busy=false;rows=[];loaded=false;for(const p of Object.values(panels)){p.current=null;p.dirty=false;p.form.reset();for(const input of Object.values(p.inputs))input.disabled=false;p.heading.textContent='New entry';p.message.textContent='';}render();notify('Content not loaded.');}
  return {clear,refresh};
 }

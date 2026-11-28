@@ -9,6 +9,7 @@ create table hag_private.hag_cms_items (
  updated_by uuid not null
 );
 alter table hag_private.hag_cms_items enable row level security;
+alter table hag_private.hag_cms_items force row level security;
 revoke all on hag_private.hag_cms_items from public,anon,authenticated,service_role;
 create index hag_cms_items_kind_idx on hag_private.hag_cms_items(kind,updated_at desc);
 -- Public snapshot contains only reviewed public fields. No user IDs, drafts or financial records.
@@ -20,6 +21,7 @@ create table public.hag_cms_publications (
  published_at timestamptz not null default now()
 );
 alter table public.hag_cms_publications enable row level security;
+alter table public.hag_cms_publications force row level security;
 revoke all on public.hag_cms_publications from public,anon,authenticated,service_role;
 grant select on public.hag_cms_publications to anon,authenticated;
 create policy hag_cms_public_read on public.hag_cms_publications for select to anon,authenticated using (true);
@@ -33,6 +35,7 @@ create table hag_private.hag_cms_audit (
  occurred_at timestamptz not null default now()
 );
 alter table hag_private.hag_cms_audit enable row level security;
+alter table hag_private.hag_cms_audit force row level security;
 revoke all on hag_private.hag_cms_audit from public,anon,authenticated,service_role;
 create index hag_cms_audit_item_idx on hag_private.hag_cms_audit(item_id,occurred_at desc);
 create function hag_private.hag_cms_guard() returns void language plpgsql stable set search_path='' as $$
@@ -82,9 +85,11 @@ begin
   elsif a='publish' then
    validated:=hag_private.hag_cms_validate(k,rec.draft);
    if k='sponsor' and not (validated->>'permission')::boolean then raise exception 'Sponsor permission required'; end if;
+   update hag_private.hag_cms_items set revision=revision+1,updated_at=now(),updated_by=auth.uid() where id=item returning * into rec;
    insert into public.hag_cms_publications(id,kind,content,published_revision) values(rec.id,k,validated-'permission',rec.revision)
    on conflict(id) do update set content=excluded.content,published_revision=excluded.published_revision,published_at=now();
   else
+   update hag_private.hag_cms_items set revision=revision+1,updated_at=now(),updated_by=auth.uid() where id=item returning * into rec;
    delete from public.hag_cms_publications where id=item;
   end if;
  end if;

@@ -36,12 +36,13 @@ class SetupError(Exception): pass
 def fail(message):
     raise SetupError(message)
 
-def private_input(prompt):
+def private_input(prompt, trim=True):
     if not sys.stdin.isatty() or not sys.stderr.isatty():
         fail("Run this tool in your own interactive Terminal.")
     with warnings.catch_warnings():
         warnings.simplefilter("error", getpass.GetPassWarning)
-        return getpass.getpass(prompt).strip()
+        value = getpass.getpass(prompt)
+        return value.strip() if trim else value
 
 def scram(password, salt=None):
     # A verifier, not a plaintext password, is submitted to PostgreSQL.
@@ -170,6 +171,8 @@ def configure(host,ca,pem,publishable,footer,owner_password):
             # Always restore NOLOGIN. On failure, expiration remains in force.
             try:
                 owner("alter role "+login+" nologin;")
+                # NOLOGIN alone does not close an already pooled database session.
+                owner("select pg_terminate_backend(pid) from pg_stat_activity where usename='"+login+"' and pid<>pg_backend_pid();")
             except SetupError:
                 fail("STOP: role shutoff could not be confirmed. Do not rerun; use the documented NOLOGIN recovery query.")
         if not disabled(owner):
@@ -205,7 +208,43 @@ def self_test():
     assert all(len(values[k])==64 for k in ("HAG_GMAIL_VAULT_KEY","HAG_EMAIL_OUTBOX_KEY","HAG_GMAIL_WORKER_KEY"))
     assert all(values[r[2]].startswith("postgresql://"+r[0]+"."+REF+":") for r in ROLES)
     assert all(values[r[2]].endswith("@"+host+":6543/postgres") for r in ROLES)
-    print("PASS: offline private setup validation, unique random keys, narrow URLs and SCRAM verifier")
+    # Simulated first-time setup exercises the actual orchestration, not only helpers.
+    import contextlib
+    import io
+    from unittest.mock import patch
+    import types
+    module = sys.modules[__name__]
+    for reject in (False,True):
+        state = {"active":set(), "names":set(INITIAL), "uploaded":False, "tests":[]}
+        def fake_psql(h,port,user,password,certificate,query):
+            assert h==host
+            if user=="postgres":
+                assert port==5432
+                if query==PREFLIGHT: return "PASS"
+                if query.startswith("select count(*) from pg_roles"): return str(len(state["active"]))
+                for login,role,env in ROLES:
+                    if ("alter role "+login+" login password ") in query:
+                        assert not state["active"] and "SCRAM-SHA-256$" in query and "valid until" in query
+                        state["active"].add(login)
+                    if ("alter role "+login+" nologin") in query: state["active"].discard(login)
+                return ""
+            assert port==6543 and state["active"]=={user} and "begin read only;" in query
+            assert len(password)==64 and password not in query
+            state["tests"].append(user)
+            return "FAIL" if reject else "PASS"
+        def fake_upload(bundle):
+            assert not state["active"] and set(bundle)==NEW
+            state["names"].update(bundle)
+            state["uploaded"]=True
+        with patch.object(module,"psql",fake_psql),patch.object(module,"secret_names",lambda:set(state["names"])),patch.object(module,"upload",fake_upload),contextlib.redirect_stdout(io.StringIO()) as output:
+            try: configure(host,Path("fixture.crt"),ca,"sb_publishable_fixture","Fictional fixture postal address","fixture-owner")
+            except SetupError:
+                assert reject
+            else: assert not reject
+            assert "fixture-owner" not in output.getvalue() and "postgresql://" not in output.getvalue()
+        assert not state["active"] and state["uploaded"] is not reject
+        assert len(state["tests"])==(1 if reject else 3)
+    print("PASS: offline private setup, unique keys, narrow URLs, SCRAM, temporary login cleanup and no upload on TLS failure")
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
@@ -224,7 +263,7 @@ def main():
     publishable=private_input("Existing project publishable key (hidden): ")
     footer=private_input("Approved business mailing address, one line (hidden): ")
     validate_inputs(host,pem,publishable,footer)
-    owner_password=private_input("Existing Supabase database password (hidden; not reset): ")
+    owner_password=private_input("Existing Supabase database password (hidden; not reset): ",trim=False)
     if not owner_password: fail("Database password required.")
     configure(host,path,pem,publishable,footer,owner_password)
 

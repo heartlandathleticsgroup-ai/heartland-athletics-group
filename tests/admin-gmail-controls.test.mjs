@@ -11,7 +11,8 @@ const sportExpected=refreshed.replace('import {attachCMS}','import {attachSportA
 assert.equal(read("admin/auth.js"),sportExpected,"existing auth may only acquire locked Gmail and sports attachments and clear hooks");
 assert.match(read("admin/sport-admin.mjs"),/SPORT_ADMIN_RELEASE_ENABLED=false/);
 const html=read("admin/index.html");
-assert.match(html,/form-action 'none';/);
+assert.equal(html.match(/form-action [^;]+;/)?.[0],"form-action https://unrqbfngcgvqnytxbtgj.supabase.co/functions/v1/hag-gmail-control/oauth/gmail/launch https://accounts.google.com/o/oauth2/v2/auth;");
+assert.match(html,/base-uri 'none';/);assert.match(html,/object-src 'none'/);
 assert.match(html,/<div id="authorized-panel" hidden>/);
 assert.match(html,/data-gmail-action="disable" disabled/);
 assert.match(html,/data-gmail-action="disconnect" disabled/);

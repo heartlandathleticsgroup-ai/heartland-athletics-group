@@ -37,9 +37,9 @@ export function createHostedRouteAdapter({mode,handle,clientId,oauthEnabled=fals
    if(route==="prepare"&&response.status===200){const v=await response.json();if(typeof v.grant!=="string"||!/^[A-Za-z0-9_-]{43}$/.test(v.grant))return reject(502,true);return new Response(JSON.stringify({grant:v.grant,launchUrl:CONTROL_BASE+"/oauth/gmail/launch"}),{status:200,headers});}
    if(route==="launch"&&response.status===200){
     const v=await response.json(),p=v.parameters;
-    if(!p||p.redirect_uri!==CALLBACK_URI||p.client_id!==clientId||p.scope!=="https://www.googleapis.com/auth/gmail.send"||p.response_type!=="code"||p.code_challenge_method!=="S256"||!/^[A-Za-z0-9_-]{43}$/.test(p.state||"")||!/^[A-Za-z0-9_-]{43}$/.test(p.code_challenge||""))return reject(502);
-    // Real launch response would redirect to Google, but this acceptance
-    // harness deliberately returns inert parameters and never starts OAuth.
+    if(!p||Object.keys(p).sort().join(",")!=="access_type,client_id,code_challenge,code_challenge_method,include_granted_scopes,login_hint,prompt,redirect_uri,response_type,scope,state"||p.access_type!=="offline"||p.prompt!=="consent"||p.include_granted_scopes!=="false"||p.login_hint!=="jhawkins@heartlandathleticsgroup.com"||p.redirect_uri!==CALLBACK_URI||p.client_id!==clientId||p.scope!=="https://www.googleapis.com/auth/gmail.send"||p.response_type!=="code"||p.code_challenge_method!=="S256"||!/^[A-Za-z0-9_-]{43}$/.test(p.state||"")||!/^[A-Za-z0-9_-]{43}$/.test(p.code_challenge||""))return reject(502);
+    // Only the separately gated connection-only release can redirect to Google.
+    // CI uses isolated transport and does not follow this redirect.
     const auth=new URL("https://accounts.google.com/o/oauth2/v2/auth");for(const k of ["client_id","redirect_uri","response_type","scope","access_type","prompt","include_granted_scopes","login_hint","state","code_challenge","code_challenge_method"])auth.searchParams.set(k,p[k]);headers.set("Location",auth.href);headers.delete("Content-Type");return new Response(null,{status:303,headers});
    }
    if(route==="callback"){

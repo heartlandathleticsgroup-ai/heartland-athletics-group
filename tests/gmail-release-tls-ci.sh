@@ -31,3 +31,25 @@ grant execute on function hag_private.release_tls_fixture(text[]) to hag_subscri
 SQL
 HAG_TEST_PORT="$port" HAG_TEST_CA="$dir/ca.crt" HAG_TEST_WRONG_CA="$dir/wrong.crt" \
  "$deno" run --cached-only --frozen --config release/gmail/deno.json --allow-env --allow-read="$dir/ca.crt,$dir/wrong.crt" --allow-net="127.0.0.1:$port" tests/gmail-release-tls.test.mjs
+
+# Validate the local provisioning helper's precomputed SCRAM verifier against actual PostgreSQL,
+# using fixture-only credentials and verified TLS (no hosted or real secrets).
+python3 - "$dir" "$port" <<'PY'
+import importlib.util, os, pathlib, subprocess, sys
+root,port=sys.argv[1:]
+spec=importlib.util.spec_from_file_location("private_setup","release/gmail/private-runtime-setup.py")
+m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+pwd="isolated-fixture-password"
+verifier=m.scram(pwd,b"0123456789abcdef")
+subprocess.run(["psql","-X","-q","-v","ON_ERROR_STOP=1","-h",root,"-p",port,"-d","postgres"],input="alter role hag_subscription_gateway_login password '"+verifier+"';",text=True,check=True,capture_output=True)
+path=pathlib.Path(root)/"data"/"pg_hba.conf"
+path.write_text("local all all trust\nhostssl all all 127.0.0.1/32 scram-sha-256\n")
+subprocess.run(["pg_ctl","-D",str(path.parent),"reload"],check=True,capture_output=True)
+env=dict(os.environ,PGHOSTADDR="127.0.0.1",PGSSLMODE="verify-full",PGSSLROOTCERT=str(pathlib.Path(root)/"ca.crt"),PGPASSWORD=pwd,PGCONNECT_TIMEOUT="5")
+args=["psql","-X","-w","-qAt","-v","ON_ERROR_STOP=1","-h","aws-0-us-east-2.pooler.supabase.com","-p",port,"-U","hag_subscription_gateway_login","-d","postgres","-c","select current_user;"]
+res=subprocess.run(args,env=env,text=True,capture_output=True,check=True)
+assert res.stdout.strip()=="hag_subscription_gateway_login"
+env["PGPASSWORD"]="wrong-fixture-password"
+assert subprocess.run(args,env=env,text=True,capture_output=True).returncode!=0
+print("PASS: generated SCRAM verifier authenticates only correct fixture password over verified TLS")
+PY

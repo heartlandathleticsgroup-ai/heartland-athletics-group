@@ -34,3 +34,27 @@ jobs:
           (cd release/gmail; "$scratch/deno" cache --frozen --config deno.json connection-edge-entry.mjs connection-edge-fixture.mjs; "$scratch/deno" check --frozen --config deno.json connection-edge-entry.mjs)
           "$scratch/deno" run --no-prompt tests/gmail-connection-only.test.mjs
           (cd release/gmail; "$scratch/deno" run --cached-only --frozen --config deno.json --no-prompt --allow-env=HAG_GMAIL_RUNTIME_STATE,HAG_GMAIL_OAUTH_ENABLED,HAG_GMAIL_SEND_ENABLED,HAG_PREFERENCES_ENABLED,HAG_SPORT_PREFERENCES_ENABLED,HAG_GMAIL_CONTROL_DATABASE_URL,HAG_DATABASE_CA_PEM,HAG_GMAIL_CLIENT_ID,HAG_GMAIL_CLIENT_SECRET,HAG_PRIVATE_POSTAL_FOOTER,HAG_PROJECT_PUBLISHABLE_KEY,HAG_GMAIL_VAULT_KEY,HAG_GMAIL_VAULT_KEY_VERSION connection-edge-fixture.mjs)
+  staged-hosted-readiness:
+    if: github.head_ref == 'admin/gmail-connection-only'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read only the staged function status and deny unauthorized operations
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://unrqbfngcgvqnytxbtgj.supabase.co/functions/v1'
+          probe() {
+            local expected="$1" label="$2" path="$3"
+            shift 3
+            local status
+            status="$(curl --silent --show-error --max-time 20 --proto '=https' -o /dev/null -w '%{http_code}' "$@" "$base/$path")"
+            printf '%s: %s (expected %s)\n' "$label" "$status" "$expected"
+            test "$status" = "$expected"
+          }
+          probe 204 'Hosted private control configuration parsed' hag-gmail-control/readiness
+          probe 503 'Connection still locked' hag-gmail-control/oauth/gmail/status -X POST -H 'Origin: https://heartlandathleticsgroup.com'
+          probe 503 'No OAuth launch' hag-gmail-control/oauth/gmail/prepare -X POST -H 'Origin: https://heartlandathleticsgroup.com'
+          probe 503 'Worker still hard locked' hag-gmail-worker
+          probe 503 'Subscriptions still hard locked' hag-subscriptions
+          echo 'PASS: hosted control config shape verified; no credentials read out, OAuth, delivery and signup remain locked'

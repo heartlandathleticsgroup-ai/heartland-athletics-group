@@ -14,6 +14,27 @@ assert.equal(safeImage('/assets/../private.png'),null);
 assert.equal(safeImage('//evil.test/x.png'),null);
 assert.equal(safeImage('/assets/test.svg'),null);
 assert.equal(safeImage('/assets/test.png'),'/assets/test.png');
-assert.deepEqual(groupRows([{kind:'__proto__',content:{title:'bad'}},{kind:'news',content:{title:'ok'}}]).news,[{title:'ok'}]);
+assert.deepEqual(groupRows([{kind:'__proto__',content:{title:'bad'}},{kind:'news',content:{title:'ok'}}]).news,[{title:'ok',id:undefined}]);
 assert.deepEqual(groupRows([{kind:'event',content:{title:'b',date:'2027-06-01'}},{kind:'event',content:{title:'a',date:'2027-05-29'}}]).event.map(x=>x.title),['a','b']);
 console.log('CMS helper tests passed');
+
+import {mediaId,eventDate,raster,formatBody} from '../assets/js/cms-render.mjs';
+import {imagePayload} from '../admin/cms-image.mjs';
+assert.equal(mediaId('media:8b110000-0000-4000-8000-000000000001'),'8b110000-0000-4000-8000-000000000001');
+assert.equal(mediaId('media:javascript:alert(1)'),null);
+assert.equal(raster({mime:'image/svg+xml',payload:'AAAA'}),null);
+assert.equal(imagePayload('data:text/html;base64,AAAA'),null);
+assert.equal(imagePayload('data:image/png;base64,'+'A'.repeat(546140)),null);
+assert.equal(eventDate({date:'2027-05-29',end_date:'2027-05-30'}),'May 29, 2027 – May 30, 2027');
+assert.equal(draftFrom({title:'Sponsor',scope:'gus-macker-featured',permission:true},'sponsor').scope,'gus-macker-featured');
+assert.equal(draftFrom({title:'Event',end_date:'2027-05-30'},'event').end_date,'2027-05-30');
+const makeNode=tag=>({tag,children:[],append(...x){this.children.push(...x)},textContent:''});
+const fakeDoc={createElement:makeNode,createTextNode:t=>({tag:'text',textContent:t})};
+const formatted=formatBody(fakeDoc,'## Heading\n- **Bold**\n<script>alert(1)</script>');
+assert.equal(formatted.children[0].tag,'h4');assert.equal(formatted.children[1].tag,'ul');assert.equal(formatted.children[1].children[0].children[1].tag,'strong');assert.equal(formatted.children[2].children[0].textContent,'<script>alert(1)</script>');
+console.log('Media, safe formatting, and multi-day event helpers passed');
+
+import {logoSize,sponsorPriority} from '../assets/js/cms-render.mjs';
+assert.equal(logoSize('premier'),'premier');assert.equal(logoSize('unexpected'),'standard');assert.equal(draftFrom({title:'S',logo_size:'large'},'sponsor').logo_size,'large');assert.equal(draftFrom({title:'N',logo_size:'premier'},'news').logo_size,'standard');
+assert.deepEqual([{title:'A',logo_size:'compact'},{title:'B',logo_size:'premier'},{title:'C',logo_size:'large'}].sort(sponsorPriority).map(x=>x.title),['B','C','A']);
+console.log('Sponsor prominence controls passed');

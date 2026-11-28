@@ -72,6 +72,8 @@
       ]
     }
   </script>
+<link rel="stylesheet" href="/assets/css/cms-public.css?v=3">
+<script type="module" src="/assets/js/cms-public.mjs?v=3"></script>
 </head>
 
 <body>
@@ -116,7 +118,7 @@
   </header>
 
   <main>
-    <section class="page-hero section-dark macker-hero">
+    <section class="page-hero section-dark macker-hero" data-cms-feature-event>
       <div class="container">
         <div class="reveal">
           <div class="breadcrumb">
@@ -127,18 +129,18 @@
 
           <p class="eyebrow">It's Official • Memorial Day Weekend 2027</p>
 
-          <h1>Gus Macker - Quincy</h1>
+          <h1 data-cms-event-title>Gus Macker - Quincy</h1>
 
-          <p class="hero-lead">
+          <p class="hero-lead" data-cms-event-date>
             <strong>May 29–30, 2027</strong> • Quincy, Illinois
           </p>
 
-          <p>
+          <div data-cms-event-body><p>
             The Gus Macker 3-on-3 basketball tournament returns to Quincy during Memorial Day
             weekend in 2027. <strong>Brought to you by Heartland Athletics Group.</strong>
             The tournament's return and dates are confirmed. The venue and
             additional event details will be announced once agreements are finalized.
-          </p>
+          </p></div>
 
           <p>
             Businesses, families, former players, and community supporters can
@@ -173,7 +175,7 @@
           </p>
         </div>
 
-        <div class="macker-sponsor-feature-grid reveal" aria-label="Featured Gus Macker sponsors">
+        <div data-cms-sponsor-list="featured" class="macker-sponsor-feature-grid reveal" aria-label="Featured Gus Macker sponsors">
           <a
             class="macker-sponsor-card macker-sponsor-card-featured"
             href="https://careers.dotfoods.com/"

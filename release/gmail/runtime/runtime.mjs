@@ -83,7 +83,15 @@ export function createReleaseRuntime({config,postgres,fetcher,now=Date.now}){
   await gatewayExec.execute("select hag_private.subscription_enqueue_email($1::uuid,$2,$3,$4,$5,$6::text[],$7,$8,$9,$10,$11) as value",[id,action,null,null,item.destination,null,null,null,item.purpose,config.outbox.key,config.outbox.version]);
  };
  const optInEmail=async(id,item)=>{if(!f.send||item.channel!=="email"||!validEmail(item.destination))throw Error("Signup unavailable");return gatewayExec.execute("select hag_private.subscription_email_opt_in_welcome($1::uuid,$2,$3,$4,$5::text[],$6,$7,$8,$9) as value",[id,item.name,item.adult,item.destination,item.topics,item.consentText!==undefined,item.consentVersion,config.outbox.key,config.outbox.version]);};
- const gateway=createGatewayCore({signupReady:async()=>f.send&&(await controlDb.status())?.enabled===true,db:{...db,optInEmail,issueSms:async()=>{throw Error("SMS provider disabled");},enqueueEmail},delivery:{mode:"email-only",accept:async()=>{throw Error("SMS provider disabled");}},source:()=> "edge-shared",ingress:createIngressGuardCore(canonical),canonicalSource:canonical,atomicEmail:true});
+ const sportMode=config.sportPreferences===true;
+ const sportScalar=async(q,args)=>{const r=await gatewayExec.execute(q,args);if(r?.rows?.length!==1)throw Error("Sport preference unavailable");return r.rows[0].value;};
+ const sportDb={
+  sportCatalog:()=>sportScalar("select hag_private.sport_public_catalog() as value",[]),
+  sportSignup:(id,name,v)=>sportScalar("select hag_private.sport_email_signup($1::uuid,$2,$3,$4,$5::text[],$6::text[],$7,$8,$9,$10) as value",[id,name,true,v.destination,v.sports,v.updates,true,"draft-sports-v2",config.outbox.key,config.outbox.version]),
+  sportManage:t=>sportScalar("select hag_private.sport_manage($1) as value",[t]),
+  sportEdit:x=>sportScalar("select hag_private.sport_edit($1,$2::text[],$3::text[],$4,$5,$6) as value",[x.token,x.sports,x.updates,x.adult,x.consent,x.version])
+ };
+ const gateway=createGatewayCore({sportMode,signupReady:async()=>f.send&&(await controlDb.status())?.enabled===true,db:{...db,...sportDb,optInEmail,issueSms:async()=>{throw Error("SMS provider disabled");},enqueueEmail},delivery:{mode:"email-only",accept:async()=>{throw Error("SMS provider disabled");}},source:()=> "edge-shared",ingress:createIngressGuardCore(canonical),canonicalSource:canonical,atomicEmail:true});
  const preferences=async req=>{
   if(!f.preferences)return response(503,{ok:false,disabled:true});
   try{

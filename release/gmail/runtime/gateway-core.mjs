@@ -1,5 +1,6 @@
 // E.9 release candidate, not deployed. Real network gated by private configuration.
 // UNPUBLISHED. No network server, provider credentials or production entry point.
+import {selectionPayload,VERSION as SPORT_VERSION} from "./sport-contract.mjs";
 import {validEmail} from "./policy.mjs";
 import {validateRequest,validatePreferenceAccess,TOPICS,CONSENT_VERSION} from "./consent.mjs";
 const ORIGIN="https://heartlandathleticsgroup.com", MAX=8192;
@@ -37,7 +38,7 @@ async function body(req){
   return JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(bytes));
  }finally{clearTimeout(timer);void reader.cancel().catch(()=>{});}
 }
-export function createGatewayCore({db,delivery,source,ingress,canonicalSource,atomicEmail=false,signupReady=async()=>true}){
+export function createGatewayCore({db,delivery,source,ingress,canonicalSource,atomicEmail=false,signupReady=async()=>true,sportMode=false}){
  // Required ingress guard handles all requests including malformed bodies.
  // Runtime must supply canonical trusted source; never read forwarded IP headers here.
  if(!db||!delivery||delivery.mode!=="email-only"||typeof source!=="function"||typeof ingress!=="function"||typeof canonicalSource!=="function")throw Error("Isolated simulation dependencies required");
@@ -60,11 +61,22 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource,at
    if(!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(req.headers.get("content-type")||"")||req.headers.has("content-encoding"))return bad();
    let x;try{x=await body(req);}catch{return bad();}
    if(!x||typeof x.action!=="string"||optout!==(x.action==="unsubscribe"))return bad();
-   let data,items;
+   let data,items,sportItems;
    try{
     switch(x.action){
+     case "sport-catalog":
+      if(!sportMode||!exact(x,["action"]))throw Error();break;
+     case "sport-subscribe":
+      if(!sportMode||!exact(x,["action","requestId","version","form"])||!id(x.requestId)||x.version!==SPORT_VERSION||!exact(x.form,["name","adult","email","sms"]))throw Error();
+      for(const ch of ["email","sms"])if(!exact(x.form[ch],["enabled","destination","sports","updates","consent"]))throw Error();
+      if(x.form.sms.enabled)throw Error();
+      {const catalog=await db.sportCatalog();data=selectionPayload(x.form,catalog.map(v=>v.code));sportItems=data.email;if(!validEmail(sportItems.destination))throw Error();}break;
+     case "sport-manage":
+      if(!sportMode||!exact(x,["action","token"])||!token(x.token))throw Error();break;
+     case "sport-edit":
+      if(!sportMode||!exact(x,["action","token","sports","updates","adult","consent","version"])||!token(x.token)||x.version!==SPORT_VERSION||!Array.isArray(x.sports)||x.sports.length>40||!Array.isArray(x.updates)||x.updates.length>9||![...x.sports,...x.updates].every(v=>typeof v==="string"&&v.length<=40)||typeof x.adult!=="boolean"||typeof x.consent!=="boolean")throw Error();break;
      case "subscribe":
-      if(!exact(x,["action","requestId","version","form"])||!id(x.requestId)||x.version!==CONSENT_VERSION)throw Error();
+      if(sportMode||!exact(x,["action","requestId","version","form"])||!id(x.requestId)||x.version!==CONSENT_VERSION)throw Error();
       data=validateRequest(x.form);items=data.requests.map(v=>({...v,name:data.name,adult:true,purpose:v.channel==="sms"?"confirm":"opt-in"}));break;
      case "access":
       if(!exact(x,["action","requestId","purpose","form"])||!id(x.requestId)||!["manage","unsubscribe"].includes(x.purpose))throw Error();
@@ -77,11 +89,15 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource,at
     }
     if(items?.some(v=>!fixture(v.channel,v.destination)))throw Error();
    }catch{return bad();}
-   if(x.action==='subscribe'&&!await signupReady())return response(503,{message:'Subscriptions are not available yet.'},true);
-   const issuing=!!items;
-   const generic=()=>response(202,{message:x.action==="subscribe"?SIGNUP:GENERIC},true);
+   if(["subscribe","sport-subscribe"].includes(x.action)&&!await signupReady())return response(503,{message:'Subscriptions are not available yet.'},true);
+   const issuing=!!items||!!sportItems;
+   const generic=()=>response(202,{message:["subscribe","sport-subscribe"].includes(x.action)?SIGNUP:GENERIC},true);
    try{
-    if(!await db.budget(src,x.action))return issuing?generic():response(429,{message:"Try again later."},true);
+    if(!await db.budget(src,({"sport-subscribe":"subscribe","sport-manage":"manage","sport-edit":"edit","sport-catalog":"access"})[x.action]||x.action))return issuing?generic():response(429,{message:"Try again later."},true);
+    if(x.action==="sport-catalog")return response(200,{catalog:await db.sportCatalog()},true);
+    if(x.action==="sport-subscribe"){await db.sportSignup(x.requestId,data.name,sportItems);return generic();}
+    if(x.action==="sport-manage"){const v=await db.sportManage(x.token);return response(200,v&&token(v.editToken)?{ok:true,...v}:{ok:false},true);}
+    if(x.action==="sport-edit")return response(200,{ok:await db.sportEdit(x)===true},true);
     if(issuing){
      // One channel per atomic issue key; duplicates never repeat simulated delivery.
      for(const item of items){

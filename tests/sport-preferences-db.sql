@@ -2,7 +2,7 @@ begin;
 do $qa$
 declare a uuid;b uuid;c uuid; raw text; j jsonb; campaign uuid:=gen_random_uuid(); g bigint; k text:=repeat('a',64);
 begin
- if has_table_privilege('anon','hag_private.sport_preferences','select') or has_function_privilege('authenticated','hag_private.sport_admin(text,text,text,boolean,text,text)','execute') or has_function_privilege('hag_subscription_runtime','hag_private.sport_email_signup(uuid,text,boolean,text,text[],text[],boolean,text,text,text)','execute') then raise exception 'draft access leak';end if;
+ if has_table_privilege('anon','hag_private.sport_preferences','select') or has_function_privilege('anon','public.hag_sport_admin(text,text,text,boolean,text,text)','execute') or has_function_privilege('authenticated','hag_private.sport_email_signup(uuid,text,boolean,text,text[],text[],boolean,text,text,text)','execute') then raise exception 'draft access leak';end if;
  if hag_private.sport_selection_valid(array['all-sports','basketball'],array['general']) or hag_private.sport_selection_valid(array['volleyball'],array['enforcers']) or hag_private.sport_selection_valid('{}',array['camps-clinics']) then raise exception 'bad scope accepted';end if;
  g:=(hag_private.gmail_status()->>'generation')::bigint;
  if not hag_private.gmail_store(g,'encrypted-fixture','fixture') then raise exception 'store';end if;

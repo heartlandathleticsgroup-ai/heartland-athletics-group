@@ -10,7 +10,7 @@ function getRuntime(){
  if(runtime)return runtime;
  const runtimeState=read("HAG_GMAIL_RUNTIME_STATE");
  const config=runtimeState!=="approved-runtime"?{runtime:"disabled"}:{
-  runtime:runtimeState,oauth:read("HAG_GMAIL_OAUTH_ENABLED")==="true",send:read("HAG_GMAIL_SEND_ENABLED")==="true",preferences:read("HAG_PREFERENCES_ENABLED")==="true",
+  runtime:runtimeState,oauth:read("HAG_GMAIL_OAUTH_ENABLED")==="true",send:read("HAG_GMAIL_SEND_ENABLED")==="true",preferences:read("HAG_PREFERENCES_ENABLED")==="true",sportPreferences:read("HAG_SPORT_PREFERENCES_ENABLED")==="true",
   controlDb:read("HAG_GMAIL_CONTROL_DATABASE_URL"),dispatchDb:read("HAG_GMAIL_DISPATCH_DATABASE_URL"),gatewayDb:read("HAG_SUBSCRIPTION_DATABASE_URL"),ca:read("HAG_DATABASE_CA_PEM"),
   clientId:read("HAG_GMAIL_CLIENT_ID"),clientSecret:read("HAG_GMAIL_CLIENT_SECRET"),postalFooter:read("HAG_PRIVATE_POSTAL_FOOTER"),
   publishableKey:read("HAG_PROJECT_PUBLISHABLE_KEY"),workerKey:read("HAG_GMAIL_WORKER_KEY"),vault:key("HAG_GMAIL_VAULT_KEY"),nextVault:optionalKey("HAG_GMAIL_NEXT_VAULT_KEY"),outbox:key("HAG_EMAIL_OUTBOX_KEY"),priorOutbox:optionalKey("HAG_EMAIL_PRIOR_OUTBOX_KEY")

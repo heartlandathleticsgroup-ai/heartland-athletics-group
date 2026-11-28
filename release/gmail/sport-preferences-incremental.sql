@@ -201,4 +201,34 @@ do $$declare r record;begin
  execute format('revoke all on function %s from public,anon,authenticated,service_role,hag_subscription_runtime,hag_gmail_control,hag_gmail_dispatch,hag_email_worker',r.sig);
  end loop;
 end$$;
+-- Catalog metadata only, no PII. A trusted gateway serves active categories.
+create function hag_private.sport_public_catalog()
+returns jsonb language sql stable security definer set search_path='' as $
+ select coalesce(jsonb_agg(jsonb_build_object('code',code,'label',label) order by label),'[]'::jsonb) from hag_private.sport_catalog where active
+$;
+revoke all on function hag_private.sport_public_catalog() from public,anon,authenticated,service_role;
+grant execute on function hag_private.sport_public_catalog(),hag_private.sport_email_signup(uuid,text,boolean,text,text[],text[],boolean,text,text,text),hag_private.sport_manage(text),hag_private.sport_edit(text,text[],text[],boolean,boolean,text) to hag_subscription_runtime;
+-- Browser calls a narrow authenticated wrapper. Existing admin proof checks a recent authorized session.
+grant execute on function hag_private.sport_admin(text,text,text,boolean,text,text) to authenticated;
+create function public.hag_sport_admin(p_action text,p_code text default null,p_label text default null,p_active boolean default null,p_update text default null,p_channel text default null)
+returns jsonb language sql volatile security invoker set search_path='' as $
+ select hag_private.sport_admin(p_action,p_code,p_label,p_active,p_update,p_channel)
+$;
+revoke all on function public.hag_sport_admin(text,text,text,boolean,text,text) from public,anon,authenticated,service_role;
+grant execute on function public.hag_sport_admin(text,text,text,boolean,text,text) to authenticated;
+-- A full opt-out remains effective even if an administrator later resolves a suppression.
+create function hag_private.sport_suppression_withdraw()
+returns trigger language plpgsql security definer set search_path='' as $
+declare p hag_private.sport_preferences;
+begin
+ if new.active then
+ update hag_private.sport_preferences set status='withdrawn',revision=revision+1,updated_at=clock_timestamp() where method_id=new.contact_method_id and status<>'withdrawn' returning * into p;
+ if p.method_id is not null then
+ insert into hag_private.sport_consent_events(method_id,revision,channel,sports,update_types,event_kind,version,wording) values(p.method_id,p.revision,p.channel,p.sports,p.update_types,'withdrawn','draft-sports-v2','Channel suppression applied.');
+ end if;
+ end if;
+ return new;
+end$;
+revoke all on function hag_private.sport_suppression_withdraw() from public,anon,authenticated,service_role;
+create trigger sport_suppression_withdraw after insert or update of active on hag_private.hag_suppressions for each row execute function hag_private.sport_suppression_withdraw();
 commit;

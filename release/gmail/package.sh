@@ -24,7 +24,7 @@ verify_jwt = false
 verify_jwt = false
 TOML
 cp "$root/release/gmail/consolidated-migration.sql" "$root/release/gmail/welcome-incremental.sql" "$root/release/gmail/sport-preferences-incremental.sql" "$root/release/gmail/operational-rollback.sql" "$out/"
-cp "$root/release/gmail/disabled-deployment-preflight.sql" "$root/release/gmail/PRIVATE-CONFIGURATION.md" "$out/"
+cp "$root/release/gmail/disabled-deployment-preflight.sql" "$root/release/gmail/PRIVATE-CONFIGURATION.md" "$root/release/gmail/private-runtime-setup.py" "$out/"
 mkdir -p "$out/public/preferences" "$out/public/admin" "$out/public/subscribe"
 cp "$root/release/gmail/public/preferences/"* "$out/public/preferences/"
 cp "$root/release/gmail/runtime/consent.mjs" "$out/public/preferences/consent.mjs"

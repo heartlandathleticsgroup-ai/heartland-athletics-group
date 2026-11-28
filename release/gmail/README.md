@@ -38,3 +38,7 @@ See `previews/subscriptions/production-readiness.md`. The sport incremental now 
 
 ### Private credential preparation
 See `PRIVATE-CONFIGURATION.md` and `disabled-deployment-preflight.sql`. This revision adds an explicit source-level runtime lock overriding environment flags; the disabled package cannot activate even if old secrets exist. No live changes are made by the package script. Existing hosted E.9 must not be reapplied. No new backup work or purchases.
+
+
+### Private runtime provisioning
+The owner-local `private-runtime-setup.py` utility is staged, with no hosted execution from CI. It performs an explicit project-targeted, first-time secret setup and temporary narrow TLS role tests, restoring NOLOGIN. See PRIVATE-CONFIGURATION.md. Do not use on an already-provisioned project. The deployed hard lock remains unchanged.

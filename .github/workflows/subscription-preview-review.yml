@@ -27,6 +27,7 @@ jobs:
           node tests/public-subscriber.test.mjs
           node tests/sport-contract.test.mjs
           node tests/subscriber-welcome.test.mjs
+          python3 release/gmail/private-runtime-setup.py --self-test
           node --check previews/subscriptions/server/gateway.mjs
           node --check previews/subscriptions/server/postgres-adapter.mjs
           node tests/subscription-gateway.test.mjs

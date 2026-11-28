@@ -1,0 +1,11 @@
+name: Twilio public verification evidence
+on:
+  pull_request:
+    paths: ['subscribe/**','privacy/**','terms/**','sms-terms/**','assets/css/subscribers.css','tests/twilio-public-evidence.py','.github/workflows/twilio-public-evidence.yml']
+  workflow_dispatch:
+jobs:
+  static-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tests/twilio-public-evidence.py

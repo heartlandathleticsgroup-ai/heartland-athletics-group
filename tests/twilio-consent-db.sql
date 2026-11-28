@@ -16,7 +16,8 @@ begin
  if not hag_private.sms_record_inbound('SM'||repeat('5',32),dest,'start',null) then raise exception 'start failed';end if;
  if not exists(select 1 from hag_private.sms_confirmation_outbox where method_id=m and state='cancelled') or not exists(select 1 from hag_private.hag_suppressions where contact_method_id=m and active and reason='stop') or exists(select 1 from hag_private.sport_preferences where method_id=m and status<>'withdrawn') then raise exception 'start restored local consent';end if;
  if not hag_private.sms_record_inbound('SM'||repeat('6',32),other,'stop',null) or hag_private.sms_stage_join(gen_random_uuid(),'Fixture',true,other,array['basketball'],array['general'],true,'hag-sports-v1',h) then raise exception 'unknown phone suppression failed';end if;
-if not hag_private.sms_record_inbound('SM'||repeat('7',32),other,'review',null,'please do not text me') or not exists(select 1 from hag_private.sms_review_queue where reply_text='please do not text me' and resolved_at is null) then raise exception 'freeform optout review missing';end if;
+if not hag_private.sms_record_inbound('SM'||repeat('7',32),other,'review',null,'please do not text me') then raise exception 'freeform reply rejected';end if;
+ if not exists(select 1 from hag_private.sms_review_queue where reply_text='please do not text me' and resolved_at is null) then raise exception 'freeform optout review missing';end if;
 end $qa$;
 rollback;
 select 'PASS: signed-adapter-only candidate, pending JOIN, phone/code binding, confirmation, STOP, START does not restore and unknown-number suppression' as result;

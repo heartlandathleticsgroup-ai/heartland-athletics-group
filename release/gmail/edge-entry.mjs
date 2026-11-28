@@ -5,10 +5,14 @@ import {createReleaseRuntime} from "./runtime/runtime.mjs";
 const read=name=>Deno.env.get(name);
 const key=(name)=>({key:read(name),version:read(name+"_VERSION")});
 const optionalKey=name=>read(name)||read(name+"_VERSION")?key(name):null;
+// Disabled deployment preparation: a source-level lock prevents accidental activation
+// even if a previously configured environment flag is true. A later reviewed release
+// must explicitly change this constant; merely adding private secrets cannot open it.
+export const RELEASE_RUNTIME_UNLOCKED=false;
 let runtime;
 function getRuntime(){
  if(runtime)return runtime;
- const runtimeState=read("HAG_GMAIL_RUNTIME_STATE");
+ const runtimeState=RELEASE_RUNTIME_UNLOCKED?read("HAG_GMAIL_RUNTIME_STATE"):"disabled";
  const config=runtimeState!=="approved-runtime"?{runtime:"disabled"}:{
   runtime:runtimeState,oauth:read("HAG_GMAIL_OAUTH_ENABLED")==="true",send:read("HAG_GMAIL_SEND_ENABLED")==="true",preferences:read("HAG_PREFERENCES_ENABLED")==="true",sportPreferences:read("HAG_SPORT_PREFERENCES_ENABLED")==="true",
   controlDb:read("HAG_GMAIL_CONTROL_DATABASE_URL"),dispatchDb:read("HAG_GMAIL_DISPATCH_DATABASE_URL"),gatewayDb:read("HAG_SUBSCRIPTION_DATABASE_URL"),ca:read("HAG_DATABASE_CA_PEM"),

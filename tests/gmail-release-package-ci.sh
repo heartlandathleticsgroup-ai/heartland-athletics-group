@@ -23,7 +23,8 @@ done
 "$deno" run --no-lock --no-prompt tests/gmail-release-runtime.test.mjs
 dir="$pkg/supabase/functions/hag-gmail-control"
 cat > "$dir/disabled-check.mjs" <<'JS'
-import {handler,canonicalEdgeRequest} from "./edge-entry.mjs";
+import {handler,canonicalEdgeRequest,RELEASE_RUNTIME_UNLOCKED} from "./edge-entry.mjs";
+if(RELEASE_RUNTIME_UNLOCKED!==false)throw Error("Source-level deployment lock missing");
 if(canonicalEdgeRequest(new Request("http://edge-internal/hag-gmail-control/oauth/gmail/callback?state=test"),"control").url!=="https://unrqbfngcgvqnytxbtgj.supabase.co/functions/v1/hag-gmail-control/oauth/gmail/callback?state=test")throw Error("Internal route mapping");
 let rejected=false;try{canonicalEdgeRequest(new Request("http://edge-internal/other"),"control");}catch{rejected=true;}if(!rejected)throw Error("Unrelated route accepted");
 for(const kind of ["control","worker","preferences"]){
@@ -34,5 +35,7 @@ for(const kind of ["control","worker","preferences"]){
 console.log("PASS: packaged Deno entrypoints start in disabled mode with no network permissions");
 JS
 (cd "$dir"; env HAG_GMAIL_RUNTIME_STATE=disabled "$deno" run --cached-only --frozen --allow-env=HAG_GMAIL_RUNTIME_STATE disabled-check.mjs)
+(cd "$dir"; env HAG_GMAIL_RUNTIME_STATE=approved-runtime HAG_GMAIL_OAUTH_ENABLED=true HAG_GMAIL_SEND_ENABLED=true HAG_PREFERENCES_ENABLED=true HAG_SPORT_PREFERENCES_ENABLED=true "$deno" run --cached-only --frozen --no-prompt disabled-check.mjs)
+echo "PASS: source lock overrides every enabled environment flag, with no env or network permissions"
 bash tests/gmail-release-tls-ci.sh "$deno"
 echo "PASS: locked dependency and review-only deployment package"

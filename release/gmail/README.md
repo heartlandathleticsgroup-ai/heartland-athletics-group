@@ -34,3 +34,7 @@ After the baseline and welcome incremental, the sport-preferences incremental ad
 
 ### Production readiness
 See `previews/subscriptions/production-readiness.md`. The sport incremental now adds a generation-bound sender review requirement; it remains review-only and must not be installed before coordinated release acceptance. The public DNS/GET probe does not authenticate or send messages. Campaign delivery remains unimplemented and locked.
+
+
+### Private credential preparation
+See `PRIVATE-CONFIGURATION.md` and `disabled-deployment-preflight.sql`. This revision adds an explicit source-level runtime lock overriding environment flags; the disabled package cannot activate even if old secrets exist. No live changes are made by the package script. Existing hosted E.9 must not be reapplied. No new backup work or purchases.

@@ -49,7 +49,7 @@ begin
   return false;
  end if;
  return true;
-end$;
+end$$;
 
 revoke all on function hag_private.sms_ack_start(uuid) from public,anon,authenticated,service_role,hag_subscription_runtime,hag_gmail_dispatch,hag_gmail_control;
 commit;

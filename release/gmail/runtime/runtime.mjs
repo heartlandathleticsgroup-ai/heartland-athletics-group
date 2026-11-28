@@ -82,7 +82,8 @@ export function createReleaseRuntime({config,postgres,fetcher,now=Date.now}){
   if(action!=="access"||item.channel!=="email"||!validEmail(item.destination)||!["manage","unsubscribe"].includes(item.purpose))throw Error("Access only");
   await gatewayExec.execute("select hag_private.subscription_enqueue_email($1::uuid,$2,$3,$4,$5,$6::text[],$7,$8,$9,$10,$11) as value",[id,action,null,null,item.destination,null,null,null,item.purpose,config.outbox.key,config.outbox.version]);
  };
- const gateway=createGatewayCore({db:{...db,issueSms:async()=>{throw Error("SMS provider disabled");},enqueueEmail},delivery:{mode:"email-only",accept:async()=>{throw Error("SMS provider disabled");}},source:()=> "edge-shared",ingress:createIngressGuardCore(canonical),canonicalSource:canonical,atomicEmail:true});
+ const optInEmail=async(id,item)=>{if(!f.send||item.channel!=="email"||!validEmail(item.destination))throw Error("Signup unavailable");return gatewayExec.execute("select hag_private.subscription_email_opt_in_welcome($1::uuid,$2,$3,$4,$5::text[],$6,$7,$8,$9) as value",[id,item.name,item.adult,item.destination,item.topics,item.consentText!==undefined,item.consentVersion,config.outbox.key,config.outbox.version]);};
+ const gateway=createGatewayCore({signupReady:async()=>f.send&&(await controlDb.status())?.enabled===true,db:{...db,optInEmail,issueSms:async()=>{throw Error("SMS provider disabled");},enqueueEmail},delivery:{mode:"email-only",accept:async()=>{throw Error("SMS provider disabled");}},source:()=> "edge-shared",ingress:createIngressGuardCore(canonical),canonicalSource:canonical,atomicEmail:true});
  const preferences=async req=>{
   if(!f.preferences)return response(503,{ok:false,disabled:true});
   try{

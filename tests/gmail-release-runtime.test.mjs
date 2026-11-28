@@ -72,7 +72,7 @@ const callback=await rt.control(new Request(CALLBACK_URI+"?state="+google.search
 assert.equal(callback.status,303);assert.equal(callback.headers.get("location"),CONTROL_BASE+"/oauth/gmail/result?status=complete");assert.match(callback.headers.get("set-cookie"),/Max-Age=0/);
 assert.deepEqual(await (await post("status")).json(),{connected:true,enabled:false});assert.equal(sendCount,0);
 const off={enabled:false,destination:"",topics:[],consent:false},form={name:"Fictional subscriber",adult:true,email:{enabled:true,destination:"release-test@example.com",topics:["hag-announcements"],consent:true},sms:off};
-assert.equal((await pref({action:"subscribe",requestId:job,version:"draft-3c3-v1",form})).status,202);assert.equal(signups,1);assert.equal(enqueues,0);
+assert.equal((await pref({action:"subscribe",requestId:job,version:"draft-3c3-v1",form})).status,503);assert.equal(signups,0);enabled=true;assert.equal((await pref({action:"subscribe",requestId:job,version:"draft-3c3-v1",form})).status,202);assert.equal(signups,1);assert.equal(enqueues,0);enabled=false;
 assert.equal((await pref({action:"subscribe",requestId:job,version:"draft-3c3-v1",form:{...form,email:off,sms:{enabled:true,destination:"+12025550123",topics:["hag-announcements"],consent:true}}})).status,400);
 assert.equal((await pref({action:"access",requestId:job,purpose:"manage",form:{channel:"email",destination:"release-test@example.com"}})).status,202);assert.equal(enqueues,1);
 assert.deepEqual(await (await rt.worker(new Request(workerUrl,{method:"POST",headers:{authorization:"Bearer "+config.workerKey,"content-type":"application/json"},body:"{}"}))).json(),{outcome:"empty"});assert.equal(sendCount,0);

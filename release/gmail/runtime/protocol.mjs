@@ -57,7 +57,7 @@ export function createProductionProtocol({mode,fetchFixture,clientId,clientSecre
    if(!network.oauth||!network.send)throw Error("Email delivery disabled");
    const h=new Headers(headers),access=h.get("authorization")?.match(/^Bearer (.+)$/)?.[1];if(!safeToken(access))throw Error("Invalid send grant");
    const p=JSON.parse(body),raw=Buffer.from(p.raw||"","base64url").toString("utf8"),head=raw.split("\r\n\r\n",1)[0].split("\r\n");
-   if(Object.keys(p).length!==1||head.length!==7||head[0]!=="From: Heartland Athletics Group <"+GMAIL_FROM+">"||head[1]!=="Reply-To: "+GMAIL_REPLY_TO||!head[2]?.startsWith("To: ")||!validEmail(head[2].slice(4))||!/^Subject: (Manage your H\.A\.G\. email preferences|Unsubscribe from H\.A\.G\. marketing email)$/.test(head[3])||!/^Message-ID: <[a-f0-9-]{36}@heartlandathleticsgroup\.com>$/.test(head[4])||head[5]!=="MIME-Version: 1.0"||head[6]!=="Content-Type: text/plain; charset=UTF-8; format=flowed"||!raw.includes("\r\n"+postalFooter+"\r\n"))throw Error("Invalid message");
+   if(Object.keys(p).length!==1||head.length!==7||head[0]!=="From: Heartland Athletics Group <"+GMAIL_FROM+">"||head[1]!=="Reply-To: "+GMAIL_REPLY_TO||!head[2]?.startsWith("To: ")||!validEmail(head[2].slice(4))||!/^Subject: (Manage your H\.A\.G\. email preferences|Unsubscribe from H\.A\.G\. marketing email|Welcome to Heartland Athletics Group)$/.test(head[3])||!/^Message-ID: <[a-f0-9-]{36}@heartlandathleticsgroup\.com>$/.test(head[4])||head[5]!=="MIME-Version: 1.0"||head[6]!=="Content-Type: text/plain; charset=UTF-8; format=flowed"||!raw.includes("\r\n"+postalFooter+"\r\n"))throw Error("Invalid message");
    const r=await http(SEND,{headers:{"Authorization":"Bearer "+access,"Content-Type":"application/json"},body:JSON.stringify(p)});
    // Gmail message IDs are opaque, not fixture-prefixed in the real protocol.
    if(r.status>=200&&r.status<300&&typeof r.body?.id==="string"&&/^[a-zA-Z0-9_-]{1,256}$/.test(r.body.id))return {status:r.status,body:{id:r.body.id}};
@@ -66,11 +66,12 @@ export function createProductionProtocol({mode,fetchFixture,clientId,clientSecre
   throw Error("Endpoint denied");
  };
  const render=({id,destination,purpose,token})=>{
-  if(!idOk(id)||!validEmail(destination)||!["manage","unsubscribe"].includes(purpose)||typeof token!=="string"||!/^[a-f0-9]{64}$/.test(token))throw Error("Access email only");
-  // No marketing or confirmation message. The live preference endpoint is
-  // not yet deployed, so acceptance uses a reserved-domain link.
-  const subject=purpose==="manage"?"Manage your H.A.G. email preferences":"Unsubscribe from H.A.G. marketing email";
-  const raw=["From: Heartland Athletics Group <"+GMAIL_FROM+">","Reply-To: "+GMAIL_REPLY_TO,"To: "+destination,"Subject: "+subject,"Message-ID: <"+id+"@heartlandathleticsgroup.com>","MIME-Version: 1.0","Content-Type: text/plain; charset=UTF-8; format=flowed","",subject+". If you did not request this link, ignore this email.","https://heartlandathleticsgroup.com/preferences/#"+purpose+":"+token,"",postalFooter,"Questions: "+GMAIL_REPLY_TO,""].join("\r\n");
+  if(!idOk(id)||!validEmail(destination)||!["manage","unsubscribe","welcome"].includes(purpose)||typeof token!=="string"||!(purpose==="welcome"?/^[a-f0-9]{64}:[a-f0-9]{64}$/:/^[a-f0-9]{64}$/).test(token))throw Error("Invalid subscription email");
+  // A welcome acknowledgment is distinct from verification; two independent capabilities.
+  const subject=purpose==="welcome"?"Welcome to Heartland Athletics Group":purpose==="manage"?"Manage your H.A.G. email preferences":"Unsubscribe from H.A.G. marketing email";
+   const [manage,unsubscribe]=token.split(":");
+   const content=purpose==="welcome"?["Thank you for subscribing to Heartland Athletics Group updates.","Your eligible email topic selections are active. No additional confirmation is required.","Please add no-reply@heartlandathleticsgroup.com to your contacts to help our emails reach your inbox.","","Manage preferences: https://heartlandathleticsgroup.com/preferences/#manage:"+manage,"If your secure management link has expired, request a fresh link at https://heartlandathleticsgroup.com/preferences/.","Unsubscribe: https://heartlandathleticsgroup.com/preferences/#unsubscribe:"+unsubscribe,"If you did not sign up, please unsubscribe or contact us for help."]: [subject+". If you did not request this link, ignore this email.","https://heartlandathleticsgroup.com/preferences/#"+purpose+":"+token];
+  const raw=["From: Heartland Athletics Group <"+GMAIL_FROM+">","Reply-To: "+GMAIL_REPLY_TO,"To: "+destination,"Subject: "+subject,"Message-ID: <"+id+"@heartlandathleticsgroup.com>","MIME-Version: 1.0","Content-Type: text/plain; charset=UTF-8; format=flowed","",...content,"",postalFooter,"Questions: "+GMAIL_REPLY_TO,""].join("\r\n");
   return {raw:Buffer.from(raw,"utf8").toString("base64url")};
  };
  return Object.freeze({request,render,callback:CALLBACK_URI});

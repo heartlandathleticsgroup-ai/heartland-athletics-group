@@ -15,7 +15,7 @@ const codes=new Set(TOPICS.map(x=>x[0]));
 const topics=v=>Array.isArray(v)&&v.length<=9&&new Set(v).size===v.length&&v.every(x=>codes.has(x));
 const fixture=(c,d)=>c==="email"&&validEmail(d);
 export const GENERIC="If the request is eligible, instructions can be provided through the selected contact method.";
-export const SIGNUP="Request received. Eligible email selections take effect without a confirmation email. Text subscriptions are not available yet.";
+export const SIGNUP="Request received. Eligible email selections take effect without a confirmation step and may receive one welcome acknowledgment. Text subscriptions are not available yet.";
 function response(status,data,origin=false){
  const headers={"Cache-Control":"no-store","Pragma":"no-cache","Referrer-Policy":"no-referrer","X-Content-Type-Options":"nosniff","Content-Type":"application/json; charset=utf-8","Vary":"Origin"};
  if(origin)headers["Access-Control-Allow-Origin"]=ORIGIN;
@@ -37,7 +37,7 @@ async function body(req){
   return JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(bytes));
  }finally{clearTimeout(timer);void reader.cancel().catch(()=>{});}
 }
-export function createGatewayCore({db,delivery,source,ingress,canonicalSource,atomicEmail=false}){
+export function createGatewayCore({db,delivery,source,ingress,canonicalSource,atomicEmail=false,signupReady=async()=>true}){
  // Required ingress guard handles all requests including malformed bodies.
  // Runtime must supply canonical trusted source; never read forwarded IP headers here.
  if(!db||!delivery||delivery.mode!=="email-only"||typeof source!=="function"||typeof ingress!=="function"||typeof canonicalSource!=="function")throw Error("Isolated simulation dependencies required");
@@ -77,6 +77,7 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource,at
     }
     if(items?.some(v=>!fixture(v.channel,v.destination)))throw Error();
    }catch{return bad();}
+   if(x.action==='subscribe'&&!await signupReady())return response(503,{message:'Subscriptions are not available yet.'},true);
    const issuing=!!items;
    const generic=()=>response(202,{message:x.action==="subscribe"?SIGNUP:GENERIC},true);
    try{

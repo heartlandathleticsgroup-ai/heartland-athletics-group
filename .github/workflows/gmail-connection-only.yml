@@ -21,6 +21,8 @@ jobs:
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           git diff --exit-code origin/main...HEAD -- admin/auth-state.mjs admin/verified-passkey.mjs admin/cms.mjs admin/admin.css admin/communications.mjs admin/dashboard.mjs supabase/functions index.html gus-macker/index.html
           node tests/gmail-connection-only.test.mjs
+          node tests/sender-readiness.test.mjs
+          node tests/sender-test-route.test.mjs
           python3 tests/gmail-browser-handoff.py
           node tests/admin-dashboard.test.mjs
           node tests/admin-communications.test.mjs
@@ -32,7 +34,7 @@ jobs:
           echo "e890975bc2549807bbcc0b584ffafda72cc7c93349dd99c80483dd784f6c4609  $scratch/deno.zip" | sha256sum -c -
           unzip -q "$scratch/deno.zip" -d "$scratch"
           sed 's|../release/gmail/connection-edge-entry.mjs|./connection-edge-entry.mjs|' tests/gmail-connection-edge.test.mjs > release/gmail/connection-edge-fixture.mjs
-          (cd release/gmail; "$scratch/deno" cache --frozen --config deno.json connection-edge-entry.mjs connection-edge-fixture.mjs; "$scratch/deno" check --frozen --config deno.json connection-edge-entry.mjs)
+          (cd release/gmail; "$scratch/deno" cache --frozen --config deno.json connection-edge-entry.mjs connection-edge-fixture.mjs sender-test-edge-entry.mjs; "$scratch/deno" check --frozen --config deno.json connection-edge-entry.mjs sender-test-edge-entry.mjs)
           "$scratch/deno" run --no-prompt tests/gmail-connection-only.test.mjs
           (cd release/gmail; "$scratch/deno" run --cached-only --frozen --config deno.json --no-prompt --allow-env=HAG_GMAIL_RUNTIME_STATE,HAG_GMAIL_OAUTH_ENABLED,HAG_GMAIL_SEND_ENABLED,HAG_PREFERENCES_ENABLED,HAG_SPORT_PREFERENCES_ENABLED,HAG_GMAIL_CONTROL_DATABASE_URL,HAG_DATABASE_CA_PEM,HAG_GMAIL_CLIENT_ID,HAG_GMAIL_CLIENT_SECRET,HAG_PRIVATE_POSTAL_FOOTER,HAG_PROJECT_PUBLISHABLE_KEY,HAG_GMAIL_VAULT_KEY,HAG_GMAIL_VAULT_KEY_VERSION connection-edge-fixture.mjs)
   staged-hosted-readiness:

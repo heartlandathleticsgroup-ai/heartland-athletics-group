@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import {validSelection,validTarget,audienceCount,SPORTS} from "../subscribe/sport-contract.mjs";
+const catalog=[...SPORTS.map(x=>x[0]),"tennis"];
+assert.equal(validSelection(["all-sports","basketball"],["general"]),false);
+assert.equal(validSelection(["volleyball"],["enforcers"]),false);
+assert.equal(validSelection([],["general"]),true);
+assert.equal(validSelection([],["camps-clinics"]),false);
+assert.equal(validTarget({sport:"volleyball",update:"gus-macker",channel:"email"}),false);
+const a={methodId:"a",channel:"email",status:"active",sports:["basketball"],updates:["general","camps-clinics"]};
+const b={...a,methodId:"b",sports:["all-sports"],updates:["camps-clinics"]};
+const c={...b,methodId:"c",suppressed:true};const d={...b,methodId:"d",channel:"sms",verified:false};
+const records=[a,a,b,c,d];
+assert.equal(audienceCount(records,{sport:"basketball",update:"camps-clinics",channel:"email"},catalog),2);
+assert.equal(audienceCount(records,{sport:"tennis",update:"camps-clinics",channel:"email"},catalog),1);
+assert.equal(audienceCount(records,{sport:null,update:"general",channel:"email"},catalog),1);
+assert.equal(audienceCount(records,{sport:"basketball",update:"camps-clinics",channel:"sms"},catalog),0);
+console.log("PASS sport-aware contract and deduplicated audience fixtures");

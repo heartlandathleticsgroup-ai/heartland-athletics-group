@@ -30,6 +30,13 @@ assert.equal((await post(url,{origin:ORIGIN,authorization:"Bearer "+bearer},"{}"
 assert.equal((await post(url+"?test=1")).status,404);assert.equal(providerCalls,0);
 proofAllowed=false;assert.equal((await post()).status,403);assert.equal(drivers,0);proofAllowed=true;
 assert.equal((await post()).status,409);assert.equal(providerCalls,0);
+// Hosted zero-byte streams must pass while any nonempty content fails closed.
+const stream=bytes=>new ReadableStream({start(c){if(bytes)c.enqueue(new TextEncoder().encode(bytes));c.close();}});
+const streamed=(bytes,length)=>rt(new Request(url,{method:"POST",headers:{origin:ORIGIN,authorization:"Bearer "+bearer,"content-length":length},body:stream(bytes),duplex:"half"}));
+assert.equal((await streamed("x","0")).status,403);
+assert.equal((await streamed(null,"1")).status,403);
+assert.equal((await streamed(null,"0")).status,409);
+assert.equal(providerCalls,0);
 approved=true;
 const api=createGmailAdminClient({allowed:()=>true,getBearer:async()=>bearer,request:(u,o)=>rt(new Request(u,{...o,headers:{...o.headers,origin:ORIGIN}}))});
 assert.deepEqual(await api("sender-test"),{outcome:"accepted-not-delivered"});assert.equal(finished,"accepted-not-delivered");assert.equal(providerCalls,2);

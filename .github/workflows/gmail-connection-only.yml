@@ -61,3 +61,26 @@ jobs:
           probe 503 'Worker still hard locked' hag-gmail-worker
           probe 503 'Subscriptions still hard locked' hag-subscriptions
           echo 'PASS: hosted control config shape verified; no credentials read out, OAuth, delivery and signup remain locked'
+  sender-test-hosted-readiness:
+    if: github.head_ref == 'admin/gmail-one-sender-test'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read hosted readiness and verify unauthorized denial
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://unrqbfngcgvqnytxbtgj.supabase.co/functions/v1'
+          probe() {
+            local expected="$1" route="$2"
+            shift 2
+            local status
+            status="$(curl --silent --show-error --max-time 15 --proto '=https' -o /dev/null -w '%{http_code}' "$@" "$base/$route")"
+            printf '%s: %s (expected %s)\n' "$route" "$status" "$expected"
+            test "$status" = "$expected"
+          }
+          probe 204 hag-gmail-sender-test/readiness
+          probe 403 hag-gmail-sender-test/run -X POST -H 'Origin: https://heartlandathleticsgroup.com'
+          probe 503 hag-gmail-worker
+          probe 503 hag-subscriptions
+          echo 'PASS: hosted sender test configuration and unauthenticated denial; normal delivery and signup locked'

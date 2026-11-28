@@ -1,6 +1,8 @@
 import {TOPICS,CONSENT,CONSENT_VERSION,validateRequest} from "./consent.mjs";
 export const SIGNUP_RELEASE_ENABLED=false;
 export const SMS_RELEASE_ENABLED=false;
+// This draft UI cannot submit until the sport-aware contract, storage and delivery gates are implemented.
+export const SPORT_PREFERENCES_READY=false;
 export const ENDPOINT="https://unrqbfngcgvqnytxbtgj.supabase.co/functions/v1/hag-subscriptions";
 export function envelope(form,requestId,{smsEnabled=false}={}){
  if(form.sms.enabled&&!smsEnabled)throw Error("SMS is not available yet.");
@@ -9,35 +11,48 @@ export function envelope(form,requestId,{smsEnabled=false}={}){
  return {action:"subscribe",requestId,version:CONSENT_VERSION,form};
 }
 export function createSignupClient({mode,request}){
- if(typeof request!=="function"||!(mode==="isolated"&&request!==globalThis.fetch||mode==="release"&&SIGNUP_RELEASE_ENABLED))throw Error("Signup not released");
+ if(typeof request!=="function"||!(mode==="isolated"&&request!==globalThis.fetch||mode==="release"&&SIGNUP_RELEASE_ENABLED&&SPORT_PREFERENCES_READY))throw Error("Signup not released");
  return async payload=>{
   const response=await request(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload),cache:"no-store",credentials:"omit",redirect:"error",referrerPolicy:"no-referrer"});
   if(response.status!==202)throw Error("Request unavailable.");
   return true;
  };
 }
-export function attachSignup(doc,{call=null,smsEnabled=false,randomId=()=>crypto.randomUUID()}={}){
- const $=id=>doc.getElementById(id),channels=["email","sms"];let busy=false,requestId=null;
- for(const c of channels){
-  const enabled=$(c+"-enabled"),details=$(c+"-details"),topics=$(c+"-topics");
-  $(c+"-wording").textContent=CONSENT[c];
-  for(const [code,label] of TOPICS){const node=doc.createElement("label"),input=doc.createElement("input");input.type="checkbox";input.value=code;node.append(input," "+label);topics.append(node);}
-  enabled.addEventListener("change",()=>{details.hidden=!enabled.checked;$(c+"-destination").disabled=!enabled.checked;if(!enabled.checked){$(c+"-destination").value="";$(c+"-consent").checked=false;for(const x of topics.querySelectorAll("input"))x.checked=false;}});
-  $(c+"-destination").disabled=true;
- }
- $("sms-channel").disabled=!smsEnabled;
- const form=$("subscriber-form");
- form.addEventListener("input",()=>{if(!busy)requestId=null;});
- form.addEventListener("submit",async event=>{
-  event.preventDefault();if(!call||busy)return;$("signup-error").textContent="";
-  const choice=c=>$(c+"-enabled").checked?{enabled:true,destination:$(c+"-destination").value,topics:[...$(c+"-topics").querySelectorAll("input:checked")].map(x=>x.value),consent:$(c+"-consent").checked}:{enabled:false,destination:"",topics:[],consent:false};
-  const value={name:$("subscriber-name").value,adult:$("adult").checked,email:choice("email"),sms:choice("sms")};
-  let payload;try{payload=envelope(value,requestId??=randomId(),{smsEnabled});}catch(error){$("signup-error").textContent=error.message;return;}
-  busy=true;$("signup-fields").disabled=true;
-  try{await call(payload);form.reset();for(const c of channels){$(c+"-details").hidden=true;$(c+"-destination").disabled=true;}requestId=null;$("release-status").textContent="Request received. Eligible email subscriptions begin without a confirmation step. If eligible, one welcome email may be sent. SMS, when available, requires confirmation. Manage or withdraw your choices at any time.";}
-  catch{$("signup-error").textContent="Unable to complete the request. Please try again or contact H.A.G.";}
-  finally{busy=false;$("signup-fields").disabled=false;}
+// Preview catalog, not the existing nine-topic backend contract. Do not serialize these IDs to the old API.
+export const SPORTS=Object.freeze([
+ ["basketball","Basketball"],["volleyball","Volleyball"],["baseball","Baseball"],
+ ["softball","Softball"],["football","Football"],["soccer","Soccer"],
+ ["all-sports","All current and future sports"]
+].map(Object.freeze));
+export const UPDATE_TYPES=Object.freeze([
+ ["general","General H.A.G. announcements"],["enforcers","Heartland Enforcers Basketball Club"],
+ ["gus-macker","Gus Macker – Quincy"],["tryouts-registration","Tryouts and registrations"],
+ ["camps-clinics","Camps and clinics"],["tournaments-events","Tournaments and events"],
+ ["recreational-leagues","Youth recreational leagues"],["sponsorship","Sponsorship opportunities"],
+ ["volunteer","Volunteer opportunities"]
+].map(Object.freeze));
+export function attachSignup(doc){
+ const $=id=>doc.getElementById(id);
+ // No transport, storage, personal information collection or submission in this preview.
+ const addOptions=(id,items)=>items.map(([code,title])=>{
+  const label=doc.createElement("label"),input=doc.createElement("input");
+  input.type="checkbox";input.value=code;label.append(input," "+title);$(id).append(label);return input;
  });
- if(call){$("signup-fields").disabled=false;$("subscribe-submit").disabled=false;$("release-status").textContent="Choose your contact method and topics. Email and text consent are separate.";}
+ const sports=addOptions("sports-options",SPORTS),all=sports.at(-1);
+ for(const s of sports)s.addEventListener("change",()=>{
+  if(!s.checked)return;
+  if(s===all){for(const other of sports)if(other!==all)other.checked=false;}
+  else all.checked=false;
+ });
+ addOptions("update-options",UPDATE_TYPES);
+ for(const c of ["email","sms"]){
+  const enabled=$(c+"-enabled"),details=$(c+"-details"),consent=$(c+"-consent");
+  $(c+"-wording").textContent=CONSENT[c];
+  const sync=()=>{details.hidden=!enabled.checked;$(c+"-destination").disabled=true;if(!enabled.checked)consent.checked=false;};
+  enabled.addEventListener("change",sync);sync();
+ }
+ $("subscriber-form").addEventListener("submit",event=>event.preventDefault());
+ $("subscriber-name").disabled=true;$("subscribe-submit").disabled=true;
+ $("signup-fields").disabled=false;
 }
-if(typeof document!=="undefined"){const call=SIGNUP_RELEASE_ENABLED?createSignupClient({mode:"release",request:globalThis.fetch.bind(globalThis)}):null;attachSignup(document,{call,smsEnabled:SMS_RELEASE_ENABLED});}
+if(typeof document!=="undefined")attachSignup(document);

@@ -1,8 +1,9 @@
 begin;
 do $qa$
-declare a uuid;b uuid;c uuid; raw text; j jsonb; campaign uuid:=gen_random_uuid(); plan uuid:=gen_random_uuid(); smsraw text; rules jsonb:='[{"sport":"basketball","update":"camps-clinics"},{"sport":"volleyball","update":"camps-clinics"},{"sport":null,"update":"general"}]'; g bigint; k text:=repeat('a',64);
+declare a uuid;b uuid;c uuid; draft_id uuid:=gen_random_uuid(); raw text; j jsonb; campaign uuid:=gen_random_uuid(); plan uuid:=gen_random_uuid(); smsraw text; rules jsonb:='[{"sport":"basketball","update":"camps-clinics"},{"sport":"volleyball","update":"camps-clinics"},{"sport":null,"update":"general"}]'; g bigint; k text:=repeat('a',64);
 begin
  if has_table_privilege('anon','hag_private.sport_preferences','select') or has_function_privilege('anon','public.hag_sport_admin(text,text,text,boolean,text,text)','execute') or has_function_privilege('authenticated','hag_private.sport_email_signup(uuid,text,boolean,text,text[],text[],boolean,text,text,text)','execute') then raise exception 'draft access leak';end if;
+ if has_function_privilege('hag_subscription_runtime','hag_private.subscription_email_opt_in_welcome(uuid,text,boolean,text,text[],boolean,text,text,text)','execute') or has_function_privilege('hag_subscription_runtime','hag_private.subscription_edit(text,text[],text[],boolean,boolean,text)','execute') then raise exception 'legacy mutation bypass';end if;
  if hag_private.sport_selection_valid(array['all-sports','basketball'],array['general']) or hag_private.sport_selection_valid(array['volleyball'],array['enforcers']) or hag_private.sport_selection_valid('{}',array['camps-clinics']) then raise exception 'bad scope accepted';end if;
  g:=(hag_private.gmail_status()->>'generation')::bigint;
  if not hag_private.gmail_store(g,'encrypted-fixture','fixture') then raise exception 'store';end if;
@@ -50,6 +51,11 @@ begin
  if not (public.hag_sport_admin('save','pickleball','Pickleball',true)->>'ok')::boolean then raise exception 'admin catalog save';end if;
  if jsonb_array_length(public.hag_sport_admin('catalog'))<>8 then raise exception 'admin catalog load';end if;
  if (public.hag_sport_admin_count(rules,'email')->>'count')::int<>1 then raise exception 'admin audience count';end if;
+ if not (public.hag_sport_admin_drafts('save',draft_id,0,'Fixture announcement','Fixture body',rules,'email')->>'ok')::boolean then raise exception 'campaign draft';end if;
+ if (public.hag_sport_admin_drafts('save',draft_id,0,'Duplicate','Duplicate',rules,'email')->>'ok')::boolean then raise exception 'draft duplicate';end if;
+ if (public.hag_sport_admin_drafts('read',draft_id)->>'subject')<>'Fixture announcement' then raise exception 'draft read';end if;
+ if jsonb_array_length(public.hag_sport_admin_drafts('list'))<>1 then raise exception 'draft list';end if;
+ if (public.hag_sport_admin_drafts('save',draft_id,1,'Updated','Updated body',rules,'email')->>'revision')::int<>2 then raise exception 'draft revision';end if;
  execute 'reset role';
 end $qa$;
 select 'PASS: sport consent, atomic welcome, separate channels, intersection, future sports, count deduplication, secure edits and suppression' as result;

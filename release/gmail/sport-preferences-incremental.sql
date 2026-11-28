@@ -322,4 +322,48 @@ create function public.hag_sport_admin_count(p_targets jsonb,p_channel text)
 returns jsonb language sql stable security invoker set search_path='' as $$ select hag_private.sport_admin_count(p_targets,p_channel) $$;
 revoke all on function public.hag_sport_admin_count(jsonb,text) from public,anon,authenticated,service_role;
 grant execute on function public.hag_sport_admin_count(jsonb,text) to authenticated;
+-- Review-only announcement draft storage, separate from published website news and delivery.
+create table hag_private.sport_announcement_drafts(
+ id uuid primary key, channel text not null check(channel in ('email','sms')),
+ subject text not null check(length(subject) between 1 and 150 and subject !~ '[[:cntrl:]]'),
+ body text not null check(length(body) between 1 and 10000),
+ targets jsonb not null, created_by uuid not null, updated_by uuid not null,
+ revision bigint not null default 1, updated_at timestamptz not null default clock_timestamp()
+);
+alter table hag_private.sport_announcement_drafts enable row level security;
+alter table hag_private.sport_announcement_drafts force row level security;
+revoke all on hag_private.sport_announcement_drafts from public,anon,authenticated,service_role,hag_subscription_runtime,hag_gmail_control,hag_gmail_dispatch,hag_email_worker;
+create function hag_private.sport_admin_drafts(p_action text,p_id uuid default null,p_revision bigint default null,p_subject text default null,p_body text default null,p_targets jsonb default null,p_channel text default null)
+returns jsonb language plpgsql volatile security definer set search_path='' as $draft$
+declare proof jsonb; actor uuid; d hag_private.sport_announcement_drafts;
+begin
+ proof:=hag_private.gmail_admin_proof();
+ if proof is null then raise exception 'Access unavailable';end if;
+ actor:=(proof->>'actor')::uuid;
+ if p_action='list' then
+ return coalesce((select jsonb_agg(jsonb_build_object('id',id,'subject',subject,'channel',channel,'revision',revision,'updatedAt',updated_at) order by updated_at desc) from (select * from hag_private.sport_announcement_drafts order by updated_at desc limit 50) q),'[]'::jsonb);
+ end if;
+ if p_action='read' then
+ select * into d from hag_private.sport_announcement_drafts where id=p_id;
+ elsif p_action='save' then
+ if p_id is null or p_revision is null or p_revision<0 or p_subject is null or length(btrim(p_subject)) not between 1 and 150 or p_subject ~ '[[:cntrl:]]' or p_body is null or length(btrim(p_body)) not between 1 and 10000 or p_channel not in ('email','sms') then raise exception 'Invalid draft';end if;
+ perform count(*) from hag_private.sport_audience_union(p_targets,p_channel);
+ if p_revision=0 then
+ insert into hag_private.sport_announcement_drafts(id,channel,subject,body,targets,created_by,updated_by) values(p_id,p_channel,btrim(p_subject),btrim(p_body),p_targets,actor,actor) on conflict do nothing returning * into d;
+ else
+ update hag_private.sport_announcement_drafts set channel=p_channel,subject=btrim(p_subject),body=btrim(p_body),targets=p_targets,updated_by=actor,revision=revision+1,updated_at=clock_timestamp() where id=p_id and revision=p_revision returning * into d;
+ end if;
+ else raise exception 'Invalid draft action';end if;
+ if d.id is null then return jsonb_build_object('ok',false);end if;
+ return jsonb_build_object('ok',true,'id',d.id,'revision',d.revision,'subject',d.subject,'body',d.body,'targets',d.targets,'channel',d.channel);
+end$draft$;
+revoke all on function hag_private.sport_admin_drafts(text,uuid,bigint,text,text,jsonb,text) from public,anon,authenticated,service_role,hag_subscription_runtime,hag_gmail_control,hag_gmail_dispatch;
+grant execute on function hag_private.sport_admin_drafts(text,uuid,bigint,text,text,jsonb,text) to authenticated;
+create function public.hag_sport_admin_drafts(p_action text,p_id uuid default null,p_revision bigint default null,p_subject text default null,p_body text default null,p_targets jsonb default null,p_channel text default null)
+returns jsonb language sql volatile security invoker set search_path='' as $draft$ select hag_private.sport_admin_drafts(p_action,p_id,p_revision,p_subject,p_body,p_targets,p_channel) $draft$;
+revoke all on function public.hag_sport_admin_drafts(text,uuid,bigint,text,text,jsonb,text) from public,anon,authenticated,service_role;
+grant execute on function public.hag_sport_admin_drafts(text,uuid,bigint,text,text,jsonb,text) to authenticated;
+-- Sport-mode signup is the only runtime opt-in path once this incremental is installed.
+-- The new wrapper invokes the existing welcome function atomically as its owner.
+revoke execute on function hag_private.subscription_email_opt_in_welcome(uuid,text,boolean,text,text[],boolean,text,text,text),hag_private.subscription_edit(text,text[],text[],boolean,boolean,text) from hag_subscription_runtime;
 commit;

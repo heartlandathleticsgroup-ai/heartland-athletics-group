@@ -127,7 +127,7 @@ async function init(){
   },allowed);
   cms=attachCMS($("authorized-panel"),async(name,args)=>{if(!allowed())throw Error("Access unavailable");return data(await client.rpc(name,args));},allowed);
   // No provider operations unless an independently approved release flips the lock.
-  sportAdmin=attachSportAdmin($("authorized-panel"),{allowed,api:SPORT_ADMIN_RELEASE_ENABLED?async args=>{if(!allowed())throw Error("Access unavailable");const {p_action,...rest}=args;return data(await client.rpc(p_action==="count-union"?"hag_sport_admin_count":"hag_sport_admin",p_action==="count-union"?rest:args));}:null});
+  sportAdmin=attachSportAdmin($("authorized-panel"),{allowed,api:SPORT_ADMIN_RELEASE_ENABLED?async args=>{if(!allowed())throw Error("Access unavailable");const {p_action,...rest}=args;if(p_action.startsWith("draft-"))return data(await client.rpc("hag_sport_admin_drafts",{p_action:p_action.slice(6),...rest}));return data(await client.rpc(p_action==="count-union"?"hag_sport_admin_count":"hag_sport_admin",p_action==="count-union"?rest:args));}:null});
   const gmailApi=GMAIL_RELEASE_ENABLED?createGmailAdminClient({mode:"release-candidate",allowed,getBearer:async()=>{if(!allowed())throw Error("Access unavailable");const {session}=data(await client.auth.getSession());if(!allowed()||!session)throw Error("Access unavailable");return session.access_token;},request:globalThis.fetch.bind(globalThis)}):null;
   gmailControls=attachGmailControls($("authorized-panel"),{allowed,api:gmailApi});
   const {session}=data(await client.auth.getSession());

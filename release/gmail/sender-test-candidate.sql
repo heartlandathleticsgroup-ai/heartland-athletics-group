@@ -38,14 +38,14 @@ begin
 end$$;
 -- Final dispatch fence; disconnect/rotation, expiration or replay denies the send.
 create function hag_private.gmail_sender_test_start(p_id uuid,p_generation bigint)
-returns boolean language plpgsql security definer set search_path='' as $
+returns boolean language plpgsql security definer set search_path='' as $$
 begin
  perform 1 from hag_private.gmail_connection where singleton and generation=p_generation and not enabled and credential is not null for update;
  if not found or exists(select 1 from hag_private.subscription_email_outbox) or exists(select 1 from hag_private.hag_subscriptions) then return false;end if;
  update hag_private.gmail_sender_test set started_at=clock_timestamp()
  where test_id=p_id and generation=p_generation and state='claimed' and started_at is null and expires_at>clock_timestamp() and claimed_at>clock_timestamp()-interval '30 seconds';
  return found;
-end$;
+end$$;
 create function hag_private.gmail_sender_test_finish(p_id uuid,p_state text)
 returns boolean language plpgsql security definer set search_path='' as $$
 begin

@@ -1,0 +1,31 @@
+name: Gmail connection-only review
+on:
+  pull_request:
+    branches: [main]
+    paths: ["release/gmail/**", "admin/gmail-connection.mjs", "admin/auth.js", "admin/index.html", "tests/gmail-connection-only.test.mjs", ".github/workflows/gmail-connection-only.yml"]
+permissions:
+  contents: read
+jobs:
+  connection-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Test exact commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet --no-tags https://github.com/heartlandathleticsgroup-ai/heartland-athletics-group.git "$RUNNER_TEMP/hag-connection"
+          cd "$RUNNER_TEMP/hag-connection"
+          git fetch origin "$GITHUB_SHA"
+          git checkout --detach "$GITHUB_SHA"
+          node tests/gmail-connection-only.test.mjs
+          node tests/admin-dashboard.test.mjs
+          node tests/admin-communications.test.mjs
+          node tests/admin-auth-state.test.mjs
+          node tests/admin-passkey.test.mjs
+          scratch="$(mktemp -d)"
+          curl --fail --silent --show-error --location --proto '=https' --max-time 90 https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-unknown-linux-gnu.zip -o "$scratch/deno.zip"
+          echo "e890975bc2549807bbcc0b584ffafda72cc7c93349dd99c80483dd784f6c4609  $scratch/deno.zip" | sha256sum -c -
+          unzip -q "$scratch/deno.zip" -d "$scratch"
+          (cd release/gmail; "$scratch/deno" cache --frozen --config deno.json connection-edge-entry.mjs; "$scratch/deno" check --frozen --config deno.json connection-edge-entry.mjs)
+          "$scratch/deno" run --no-prompt tests/gmail-connection-only.test.mjs

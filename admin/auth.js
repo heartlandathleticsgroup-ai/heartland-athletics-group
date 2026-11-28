@@ -1,21 +1,23 @@
 import {nextPanel,isSixDigit,expired} from "./auth-state.mjs";
 import {signInWithVerifiedPasskey} from "./verified-passkey.mjs";
 import {attachCommunications} from "./communications.mjs";
+import {attachGmailControls,createGmailAdminClient} from "./gmail-connection.mjs";
 import {attachCMS} from "./cms.mjs?v=3";
 const BASE="https://unrqbfngcgvqnytxbtgj.supabase.co", PUBLISHABLE_KEY="sb_publishable_JeTzqF2gS0-pEHLs3VLOmg_GmK22bon";
 const $=id=>document.getElementById(id);
 const panels=["login","enroll","challenge","authorized"];
 const notices={login:"Sign in with your approved administrator account.",enroll:"An authenticator is required before administrative access.",challenge:"Complete authenticator verification.",authorized:"Secure administrator session verified.",denied:"Access denied or session expired. Sign in again."};
 const STORAGE="hag-admin-auth-v1", CLOCK="hag-admin-clock-v1";
-let communications=null,cms=null;
+let communications=null,cms=null,gmailControls=null;
 let client=null,busy=false,started=0,last=0,active=false,enrollment=null,currentPanel=null;
 const say=s=>{$("notice").textContent=s;};
 function passkeyAvailable(){return !!(window.isSecureContext&&window.PublicKeyCredential&&navigator.credentials&&client?.auth?.passkey?.startAuthentication&&client?.auth?.registerPasskey);}
 function clearEnrollment(){enrollment=null;$("enroll-details").hidden=true;$("qr").removeAttribute("src");$("setup-key").textContent="";$("enroll-code").value="";$("start-enroll").disabled=false;}
 function show(panel){
- if(panel!=="authorized"){communications?.clear();cms?.clear();}
+ if(panel!=="authorized"){communications?.clear();cms?.clear();gmailControls?.clear();}
  panels.forEach(p=>{$(p+"-panel").hidden=p!==panel;});
  currentPanel=panel;$("signout").hidden=panel==="login";
+ gmailControls?.refreshAccess?.();
  $("passkey-login").hidden=!passkeyAvailable();$("passkey-hint").hidden=!passkeyAvailable();$("register-passkey").hidden=!passkeyAvailable();
  if(panel!=="enroll")clearEnrollment();
  if(panel!=="challenge")$("challenge-code").value="";
@@ -62,7 +64,7 @@ async function run(fn,onError="Unable to complete this security step. Try again 
  try{
   if(active&&expired(Date.now(),last,started)){await lock("Session ended. Sign in again.");return;}
   await fn();
- }catch{say(onError);}finally{controls.forEach((x,i)=>x.disabled=wasDisabled[i]);busy=false;}
+ }catch{say(onError);}finally{controls.forEach((x,i)=>x.disabled=wasDisabled[i]);busy=false;gmailControls?.refreshAccess?.();}
 }
 function on(id,event,fn){$(id).addEventListener(event,ev=>{ev.preventDefault();void fn();});}
 on("login-form","submit",()=>run(async()=>{
@@ -122,6 +124,8 @@ async function init(){
    return data(await client.rpc("hag_communications_read",{p_view:view,p_offset:offset,p_channel:channel}));
   },allowed);
   cms=attachCMS($("authorized-panel"),async(name,args)=>{if(!allowed())throw Error("Access unavailable");return data(await client.rpc(name,args));},allowed);
+  const gmailApi=createGmailAdminClient({allowed,getBearer:async()=>{if(!allowed())throw Error("Access unavailable");const {session}=data(await client.auth.getSession());if(!allowed()||!session)throw Error("Access unavailable");return session.access_token;},request:globalThis.fetch.bind(globalThis)});
+  gmailControls=attachGmailControls($("authorized-panel"),{allowed,api:gmailApi});
   const {session}=data(await client.auth.getSession());
   if(!session){show("login");clearClock();return;}
   const saved=JSON.parse(sessionStorage.getItem(CLOCK)||"null");

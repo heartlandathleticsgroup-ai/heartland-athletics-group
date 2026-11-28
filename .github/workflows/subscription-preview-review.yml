@@ -52,3 +52,17 @@ jobs:
           bash tests/gmail-release-package-ci.sh
           git diff --exit-code origin/main...HEAD -- admin/auth-state.mjs admin/verified-passkey.mjs supabase/functions supabase/admin-setup/phase-3c2b-communications.sql
           test "$(git diff --name-only origin/main...HEAD -- supabase)" = "$(printf '%s\n' supabase/admin-setup/phase-3c3-confirmation-draft.sql supabase/admin-setup/phase-3c3-confirmation-test.sql supabase/admin-setup/phase-3c3-email-readiness-draft.sql supabase/admin-setup/phase-3c3-gateway-draft.sql supabase/admin-setup/phase-3c3-gateway-test.sql supabase/admin-setup/phase-3c3-gmail-backend-draft.sql supabase/admin-setup/phase-3c3-outbox-draft.sql supabase/admin-setup/phase-3c3-pending-draft.sql supabase/admin-setup/phase-3c3-runtime-role-draft.sql supabase/admin-setup/phase-3c3-single-opt-in-draft.sql)"
+
+  public-readiness-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read public DNS and unauthenticated disabled function status
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet --no-tags https://github.com/heartlandathleticsgroup-ai/heartland-athletics-group.git "$RUNNER_TEMP/hag-readiness"
+          cd "$RUNNER_TEMP/hag-readiness"
+          git fetch origin "$GITHUB_SHA"
+          git checkout --detach "$GITHUB_SHA"
+          python3 tests/public-gmail-readiness.py

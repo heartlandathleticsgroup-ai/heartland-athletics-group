@@ -30,3 +30,7 @@ Hosted baseline inspection confirmed the original E.9 migration and three disabl
 
 ### Sport-aware subscription candidate (review only)
 After the baseline and welcome incremental, the sport-preferences incremental adds private sport storage, secure editing, CMS audience and draft controls. It revokes old direct signup/edit runtime grants. Run the baseline tests before the sport incremental in disposable CI; do not install on the hosted project yet. All public and CMS release flags stay false. SMS confirmation has no runtime grants, and targeted drafts have no live delivery adapter. Do not flip any flags without provider verification and exact-release acceptance.
+
+
+### Production readiness
+See `previews/subscriptions/production-readiness.md`. The sport incremental now adds a generation-bound sender review requirement; it remains review-only and must not be installed before coordinated release acceptance. The public DNS/GET probe does not authenticate or send messages. Campaign delivery remains unimplemented and locked.

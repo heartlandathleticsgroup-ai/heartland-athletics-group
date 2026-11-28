@@ -366,4 +366,62 @@ grant execute on function public.hag_sport_admin_drafts(text,uuid,bigint,text,te
 -- Sport-mode signup is the only runtime opt-in path once this incremental is installed.
 -- The new wrapper invokes the existing welcome function atomically as its owner.
 revoke execute on function hag_private.subscription_email_opt_in_welcome(uuid,text,boolean,text,text[],boolean,text,text,text),hag_private.subscription_edit(text,text[],text[],boolean,boolean,text) from hag_subscription_runtime;
+-- Sender review is an explicit operator attestation, not proof supplied by gmail.send.
+-- Bound to the credential generation; reconnect, disable or rotation invalidates it.
+create table hag_private.gmail_sender_review(
+ generation bigint primary key, sender text not null check(sender='no-reply@heartlandathleticsgroup.com'),
+ review_ref text not null check(length(review_ref) between 8 and 120 and review_ref !~ '[[:cntrl:]]'),
+ reviewed_at timestamptz not null default clock_timestamp(),
+ alias_checked boolean not null check(alias_checked),
+ dns_checked boolean not null check(dns_checked),
+ postal_checked boolean not null check(postal_checked),
+ contact_checked boolean not null check(contact_checked),
+ provider_checked boolean not null check(provider_checked),
+ scheduler_checked boolean not null check(scheduler_checked),
+ policy_checked boolean not null check(policy_checked)
+);
+alter table hag_private.gmail_sender_review enable row level security;
+alter table hag_private.gmail_sender_review force row level security;
+revoke all on hag_private.gmail_sender_review from public,anon,authenticated,service_role,hag_subscription_runtime,hag_gmail_control,hag_gmail_dispatch,hag_email_worker,hag_gmail_release_operator;
+create function hag_private.gmail_record_sender_review(p_generation bigint,p_sender text,p_ref text,p_alias boolean,p_dns boolean,p_postal boolean,p_contact boolean,p_provider boolean,p_scheduler boolean,p_policy boolean)
+returns boolean language plpgsql volatile security definer set search_path='' as $review$
+begin
+ if p_sender is distinct from 'no-reply@heartlandathleticsgroup.com' or p_ref is null or length(btrim(p_ref)) not between 8 and 120 or p_ref ~ '[[:cntrl:]]' or p_alias is distinct from true or p_dns is distinct from true or p_postal is distinct from true or p_contact is distinct from true or p_provider is distinct from true or p_scheduler is distinct from true or p_policy is distinct from true then return false;end if;
+ perform 1 from hag_private.gmail_connection where singleton and generation=p_generation and not enabled and credential is not null for update;
+ if not found then return false;end if;
+ insert into hag_private.gmail_sender_review(generation,sender,review_ref,alias_checked,dns_checked,postal_checked,contact_checked,provider_checked,scheduler_checked,policy_checked) values(p_generation,p_sender,btrim(p_ref),true,true,true,true,true,true,true) on conflict do nothing;
+ return found;
+end $review$;
+revoke all on function hag_private.gmail_record_sender_review(bigint,text,text,boolean,boolean,boolean,boolean,boolean,boolean,boolean) from public,anon,authenticated,service_role,hag_subscription_runtime,hag_gmail_control,hag_gmail_dispatch,hag_email_worker,hag_subscription_maintenance;
+grant execute on function hag_private.gmail_record_sender_review(bigint,text,text,boolean,boolean,boolean,boolean,boolean,boolean,boolean) to hag_gmail_release_operator;
+create or replace function hag_private.gmail_enable_reviewed(p_generation bigint)
+returns boolean language plpgsql volatile security definer set search_path='' as $review$
+begin
+ update hag_private.gmail_connection c set enabled=true where singleton and c.generation=p_generation and not enabled and credential is not null
+ and exists(select 1 from hag_private.gmail_sender_review r where r.generation=c.generation);
+ return found;
+end $review$;
+-- No old-topic-only welcome after the subscriber has withdrawn every sport-aware interest.
+create or replace function hag_private.subscription_email_delivery_eligible(p_token text,p_destination text,p_purpose text)
+returns boolean language sql stable security definer set search_path='' as $elig$
+ select case when p_purpose='welcome' then coalesce(p_token ~ '^[0-9a-f]{64}:[0-9a-f]{64}$' and exists(
+  select 1 from hag_private.hag_contact_methods m
+  join hag_private.subscription_capabilities k on k.method_id=m.id and k.purpose='manage' and k.token_hash=extensions.digest(split_part(p_token,':',1),'sha256')
+  join hag_private.subscription_capabilities u on u.method_id=m.id and u.purpose='unsubscribe' and u.token_hash=extensions.digest(split_part(p_token,':',2),'sha256')
+  where m.channel='email' and m.destination=p_destination and k.used_at is null and u.used_at is null
+  and k.expires_at>statement_timestamp()+interval '1 minute' and u.expires_at>statement_timestamp()+interval '1 minute'
+  and exists(select 1 from hag_private.sport_preferences p where p.method_id=m.id and p.channel='email' and p.status='active' and cardinality(p.update_types)>0)
+  and exists(select 1 from hag_private.hag_subscriptions s where s.contact_method_id=m.id and s.channel='email' and s.status='active')
+  and not exists(select 1 from hag_private.hag_suppressions x where x.contact_method_id=m.id and x.active)),false)
+ else coalesce(p_token ~ '^[0-9a-f]{64}$' and p_purpose in ('manage','unsubscribe') and exists(
+  select 1 from hag_private.subscription_capabilities k join hag_private.hag_contact_methods m on m.id=k.method_id
+  where k.token_hash=extensions.digest(p_token,'sha256') and k.purpose=p_purpose and k.used_at is null
+  and k.expires_at>statement_timestamp()+interval '1 minute' and m.channel='email' and m.destination=p_destination),false) end
+$elig$;
+-- Review-only campaign fence. No runtime grant, outbox write or provider transport.
+create function hag_private.sport_campaign_review_eligible(p_campaign uuid,p_method uuid)
+returns boolean language sql stable security invoker set search_path='' as $review$
+ select exists(select 1 from hag_private.sport_campaign_plans p join hag_private.sport_campaign_plan_recipients r on r.campaign_id=p.id cross join lateral hag_private.sport_audience_union(p.targets,p.channel) a where p.id=p_campaign and r.method_id=p_method and a.method_id=p_method)
+$review$;
+revoke all on function hag_private.sport_campaign_review_eligible(uuid,uuid) from public,anon,authenticated,service_role,hag_subscription_runtime,hag_gmail_control,hag_gmail_dispatch,hag_email_worker;
 commit;

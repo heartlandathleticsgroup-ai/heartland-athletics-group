@@ -8,7 +8,13 @@ begin
  g:=(hag_private.gmail_status()->>'generation')::bigint;
  if not hag_private.gmail_store(g,'encrypted-fixture','fixture') then raise exception 'store';end if;
  g:=(hag_private.gmail_status()->>'generation')::bigint;
+ if hag_private.gmail_enable_reviewed(g) then raise exception 'unreviewed sender enabled';end if;
+ if has_function_privilege('authenticated','hag_private.gmail_record_sender_review(bigint,text,text,boolean,boolean,boolean,boolean,boolean,boolean,boolean)','execute') or has_function_privilege('hag_gmail_control','hag_private.gmail_record_sender_review(bigint,text,text,boolean,boolean,boolean,boolean,boolean,boolean,boolean)','execute') then raise exception 'sender review access';end if;
+ execute 'set local role hag_gmail_release_operator';
+ if hag_private.gmail_record_sender_review(g,'wrong@example.com','fixture-review',true,true,true,true,true,true,true) or hag_private.gmail_record_sender_review(g,'no-reply@heartlandathleticsgroup.com','fixture-review',true,false,true,true,true,true,true) then raise exception 'incomplete sender review';end if;
+ if not hag_private.gmail_record_sender_review(g,'no-reply@heartlandathleticsgroup.com','fixture-review',true,true,true,true,true,true,true) then raise exception 'sender review';end if;
  if not hag_private.gmail_enable_reviewed(g) then raise exception 'fixture enable';end if;
+ execute 'reset role';
  if not hag_private.sport_email_signup(gen_random_uuid(),'Fixture A',true,'sport-a@example.com',array['basketball'],array['camps-clinics','general'],true,'draft-sports-v2',k,'fixture') then raise exception 'first signup';end if;
  if hag_private.sport_email_signup(gen_random_uuid(),'Fixture A',true,'sport-a@example.com',array['all-sports'],array['camps-clinics'],true,'draft-sports-v2',k,'fixture') then raise exception 'unverified expansion';end if;
  if not hag_private.sport_email_signup(gen_random_uuid(),'Fixture B',true,'sport-b@example.com',array['all-sports'],array['camps-clinics'],true,'draft-sports-v2',k,'fixture') then raise exception 'second signup';end if;
@@ -25,6 +31,7 @@ begin
  if hag_private.sport_plan_review(plan,rules,'email')<>2 then raise exception 'union reservation';end if;
  if hag_private.sport_plan_review(plan,rules,'email')<>2 then raise exception 'union repeat';end if;
  if (select count(*) from hag_private.sport_campaign_plan_recipients where campaign_id=plan)<>2 then raise exception 'union duplicate';end if;
+ if not hag_private.sport_campaign_review_eligible(plan,a) or not hag_private.sport_campaign_review_eligible(plan,b) then raise exception 'review eligibility';end if;
  raw:=hag_private.subscription_new_token(a,'manage');j:=hag_private.sport_manage(raw);
  if j->>'channel'<>'email' or hag_private.sport_manage(raw) is not null then raise exception 'manage token replay';end if;
  raw:=j->>'editToken';
@@ -32,6 +39,7 @@ begin
  if (select count(*) from hag_private.sport_audience('basketball','camps-clinics','email'))<>1 then raise exception 'withdrawal not honored';end if;
  raw:=hag_private.subscription_new_token(b,'unsubscribe');j:=hag_private.subscription_redeem(raw,'unsubscribe');
  if j->>'ok'<>'true' or (select count(*) from hag_private.sport_audience('basketball','camps-clinics','email'))<>0 then raise exception 'global suppression';end if;
+ if hag_private.sport_campaign_review_eligible(plan,b) then raise exception 'suppressed campaign eligibility';end if;
  -- SMS is pending, never eligible, and isolated from email channel.
  smsraw:=hag_private.sport_sms_signup(gen_random_uuid(),'Fixture SMS',true,'+12025550123',array['basketball'],array['camps-clinics'],true,'draft-sports-v2');
  if smsraw is null then raise exception 'SMS staged signup';end if;
@@ -57,6 +65,14 @@ begin
  if jsonb_array_length(public.hag_sport_admin_drafts('list'))<>1 then raise exception 'draft list';end if;
  if (public.hag_sport_admin_drafts('save',draft_id,1,'Updated','Updated body',rules,'email')->>'revision')::int<>2 then raise exception 'draft revision';end if;
  execute 'reset role';
+ -- Withdraw every sport-aware interest while legacy subscription evidence is still retained.
+ raw:=hag_private.subscription_new_token(a,'manage');j:=hag_private.sport_manage(raw);
+ if not hag_private.sport_edit(j->>'editToken','{}','{}',false,false,null) then raise exception 'withdraw all';end if;
+ if hag_private.sport_campaign_review_eligible(plan,a) then raise exception 'withdrawn campaign eligibility';end if;
+ select extensions.pgp_sym_decrypt(payload,k)::jsonb into j from hag_private.subscription_email_outbox where extensions.pgp_sym_decrypt(payload,k)::jsonb->>'destination'='sport-a@example.com';
+ if j is null or hag_private.subscription_email_delivery_eligible(j->>'token','sport-a@example.com','welcome') then raise exception 'withdrawn welcome eligibility';end if;
+ perform hag_private.gmail_disable(false);
+ if hag_private.gmail_enable_reviewed(g+1) then raise exception 'stale sender review';end if;
 end $qa$;
 select 'PASS: sport consent, atomic welcome, separate channels, intersection, future sports, count deduplication, secure edits and suppression' as result;
 rollback;

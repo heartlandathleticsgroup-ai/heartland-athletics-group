@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {createSenderTestRoute,ORIGIN,TEST_ID} from "../release/gmail/runtime/sender-test-route.mjs";
 import {createCredentialVault} from "../release/gmail/runtime/backend.mjs";
-import {createGmailAdminClient} from "../admin/gmail-connection.mjs";
+
 const now=1000000,actor="00000000-0000-4000-8000-000000000002",session="00000000-0000-4000-8000-000000000003",bearer="fixture.header.signature",url="https://unrqbfngcgvqnytxbtgj.supabase.co/functions/v1/hag-gmail-sender-test/run";
 const cfg={runtime:"approved-runtime",oauth:true,send:false,preferences:false,sportPreferences:false,clientId:"fixture.apps.googleusercontent.com",clientSecret:"fixture-client-secret",postalFooter:"Fixture postal footer for isolated acceptance",publishableKey:"sb_publishable_fixture",dispatchDb:"postgresql://hag_gmail_dispatch_login.unrqbfngcgvqnytxbtgj:fictional-password@aws-0-us-east-2.pooler.supabase.com:6543/postgres",ca:"-----BEGIN CERTIFICATE-----\nfictional\n-----END CERTIFICATE-----",vault:{key:"0123456789abcdef".repeat(4),version:"fixture"}};
 const vault=createCredentialVault(cfg.vault);
@@ -38,7 +38,6 @@ assert.equal((await streamed(null,"1")).status,403);
 assert.equal((await streamed(null,"0")).status,409);
 assert.equal(providerCalls,0);
 approved=true;
-const api=createGmailAdminClient({allowed:()=>true,getBearer:async()=>bearer,request:(u,o)=>rt(new Request(u,{...o,headers:{...o.headers,origin:ORIGIN}}))});
-assert.deepEqual(await api("sender-test"),{outcome:"accepted-not-delivered"});assert.equal(finished,"accepted-not-delivered");assert.equal(providerCalls,2);
-assert.deepEqual(await api("sender-test"),{outcome:"not-authorized"});assert.equal(providerCalls,2);
+const first=await post();assert.deepEqual(await first.json(),{outcome:"accepted-not-delivered"});assert.equal(finished,"accepted-not-delivered");assert.equal(providerCalls,2);
+const replay=await post();assert.deepEqual(await replay.json(),{outcome:"not-authorized"});assert.equal(providerCalls,2);
 console.log("PASS: exact sender test endpoint, fresh user proof, delivery locks, fixed recipient and test identity, no replay, no arbitrary request body");

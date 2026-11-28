@@ -18,7 +18,7 @@ export function createFlowDb(query){
  const scalar=async(q,a)=>{const r=await query(q,a);if(r?.rows?.length!==1)throw Error("Flow unavailable");return r.rows[0].value;};
  return {put:(d,s,c)=>scalar("select hag_private.gmail_flow_put($1,$2,$3) as value",[d,s,c]),take:(d,s)=>scalar("select hag_private.gmail_flow_take($1,$2) as value",[d,s])};
 }
-export function createCallbackBridge({mode,backend,flows,vault,userProof,now=Date.now}){
+export function createCallbackBridge({mode,backend,flows,vault,userProof,now=Date.now,diagnostic=()=>{}}){
  if(mode!=="release-candidate"||typeof backend!=="function"||!flows||!vault||typeof userProof!=="function")throw Error("Isolated bridge only");
  // Only this request-scoped closure provides the bearer to the trusted verifier.
  // No inbound identity/assurance header is forwarded as proof.
@@ -47,15 +47,16 @@ export function createCallbackBridge({mode,backend,flows,vault,userProof,now=Dat
    }
    if(u.pathname==="/oauth/gmail/callback"){
     if(req.method!=="GET")return denied();
-    if(u.searchParams.getAll("state").length!==1)return resultRedirect(false);
+    if(u.searchParams.getAll("state").length!==1){diagnostic("bridge-state-invalid");return resultRedirect(false);}
     const id=readCookie(req),state=u.searchParams.get("state");
-    if(!valid(id)||!valid(state))return resultRedirect(false);
+    if(!valid(id)||!valid(state)){diagnostic("bridge-cookie-or-state-invalid");return resultRedirect(false);}
     const d=hash(id),s=hash(state),enc=await flows.take(d,s);
-    if(!enc)return resultRedirect(false);
+    if(!enc){diagnostic("bridge-flow-unavailable");return resultRedirect(false);}
     const f=vault.open(enc,"flow:"+d+":"+s);
-    if(!Number.isFinite(f.expires)||f.expires<=now())return resultRedirect(false);
+    if(!Number.isFinite(f.expires)||f.expires<=now()){diagnostic("bridge-flow-expired");return resultRedirect(false);}
     const proof=await userProof(f.bearer);
-    if(!proof||proof.actor!==f.actor||proof.session!==f.session)return resultRedirect(false);
+    if(!proof||proof.actor!==f.actor||proof.session!==f.session){diagnostic("bridge-admin-proof-rejected");return resultRedirect(false);}
+    diagnostic("bridge-flow-validated");
     const result=await backend(req,f.bearer);
     // Discard callback output; strip code/state from browser URL even on failure.
     return resultRedirect(result.status===200);

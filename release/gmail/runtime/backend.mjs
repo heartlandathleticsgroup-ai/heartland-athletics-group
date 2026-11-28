@@ -51,7 +51,7 @@ async function reviewBody(req){
  }finally{clearTimeout(timer);void reader.cancel().catch(()=>{});}
 }
 function reply(status,body){return new Response(JSON.stringify(body),{status,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Referrer-Policy":"no-referrer","X-Content-Type-Options":"nosniff"}});}
-export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixtureRequest,clientId,clientSecret,outboxKeys,nextVault=null,expectedGeneration=null,protocol=null,now=Date.now}){
+export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixtureRequest,clientId,clientSecret,outboxKeys,nextVault=null,expectedGeneration=null,protocol=null,now=Date.now,diagnostic=()=>{}}){
  if(mode!=="release-candidate"||typeof fixtureRequest!=="function"||typeof verifyAdmin!=="function"||typeof clientId!=="string"||! /^[a-zA-Z0-9._-]+[.]apps[.]googleusercontent[.]com$/.test(clientId)||!secret(clientSecret)||!control||!dispatch||!vault||typeof outboxKeys!=="function"||!protocol)throw Error("Invalid release configuration");
  const call=async(url,form,access)=>{const headers=access?{"Authorization":"Bearer "+access,"Content-Type":"application/json"}:{"Content-Type":"application/x-www-form-urlencoded"};const body=access?JSON.stringify(form):new URLSearchParams(form).toString();return (protocol?.request||fixtureRequest)({url,method:"POST",headers,body,redirect:"error",timeoutMs:5000});};
  const vaultFor=version=>version===vault.version?vault:nextVault?.version===version?nextVault:null;
@@ -105,19 +105,22 @@ export function createGmailBackend({mode,control,dispatch,vault,verifyAdmin,fixt
    const state=u.searchParams.get("state"),code=u.searchParams.get("code");
    if(u.searchParams.getAll("state").length!==1||typeof state!=="string"||!/^[A-Za-z0-9_-]{43}$/.test(state)||u.searchParams.getAll("code").length!==1||!secret(code)||u.searchParams.has("error"))return reply(400,{ok:false});
    const d=digest(state),s=await control.take(d,a.actor,a.session);
-   if(!s)return reply(400,{ok:false});
+   if(!s){diagnostic("callback-state-unavailable");return reply(400,{ok:false});}
+   diagnostic("callback-state-consumed");
    const verifier=vault.open(s.verifier,"state:"+d+":"+a.actor+":"+a.session);
+   diagnostic("callback-verifier-decrypted");
+   diagnostic("callback-token-exchange-start");
    const t=await exchange({grant_type:"authorization_code",code,redirect_uri:protocol?.callback||CALLBACK,code_verifier:verifier});
-   if(!tokenValid(t)||!secret(t.body?.refresh_token)){if(secret(t.body?.refresh_token))await revoke(t.body.refresh_token);else if(secret(t.body?.access_token))await revoke(t.body.access_token);return reply(400,{ok:false});}
+   if(!tokenValid(t)||!secret(t.body?.refresh_token)){diagnostic("callback-token-not-accepted");if(secret(t.body?.refresh_token))await revoke(t.body.refresh_token);else if(secret(t.body?.access_token))await revoke(t.body.access_token);return reply(400,{ok:false});}
    // Sending identity cannot be proven with gmail.send alone. Connection is
    // stored disabled; a separately authorized alias acceptance test is required.
    try{
     const fresh=await verifyAdmin(req);
-    if(!validateAdmin(fresh,now())||fresh.actor!==a.actor||fresh.session!==a.session){await revoke(t.body.refresh_token);return reply(403,{ok:false});}
-    if(!await control.store(s.generation,vault.seal({token:t.body.refresh_token},"refresh"),vault.version)){await revoke(t.body.refresh_token);return reply(409,{ok:false});}
-    return reply(200,{connected:true,enabled:false});
-   }catch{await revoke(t.body.refresh_token);return reply(503,{ok:false});}
-  }catch{return reply(503,{ok:false});}
+    if(!validateAdmin(fresh,now())||fresh.actor!==a.actor||fresh.session!==a.session){diagnostic("callback-fresh-admin-rejected");await revoke(t.body.refresh_token);return reply(403,{ok:false});}
+    if(!await control.store(s.generation,vault.seal({token:t.body.refresh_token},"refresh"),vault.version)){diagnostic("callback-store-conflict");await revoke(t.body.refresh_token);return reply(409,{ok:false});}
+    diagnostic("callback-credential-stored");return reply(200,{connected:true,enabled:false});
+   }catch{diagnostic("callback-store-unavailable");await revoke(t.body.refresh_token);return reply(503,{ok:false});}
+  }catch{diagnostic("control-operation-unavailable");return reply(503,{ok:false});}
  }
  async function pump(){
   let reservation;

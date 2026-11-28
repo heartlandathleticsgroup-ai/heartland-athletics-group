@@ -35,7 +35,7 @@ export function parseGrant(response,{refresh=false,previousScope=null}={}){
  if(!scopeIsSendOnly(scope)||(!refresh&&!safeToken(b.refresh_token))||(refresh&&b.refresh_token!==undefined))return null;
  return {access_token:b.access_token,token_type:"Bearer",scope:GMAIL_SCOPE,expires_in:b.expires_in,...(!refresh?{refresh_token:b.refresh_token}:{})};
 }
-export function createProductionProtocol({mode,fetchFixture,clientId,clientSecret,postalFooter,network={oauth:false,send:false}}){
+export function createProductionProtocol({mode,fetchFixture,clientId,clientSecret,postalFooter,network={oauth:false,send:false},diagnostic=()=>{}}){
  if(mode!=="release-candidate"||typeof clientId!=="string"||! /^[a-zA-Z0-9._-]+[.]apps[.]googleusercontent[.]com$/.test(clientId)||!safeToken(clientSecret)||typeof postalFooter!=="string"||postalFooter.trim().length<15||postalFooter.length>300||/[\x00-\x1f\x7f]/.test(postalFooter))throw Error("Invalid private configuration");
  const http=createBoundedHttp({mode,fetchFixture});
  const form=(url,p)=>http(url,{headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams(p).toString()});
@@ -47,8 +47,22 @@ export function createProductionProtocol({mode,fetchFixture,clientId,clientSecre
    const allowed=refresh?["client_id","client_secret","grant_type","refresh_token"]:["client_id","client_secret","grant_type","code","redirect_uri","code_verifier"];
    if(keys.length!==allowed.length||new Set(keys).size!==keys.length||keys.some(k=>!allowed.includes(k))||p.get("client_id")!==clientId||p.get("client_secret")!==clientSecret)throw Error("Invalid provider grant");
    if(refresh?!safeToken(p.get("refresh_token")):grant!=="authorization_code"||!safeToken(p.get("code"))||p.get("redirect_uri")!==CALLBACK_URI||!/^[A-Za-z0-9_-]{43}$/.test(p.get("code_verifier")||""))throw Error("Invalid provider grant");
-   const response=await form(TOKEN,p),g=parseGrant(response,{refresh,previousScope:GMAIL_SCOPE});
-   if(!g)return response.status===200?{status:400,body:response.body}:response;
+   let response;try{response=await form(TOKEN,p);}catch(e){diagnostic("token-transport-unavailable");throw e;}
+   const g=parseGrant(response,{refresh,previousScope:GMAIL_SCOPE});
+   if(!g){
+    const b=response?.body;
+    if(response.status!==200){
+     const reason=b?.error;
+     diagnostic(reason==="invalid_grant"?"token-invalid-grant":reason==="invalid_client"?"token-invalid-client":reason==="unauthorized_client"?"token-unauthorized-client":reason==="access_denied"?"token-access-denied":response.status===429?"token-rate-limited":"token-provider-rejected");
+    }else if(!safeToken(b?.access_token))diagnostic("token-access-missing-or-invalid");
+    else if(!scopeIsSendOnly(b?.scope===undefined&&refresh?GMAIL_SCOPE:b?.scope))diagnostic("token-scope-not-send-only");
+    else if(!refresh&&!safeToken(b?.refresh_token))diagnostic("token-refresh-missing-or-invalid");
+    else if(typeof b?.token_type!=="string"||b.token_type.toLowerCase()!=="bearer")diagnostic("token-type-invalid");
+    else if(!Number.isInteger(b?.expires_in)||b.expires_in<1||b.expires_in>3600)diagnostic("token-expiry-invalid");
+    else diagnostic("token-response-invalid");
+    return response.status===200?{status:400,body:response.body}:response;
+   }
+   diagnostic("token-grant-validated");
    if(!safeToken(g.access_token)||(!refresh&&!safeToken(g.refresh_token)))throw Error("Fixture token required");
    return {status:200,body:g};
   }

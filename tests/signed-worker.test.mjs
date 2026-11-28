@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {createSignedWorkerFixture,workerSignature,WORKER_URL} from "../release/gmail/runtime/signed-worker-candidate.mjs";
 const key="0123456789abcdef".repeat(4),timestamp=1795839000,nonce="00000000-0000-4000-8000-000000000001";let ready=false,calls=0;const used=new Set();
 const route=createSignedWorkerFixture({mode:"isolated-acceptance",key,ready:async()=>ready,clock:()=>timestamp*1000,consume:async n=>{if(used.has(n))return false;used.add(n);return true;},pump:async()=>{calls++;return "empty";}});
+assert.equal(workerSignature({key,timestamp,nonce}),"fb18ee9cf34ec6d998e30bcd50e659f55d183d6c175d3f3b87f6745c0bc49f56");
 const make=(t=timestamp,n=nonce,body="{}",sig=workerSignature({key,timestamp:t,nonce:n}))=>new Request(WORKER_URL,{method:"POST",headers:{"content-type":"application/json","x-hag-timestamp":String(t),"x-hag-nonce":n,"x-hag-signature":sig},body});
 assert.equal((await route(make())).status,503);assert.equal(calls,0);ready=true;
 assert.equal((await route(make(timestamp-61))).status,403);

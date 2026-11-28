@@ -1,0 +1,18 @@
+name: Subscriber consent launch review
+on:
+  pull_request:
+    branches: [main]
+    paths: ['release/subscribers/**','subscribe/**','privacy/**','terms/**','sms-terms/**','tests/subscriber-launch.test.mjs','.github/workflows/subscriber-launch-review.yml']
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          node --check subscribe/signup.mjs
+          node tests/subscriber-launch.test.mjs

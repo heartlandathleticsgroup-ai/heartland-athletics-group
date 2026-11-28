@@ -42,3 +42,6 @@ assert.equal((await (await post("disconnect")).json()).providerRevoked,true);
 const api=createGmailAdminClient({allowed:()=>true,getBearer:async()=>bearer,request:(url,o)=>rt.handle(new Request(url,{...o,headers:{...o.headers,origin}}))});assert.deepEqual(await api("status"),{connected:false});await assert.rejects(api("enable"));await assert.rejects(api("rotate"));
 await rt.close();
 console.log("PASS: connection-only exact routes, one narrow DB identity, state/PKCE, encrypted grant, authenticated status and disconnect; no sending or subscription capability");
+
+const stale=await rt.handle(new Request(CALLBACK_URI+"?state="+target.searchParams.get("state")+"&code=mock-auth-code",{headers:{cookie}}));assert.equal(stale.status,303);assert.match(stale.headers.get("location"),/status=failed$/);
+const noToken=await rt.handle(new Request(CONTROL_BASE+"/oauth/gmail/status",{method:"POST",headers:{origin}}));assert.equal(noToken.status,403);

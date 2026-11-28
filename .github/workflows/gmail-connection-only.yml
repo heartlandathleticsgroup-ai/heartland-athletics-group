@@ -2,7 +2,7 @@ name: Gmail connection-only review
 on:
   pull_request:
     branches: [main]
-    paths: ["release/gmail/**", "admin/gmail-connection.mjs", "admin/auth.js", "admin/index.html", "tests/gmail-connection-only.test.mjs", ".github/workflows/gmail-connection-only.yml"]
+    paths: ["release/gmail/**", "admin/gmail-connection.mjs", "admin/auth.js", "admin/index.html", "tests/gmail-connection-only.test.mjs", "tests/gmail-connection-edge.test.mjs", ".github/workflows/gmail-connection-only.yml"]
 permissions:
   contents: read
 jobs:
@@ -18,6 +18,8 @@ jobs:
           cd "$RUNNER_TEMP/hag-connection"
           git fetch origin "$GITHUB_SHA"
           git checkout --detach "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git diff --exit-code origin/main...HEAD -- admin/auth-state.mjs admin/verified-passkey.mjs admin/cms.mjs admin/admin.css admin/communications.mjs admin/dashboard.mjs supabase/functions index.html gus-macker/index.html
           node tests/gmail-connection-only.test.mjs
           node tests/admin-dashboard.test.mjs
           node tests/admin-communications.test.mjs
@@ -29,3 +31,4 @@ jobs:
           unzip -q "$scratch/deno.zip" -d "$scratch"
           (cd release/gmail; "$scratch/deno" cache --frozen --config deno.json connection-edge-entry.mjs; "$scratch/deno" check --frozen --config deno.json connection-edge-entry.mjs)
           "$scratch/deno" run --no-prompt tests/gmail-connection-only.test.mjs
+          (cd release/gmail; "$scratch/deno" run --cached-only --frozen --no-prompt --allow-env=HAG_GMAIL_RUNTIME_STATE,HAG_GMAIL_OAUTH_ENABLED,HAG_GMAIL_SEND_ENABLED,HAG_PREFERENCES_ENABLED,HAG_SPORT_PREFERENCES_ENABLED,HAG_GMAIL_CONTROL_DATABASE_URL,HAG_DATABASE_CA_PEM,HAG_GMAIL_CLIENT_ID,HAG_GMAIL_CLIENT_SECRET,HAG_PRIVATE_POSTAL_FOOTER,HAG_PROJECT_PUBLISHABLE_KEY,HAG_GMAIL_VAULT_KEY,HAG_GMAIL_VAULT_KEY_VERSION ../../tests/gmail-connection-edge.test.mjs)

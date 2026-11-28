@@ -73,3 +73,24 @@ jobs:
           git fetch origin "$GITHUB_SHA"
           git checkout --detach "$GITHUB_SHA"
           python3 tests/public-gmail-readiness.py
+  verification-pages-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify published pages with no submission or provider calls
+        shell: bash
+        run: |
+          set -euo pipefail
+          for page in subscribe privacy sms-terms terms; do
+            curl --fail --silent --show-error --max-time 15 --proto '=https' "https://heartlandathleticsgroup.com/$page/" -o "$RUNNER_TEMP/$page.html"
+            grep -q "form-action 'none'" "$RUNNER_TEMP/$page.html"
+            grep -q "script-src 'none'" "$RUNNER_TEMP/$page.html"
+            grep -q "connect-src 'none'" "$RUNNER_TEMP/$page.html"
+            if grep -Ei '<(form|script|iframe)([[:space:]>])' "$RUNNER_TEMP/$page.html"; then exit 1; fi
+            echo "$page: accessible, static"
+          done
+          grep -q '833) 947-0815' "$RUNNER_TEMP/subscribe.html"
+          grep -q 'Enrollment preview' "$RUNNER_TEMP/subscribe.html"
+          grep -q 'Text messaging originator opt-in data and consent will not be sold or shared' "$RUNNER_TEMP/privacy.html"
+          grep -q '833) 947-0815' "$RUNNER_TEMP/sms-terms.html"
+          echo 'PASS: public Twilio evidence and policies accessible with static safety locks'

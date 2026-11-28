@@ -11,10 +11,13 @@ Privacy URL (prepared, not published): https://heartlandathleticsgroup.com/priva
 Terms URL (prepared, not published): https://heartlandathleticsgroup.com/sms-terms/
 Opt-in evidence URL (prepared, not published): https://heartlandathleticsgroup.com/subscribe/
 ## Samples (not messages sent)
-Confirmation: Heartland Athletics Group: Your text subscription is confirmed. Message frequency varies. Msg & data rates may apply. Reply STOP to opt out or HELP for help.
+Confirmation: Heartland Athletics Group: Your text subscription is confirmed! You'll receive updates based on your selected interests. Msg frequency varies. Msg & data rates may apply. Reply STOP to opt out or HELP for help.
 Marketing: Heartland Athletics Group: Gus Macker Quincy registration is open. See heartlandathleticsgroup.com/gus-macker/. Reply STOP to opt out, HELP for help.
 HELP: Heartland Athletics Group: Contact info@heartlandathleticsgroup.com for assistance. Reply STOP to opt out. Msg & data rates may apply.
 STOP: Heartland Athletics Group: You are unsubscribed from marketing texts. No further marketing messages will be sent.
 START: Heartland Athletics Group: To subscribe again, complete fresh consent at heartlandathleticsgroup.com/subscribe/ when available. START alone does not restore our marketing permission.
 Twilio/carrier may provide built-in replies; validate actual behavior and avoid duplicates. Do not configure a START reply that falsely states enrollment.
 Sources: https://www.twilio.com/docs/messaging/compliance/toll-free/console-onboarding ; https://help.twilio.com/articles/13264118705051-Required-Information-for-Toll-Free-Verification ; https://www.twilio.com/docs/messaging/tutorials/advanced-opt-out . 
+
+## Published review evidence
+PR #40 merged the read-only consent preview and policy pages. Exact URLs must pass hosted checks before submission. Assigned number (833) 947-0815. Web form opt-in, not standalone keyword opt-in. JOIN with a unique code confirms prior web consent. START/UNSTOP only remove the carrier block; carrier replies cannot be overridden. H.A.G. local consent is not restored automatically. HELP remains proposed until provider configuration is verified. Twilio's current guidance does not recommend Advanced Opt-Out for toll-free numbers; review provider behavior. No messages or signup before final approval.

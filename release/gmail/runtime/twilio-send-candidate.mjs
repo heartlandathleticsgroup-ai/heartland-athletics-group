@@ -1,6 +1,6 @@
 // Isolated outbound acceptance. No production entrypoint, network default or credentials.
 import {Buffer} from "node:buffer";
-export const SMS_ACK="Heartland Athletics Group: Your text subscription is confirmed. Message frequency varies. Msg & data rates may apply. Reply STOP to opt out or HELP for help.";
+export const SMS_ACK="Heartland Athletics Group: Your text subscription is confirmed! You'll receive updates based on your selected interests. Msg frequency varies. Msg & data rates may apply. Reply STOP to opt out or HELP for help.";
 export const STATUS_URL="https://unrqbfngcgvqnytxbtgj.supabase.co/functions/v1/hag-twilio-status";
 const sid=(v,p)=>typeof v==="string"&&new RegExp("^"+p+"[a-fA-F0-9]{32}$").test(v);
 const phone=v=>typeof v==="string"&&/^\+1[2-9][0-9]{9}$/.test(v);

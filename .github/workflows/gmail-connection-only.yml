@@ -58,3 +58,37 @@ jobs:
           probe 503 'Worker still hard locked' hag-gmail-worker
           probe 503 'Subscriptions still hard locked' hag-subscriptions
           echo 'PASS: hosted control config shape verified; no credentials read out, OAuth, delivery and signup remain locked'
+  published-dashboard-smoke:
+    if: github.head_ref == 'admin/gmail-connection-verification'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read published dashboard and unchanged public pages; no auth or submission
+        shell: bash
+        run: |
+          set -euo pipefail
+          scratch="$(mktemp -d)"
+          trap 'rm -rf "$scratch"' EXIT
+          site='https://heartlandathleticsgroup.com'
+          found=false
+          for attempt in 1 2 3; do
+            if curl --fail --silent --show-error --location --max-time 15 --proto '=https' "$site/admin/?gmail-release=1" -o "$scratch/admin.html" && grep -q 'auth.js?v=gmail-connection1' "$scratch/admin.html" && grep -q 'data-gmail-action="prepare"' "$scratch/admin.html"; then found=true; break; fi
+            if [ "$attempt" != 3 ]; then sleep 8; fi
+          done
+          test "$found" = true
+          curl --fail --silent --show-error --location --max-time 15 --proto '=https' "$site/admin/gmail-connection.mjs" -o "$scratch/admin.mjs"
+          grep -q 'Connected — delivery disabled; sender review pending' "$scratch/admin.mjs"
+          curl --fail --silent --show-error --location --max-time 15 --proto '=https' "$site/contact/" -o "$scratch/contact.html"
+          grep -q 'https://formspree.io/f/mrednprl' "$scratch/contact.html"
+          curl --fail --silent --show-error --location --max-time 15 --proto '=https' "$site/gus-macker/" -o "$scratch/gus.html"
+          grep -qi 'Dot Foods' "$scratch/gus.html"
+          grep -qi 'Be Dry' "$scratch/gus.html"
+          echo 'PASS: live admin controls, public contact action and sponsor names present (no form submission)'
+      - name: Synthetic disabled callback logging probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://unrqbfngcgvqnytxbtgj.supabase.co/functions/v1/hag-gmail-control'
+          status="$(curl --silent --show-error --max-time 15 --proto '=https' -o /dev/null -w '%{http_code}' "$base/oauth/gmail/callback?state=HAG_SYNTHETIC_LOG_STATE_20261128&code=HAG_SYNTHETIC_LOG_CODE_20261128")"
+          test "$status" = 503
+          echo 'PASS: synthetic callback denied while OAuth disabled; no actual authorization code'

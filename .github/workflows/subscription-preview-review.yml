@@ -24,6 +24,7 @@ jobs:
           node --check previews/subscriptions/consent.mjs
           node --check previews/subscriptions/preview.mjs
           node tests/subscription-preview.test.mjs
+          node tests/public-subscriber.test.mjs
           node --check previews/subscriptions/server/gateway.mjs
           node --check previews/subscriptions/server/postgres-adapter.mjs
           node tests/subscription-gateway.test.mjs

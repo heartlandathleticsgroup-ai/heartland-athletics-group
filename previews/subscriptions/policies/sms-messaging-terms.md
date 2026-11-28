@@ -16,7 +16,7 @@ Reply STOP to a message to unsubscribe from all H.A.G. marketing SMS. We will al
 Reply HELP for assistance or contact Heartland Athletics Group LLC at info@heartlandathleticsgroup.com or (217) 577-0815. [Confirm monitored support hours and approved messaging sender before launch.] Carriers are not liable for delayed or undelivered messages. Availability depends on supported carriers, devices and service coverage. Notify us if you change or relinquish your number.
 
 ## Privacy
-See H.A.G.'s Privacy Policy [final approved URL]. We do not sell or share mobile opt-in information or consent with third parties or affiliates for their marketing or promotional purposes. Necessary service providers may process information on our behalf to deliver and administer messages. Verification, consent and suppression records are maintained to support your choices.
+See H.A.G.'s Privacy Policy (/privacy/). We do not sell or share mobile opt-in information or consent with third parties or affiliates for their marketing or promotional purposes. Necessary service providers may process information on our behalf to deliver and administer messages. Verification, consent and suppression records are maintained to support your choices.
 
 ## Changes
 We may update these terms and the program, with notice as required. Any materially expanded marketing consent requires a new affirmative opt-in. No provider, sending number or SMS program has been activated as of this review.

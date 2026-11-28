@@ -231,4 +231,95 @@ begin
 end$;
 revoke all on function hag_private.sport_suppression_withdraw() from public,anon,authenticated,service_role;
 create trigger sport_suppression_withdraw after insert or update of active on hag_private.hag_suppressions for each row execute function hag_private.sport_suppression_withdraw();
+-- SMS provider-neutral confirmation core. No runtime grants, external delivery or public confirmation endpoint.
+create table hag_private.sport_sms_confirmation(
+ token_hash bytea primary key references hag_private.subscription_capabilities(token_hash) on delete cascade,
+ method_id uuid not null references hag_private.sport_preferences(method_id),
+ revision bigint not null
+);
+alter table hag_private.sport_sms_confirmation enable row level security;
+alter table hag_private.sport_sms_confirmation force row level security;
+revoke all on hag_private.sport_sms_confirmation from public,anon,authenticated,service_role,hag_subscription_runtime,hag_gmail_dispatch,hag_gmail_control;
+create function hag_private.sport_sms_signup(p_id uuid,p_name text,p_adult boolean,p_destination text,p_sports text[],p_updates text[],p_consent boolean,p_version text)
+returns text language plpgsql volatile security invoker set search_path='' as $
+declare legacy text[]; m uuid; raw text; claim uuid;
+begin
+ if p_id is null or p_adult is distinct from true or p_consent is distinct from true or p_version is distinct from 'draft-sports-v2' or not hag_private.sport_selection_valid(p_sports,p_updates) or not hag_private.subscription_destination_valid('sms',p_destination) then return null;end if;
+ if not hag_private.subscription_issue_budget('sms',p_destination) then return null;end if;
+ perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('hag-subscription:sms:'||p_destination,0));
+ if exists(select 1 from hag_private.hag_contact_methods where channel='sms' and destination=p_destination) then return null;end if;
+ insert into hag_private.subscription_issue_keys(request_id,channel) values(p_id,'sms') on conflict do nothing returning request_id into claim;
+ if claim is null then return null;end if;
+ select array_agg(distinct legacy_topic) into legacy from hag_private.sport_update_types where code=any(p_updates);
+ raw:=hag_private.subscription_request(p_name,p_adult,'sms',p_destination,legacy,p_consent,'draft-3c3-v1');
+ if raw is null then return null;end if;
+ select id into m from hag_private.hag_contact_methods where channel='sms' and destination=p_destination;
+ if not hag_private.sport_initial(m,p_sports,p_updates,p_adult,p_consent,p_version) then raise exception 'Sport SMS atomicity failed';end if;
+ insert into hag_private.sport_sms_confirmation values(extensions.digest(raw,'sha256'),m,1);
+ -- Raw capability is for future verified provider delivery only, never a public response.
+ return raw;
+end$;
+create function hag_private.sport_sms_confirm(p_raw text)
+returns boolean language plpgsql volatile security invoker set search_path='' as $
+declare p hag_private.sport_preferences; d text; rev bigint; outcome jsonb;
+begin
+ if p_raw is null or p_raw !~ '^[a-f0-9]{64} then return false;end if;
+ select x.method_id,x.revision,m.destination into p.method_id,rev,d from hag_private.sport_sms_confirmation x join hag_private.hag_contact_methods m on m.id=x.method_id where x.token_hash=extensions.digest(p_raw,'sha256');
+ if p.method_id is null then return false;end if;
+ perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('hag-subscription:sms:'||d,0));
+ select * into p from hag_private.sport_preferences where method_id=p.method_id for update;
+ if p.channel<>'sms' or p.revision<>rev or p.status<>'pending' or exists(select 1 from hag_private.hag_suppressions where contact_method_id=p.method_id and active) then return false;end if;
+ outcome:=hag_private.subscription_redeem(p_raw,'confirm');
+ if outcome->>'ok' is distinct from 'true' then return false;end if;
+ update hag_private.sport_preferences set status='active',revision=revision+1,updated_at=clock_timestamp() where method_id=p.method_id returning * into p;
+ insert into hag_private.sport_consent_events(method_id,revision,channel,sports,update_types,event_kind,version,wording) values(p.method_id,p.revision,p.channel,p.sports,p.update_types,'confirmed','draft-sports-v2',hag_private.sport_wording('sms'));
+ delete from hag_private.sport_sms_confirmation where token_hash=extensions.digest(p_raw,'sha256');
+ return true;
+end$;
+revoke all on function hag_private.sport_sms_signup(uuid,text,boolean,text,text[],text[],boolean,text),hag_private.sport_sms_confirm(text) from public,anon,authenticated,service_role,hag_subscription_runtime,hag_gmail_dispatch,hag_gmail_control;
+-- Overlapping targeting rules are ORed; every individual sport rule is an AND of sport and update type.
+create function hag_private.sport_audience_union(p_targets jsonb,p_channel text)
+returns table(method_id uuid) language plpgsql stable security invoker set search_path='' as $
+begin
+ if p_targets is null or jsonb_typeof(p_targets)<>'array' or jsonb_array_length(p_targets) not between 1 and 30 then raise exception 'Invalid audience rules';end if;
+ if exists(select 1 from jsonb_array_elements(p_targets) v where jsonb_typeof(v)<>'object' or not (v ? 'sport' and v ? 'update') or (v - 'sport' - 'update')<>'{}'::jsonb or not hag_private.sport_target_valid(v->>'sport',v->>'update',p_channel)) then raise exception 'Invalid audience rules';end if;
+ return query select distinct a.method_id from jsonb_array_elements(p_targets) v cross join lateral hag_private.sport_audience(v->>'sport',v->>'update',p_channel) a;
+end$;
+revoke all on function hag_private.sport_audience_union(jsonb,text) from public,anon,authenticated,service_role,hag_subscription_runtime,hag_gmail_dispatch,hag_gmail_control;
+create table hag_private.sport_campaign_plans(
+ id uuid primary key, channel text not null check(channel in ('email','sms')), targets jsonb not null, created_at timestamptz not null default clock_timestamp()
+);
+create table hag_private.sport_campaign_plan_recipients(
+ campaign_id uuid not null references hag_private.sport_campaign_plans(id),
+ method_id uuid not null references hag_private.sport_preferences(method_id),
+ primary key(campaign_id,method_id)
+);
+alter table hag_private.sport_campaign_plans enable row level security;
+alter table hag_private.sport_campaign_plans force row level security;
+alter table hag_private.sport_campaign_plan_recipients enable row level security;
+alter table hag_private.sport_campaign_plan_recipients force row level security;
+revoke all on hag_private.sport_campaign_plans,hag_private.sport_campaign_plan_recipients from public,anon,authenticated,service_role,hag_subscription_runtime,hag_gmail_dispatch,hag_gmail_control;
+create function hag_private.sport_plan_review(p_id uuid,p_targets jsonb,p_channel text)
+returns bigint language plpgsql volatile security invoker set search_path='' as $
+begin
+ if p_id is null then raise exception 'Invalid campaign';end if;
+ perform count(*) from hag_private.sport_audience_union(p_targets,p_channel);
+ insert into hag_private.sport_campaign_plans(id,channel,targets) values(p_id,p_channel,p_targets) on conflict do nothing;
+ if not exists(select 1 from hag_private.sport_campaign_plans where id=p_id and channel=p_channel and targets=p_targets) then raise exception 'Campaign target immutable';end if;
+ insert into hag_private.sport_campaign_plan_recipients select p_id,a.method_id from hag_private.sport_audience_union(p_targets,p_channel) a on conflict do nothing;
+ return (select count(*) from hag_private.sport_campaign_plan_recipients r join hag_private.sport_audience_union(p_targets,p_channel) a using(method_id) where r.campaign_id=p_id);
+end$;
+revoke all on function hag_private.sport_plan_review(uuid,jsonb,text) from public,anon,authenticated,service_role,hag_subscription_runtime,hag_gmail_dispatch,hag_gmail_control;
+create function hag_private.sport_admin_count(p_targets jsonb,p_channel text)
+returns jsonb language plpgsql stable security definer set search_path='' as $
+begin
+ if hag_private.gmail_admin_proof() is null then raise exception 'Access unavailable';end if;
+ return jsonb_build_object('count',(select count(*) from hag_private.sport_audience_union(p_targets,p_channel)));
+end$;
+revoke all on function hag_private.sport_admin_count(jsonb,text) from public,anon,authenticated,service_role;
+grant execute on function hag_private.sport_admin_count(jsonb,text) to authenticated;
+create function public.hag_sport_admin_count(p_targets jsonb,p_channel text)
+returns jsonb language sql stable security invoker set search_path='' as $ select hag_private.sport_admin_count(p_targets,p_channel) $;
+revoke all on function public.hag_sport_admin_count(jsonb,text) from public,anon,authenticated,service_role;
+grant execute on function public.hag_sport_admin_count(jsonb,text) to authenticated;
 commit;

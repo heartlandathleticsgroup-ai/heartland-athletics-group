@@ -1,6 +1,6 @@
 begin;
 do $qa$
-declare a uuid;b uuid;c uuid; raw text; j jsonb; campaign uuid:=gen_random_uuid(); g bigint; k text:=repeat('a',64);
+declare a uuid;b uuid;c uuid; raw text; j jsonb; campaign uuid:=gen_random_uuid(); plan uuid:=gen_random_uuid(); smsraw text; rules jsonb:='[{"sport":"basketball","update":"camps-clinics"},{"sport":"volleyball","update":"camps-clinics"},{"sport":null,"update":"general"}]'; g bigint; k text:=repeat('a',64);
 begin
  if has_table_privilege('anon','hag_private.sport_preferences','select') or has_function_privilege('anon','public.hag_sport_admin(text,text,text,boolean,text,text)','execute') or has_function_privilege('authenticated','hag_private.sport_email_signup(uuid,text,boolean,text,text[],text[],boolean,text,text,text)','execute') then raise exception 'draft access leak';end if;
  if hag_private.sport_selection_valid(array['all-sports','basketball'],array['general']) or hag_private.sport_selection_valid(array['volleyball'],array['enforcers']) or hag_private.sport_selection_valid('{}',array['camps-clinics']) then raise exception 'bad scope accepted';end if;
@@ -20,6 +20,10 @@ begin
  if hag_private.sport_reserve_review(campaign,'basketball','camps-clinics','email')<>2 then raise exception 'first reservation';end if;
  if hag_private.sport_reserve_review(campaign,'basketball','camps-clinics','email')<>2 then raise exception 'repeat reservation';end if;
  if (select count(*) from hag_private.sport_campaign_recipients where campaign_id=campaign)<>2 then raise exception 'duplicate reservation';end if;
+ if (select count(*) from hag_private.sport_audience_union(rules,'email'))<>2 then raise exception 'overlap union';end if;
+ if hag_private.sport_plan_review(plan,rules,'email')<>2 then raise exception 'union reservation';end if;
+ if hag_private.sport_plan_review(plan,rules,'email')<>2 then raise exception 'union repeat';end if;
+ if (select count(*) from hag_private.sport_campaign_plan_recipients where campaign_id=plan)<>2 then raise exception 'union duplicate';end if;
  raw:=hag_private.subscription_new_token(a,'manage');j:=hag_private.sport_manage(raw);
  if j->>'channel'<>'email' or hag_private.sport_manage(raw) is not null then raise exception 'manage token replay';end if;
  raw:=j->>'editToken';
@@ -28,11 +32,15 @@ begin
  raw:=hag_private.subscription_new_token(b,'unsubscribe');j:=hag_private.subscription_redeem(raw,'unsubscribe');
  if j->>'ok'<>'true' or (select count(*) from hag_private.sport_audience('basketball','camps-clinics','email'))<>0 then raise exception 'global suppression';end if;
  -- SMS is pending, never eligible, and isolated from email channel.
- perform hag_private.stage_subscription_request('Fixture SMS',true,'sms','+12025550123',array['camps-clinics'],true,'draft-3c3-v1');
+ smsraw:=hag_private.sport_sms_signup(gen_random_uuid(),'Fixture SMS',true,'+12025550123',array['basketball'],array['camps-clinics'],true,'draft-sports-v2');
+ if smsraw is null then raise exception 'SMS staged signup';end if;
  select id into c from hag_private.hag_contact_methods where channel='sms' and destination='+12025550123';
- if not hag_private.sport_initial(c,array['basketball'],array['camps-clinics'],true,true,'draft-sports-v2') or (select count(*) from hag_private.sport_audience('basketball','camps-clinics','sms'))<>0 then raise exception 'pending SMS';end if;
+ if (select count(*) from hag_private.sport_audience('basketball','camps-clinics','sms'))<>0 then raise exception 'pending SMS';end if;
  raw:=hag_private.subscription_new_token(c,'manage');j:=hag_private.sport_manage(raw);
  if hag_private.sport_edit(j->>'editToken',array['all-sports'],array['camps-clinics'],true,true,'draft-sports-v2') then raise exception 'SMS expansion without provider proof';end if;
+ if not hag_private.sport_sms_confirm(smsraw) then raise exception 'SMS confirmation';end if;
+ if hag_private.sport_sms_confirm(smsraw) then raise exception 'SMS token replay';end if;
+ if (select count(*) from hag_private.sport_audience('basketball','camps-clinics','sms'))<>1 or (select count(*) from hag_private.sport_audience('volleyball','camps-clinics','sms'))<>0 then raise exception 'SMS exact scope';end if;
  begin perform hag_private.sport_admin('catalog');raise exception 'unauthorized catalog';exception when raise_exception then if sqlerrm<>'Access unavailable' then raise;end if;end;
 end $qa$;
 select 'PASS: sport consent, atomic welcome, separate channels, intersection, future sports, count deduplication, secure edits and suppression' as result;

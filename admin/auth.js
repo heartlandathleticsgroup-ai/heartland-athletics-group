@@ -1,7 +1,7 @@
 import {nextPanel,isSixDigit,expired} from "./auth-state.mjs";
 import {signInWithVerifiedPasskey} from "./verified-passkey.mjs";
 import {attachCommunications} from "./communications.mjs";
-import {attachGmailControls,createGmailAdminClient} from "./gmail-connection.mjs";
+import {attachGmailControls,createGmailAdminClient} from "./gmail-connection.mjs?v=connected2";
 import {attachSportAdmin,SPORT_ADMIN_RELEASE_ENABLED} from "./sport-admin.mjs";
 import {attachCMS} from "./cms.mjs?v=3";
 const BASE="https://unrqbfngcgvqnytxbtgj.supabase.co", PUBLISHABLE_KEY="sb_publishable_JeTzqF2gS0-pEHLs3VLOmg_GmK22bon";

@@ -6,7 +6,7 @@ const js=readFileSync(new URL("../admin/dashboard.mjs",import.meta.url),"utf8");
 assert.equal(MODULES.length,16);
 assert.equal(new Set(MODULES).size,16);
 assert.match(html,/<div id="authorized-panel" hidden>/);
-assert.match(html,/auth\.js\?v=gmail-connection1/);
+assert.match(html,/auth\.js\?v=gmail-connected2/);
 const dashboard=html.slice(html.indexOf('<div id="authorized-panel" hidden>'),html.indexOf('<button id="signout"'));
 const buttons=MODULES.map(id=>({dataset:{module:id},attrs:{},setAttribute(k,v){this.attrs[k]=v;},addEventListener(k,fn){this.click=fn;}}));
 const panels=MODULES.map(id=>({dataset:{modulePanel:id},hidden:id!=="overview"}));

@@ -11,6 +11,18 @@ const sendURL="https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
 const categories=new Set(["not-authorized","accepted-not-delivered","ambiguous-hold-no-resend","authorization-required","provider-rejected"]);
 const headers={"Cache-Control":"no-store","Referrer-Policy":"no-referrer","X-Content-Type-Options":"nosniff","Vary":"Origin"};
 const answer=(status,body=null,cors=false)=>new Response(body===null?null:JSON.stringify(body),{status,headers:{...headers,...(cors?{"Access-Control-Allow-Origin":ORIGIN}:{}),...(status===204&&cors?{"Access-Control-Allow-Methods":"POST","Access-Control-Allow-Headers":"authorization"}:{}),...(body===null?{}:{"Content-Type":"application/json"})}});
+// Hosted gateways may supply an empty ReadableStream for a zero-byte POST.
+// Reject all nonempty payloads, even if a caller lies about Content-Length.
+async function emptyBody(req){
+ const length=req.headers.get("content-length");
+ if(req.headers.has("content-encoding")||(length!==null&&length!=="0"))return false;
+ if(!req.body)return true;
+ const reader=req.body.getReader();let timer;
+ try{
+  const read=async()=>{for(;;){const {done,value}=await reader.read();if(done)return true;if(value?.byteLength!==0)return false;}};
+  return await Promise.race([read(),new Promise(resolve=>{timer=setTimeout(()=>resolve(false),1000);})]);
+ }catch{return false;}finally{clearTimeout(timer);void reader.cancel().catch(()=>{});}
+}
 export function createSenderTestRoute({config,postgres,fetcher,now=Date.now}){
  if(!config||config.runtime!=="approved-runtime"||config.oauth!==true||config.send!==false||config.preferences!==false||config.sportPreferences!==false||typeof fetcher!=="function")throw Error("Delivery must remain disabled");
  if(!/^[a-f0-9]{64}$/.test(config.vault?.key||"")||new Set(config.vault.key).size<8||!/^[-a-zA-Z0-9._]+\.apps\.googleusercontent\.com$/.test(config.clientId||"")||typeof config.postalFooter!=="string"||config.postalFooter.trim().length<15||config.postalFooter.length>300||/[\x00-\x1f\x7f]/.test(config.postalFooter))throw Error("Invalid private configuration");
@@ -27,7 +39,7 @@ export function createSenderTestRoute({config,postgres,fetcher,now=Date.now}){
   if(!origin)return answer(403);
   if(req.method==="OPTIONS")return req.headers.get("access-control-request-method")==="POST"&&(req.headers.get("access-control-request-headers")||"").trim().toLowerCase()==="authorization"?answer(204,null,true):answer(403,null,true);
   const bearer=req.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
-  if(req.method!=="POST"||!jwt(bearer)||req.body||req.headers.has("content-encoding"))return answer(403,{outcome:"not-authorized"},true);
+  if(req.method!=="POST"||!jwt(bearer)||!await emptyBody(req))return answer(403,{outcome:"not-authorized"},true);
   if(busy)return answer(409,{outcome:"not-authorized"},true);
   busy=true;let exec;
   try{

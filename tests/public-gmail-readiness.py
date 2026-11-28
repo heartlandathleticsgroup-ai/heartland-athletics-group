@@ -9,7 +9,7 @@ def query(name,kind):
     if payload.get("Status") not in (0,3): raise RuntimeError("DNS resolver status")
     return [r["data"] for r in payload.get("Answer",[]) if r.get("type")=={"TXT":16,"MX":15}[kind]]
 def txt(name):
-    return ["".join(shlex.split(record)) for record in query(name,"TXT")]
+    return ["".join(shlex.split(record)) if record.lstrip().startswith('"') else record for record in query(name,"TXT")]
 try:
     spf=[s for s in txt(domain) if s.lower().startswith("v=spf1")]
     print("SPF POLICY RECORD: "+json.dumps(spf))

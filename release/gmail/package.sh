@@ -23,7 +23,7 @@ verify_jwt = false
 [functions.hag-subscriptions]
 verify_jwt = false
 TOML
-cp "$root/release/gmail/consolidated-migration.sql" "$root/release/gmail/operational-rollback.sql" "$out/"
+cp "$root/release/gmail/consolidated-migration.sql" "$root/release/gmail/welcome-incremental.sql" "$root/release/gmail/operational-rollback.sql" "$out/"
 mkdir -p "$out/public/preferences" "$out/public/admin"
 cp "$root/release/gmail/public/preferences/"* "$out/public/preferences/"
 cp "$root/release/gmail/runtime/consent.mjs" "$out/public/preferences/consent.mjs"

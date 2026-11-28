@@ -107,7 +107,7 @@ begin
  end if;
  if p_kind in ('stop','review') and m is not null then update hag_private.sms_confirmation_outbox set state='cancelled',finished_at=clock_timestamp() where method_id=m and state='queued';end if;
  return true;
-end$;
+end$$;
 -- Confirmation acceptance is separate from consent. No runtime grant until a verified
 -- provider, independent SMS role, bounded budget, and final dispatch fence exist.
 revoke all on function hag_private.sms_stage_join(uuid,text,boolean,text,text[],text[],boolean,text,text),hag_private.sms_record_inbound(text,text,text,text,text) from public,anon,authenticated,service_role,hag_subscription_runtime,hag_gmail_dispatch,hag_gmail_control;

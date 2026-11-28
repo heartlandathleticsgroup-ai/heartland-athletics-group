@@ -17,4 +17,14 @@ begin
  return found;
 end$$;
 revoke all on function hag_private.gmail_worker_consume(uuid,bigint) from public,anon,authenticated,service_role,hag_gmail_dispatch,hag_gmail_control,hag_subscription_runtime;
+-- Pure signer for a future narrowly authorized Vault-backed cron wrapper.
+-- It does not schedule or enqueue anything and is not callable by runtime roles.
+create function hag_private.gmail_worker_sign(p_key text,p_epoch bigint,p_nonce uuid)
+returns text language plpgsql immutable security invoker set search_path='' as $
+begin
+ if p_key is null or p_key !~ '^[a-f0-9]{64}
+ or p_epoch is null or p_epoch not between 1000000000 and 9999999999 or p_nonce is null then return null;end if;
+ return encode(extensions.hmac(convert_to('hag-email-worker-v1'||chr(10)||'POST'||chr(10)||'https://unrqbfngcgvqnytxbtgj.supabase.co/functions/v1/hag-gmail-worker'||chr(10)||p_epoch::text||chr(10)||p_nonce::text,'UTF8'),decode(p_key,'hex'),'sha256'),'hex');
+end$;
+revoke all on function hag_private.gmail_worker_sign(text,bigint,uuid) from public,anon,authenticated,service_role,hag_gmail_dispatch,hag_gmail_control,hag_subscription_runtime;
 commit;

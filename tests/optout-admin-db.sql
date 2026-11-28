@@ -8,6 +8,7 @@ begin
  perform set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
  perform set_config('request.jwt.claims','{"session_id":"00000000-0000-4000-8000-000000000002","aal":"aal2"}',true);
  perform set_config('hag.fixture.gate','authorized',true);
+ insert into auth.mfa_amr_claims(session_id,created_at,updated_at,authentication_method) values('00000000-0000-4000-8000-000000000002',now(),now(),'totp');
  execute 'set local role authenticated';
  r:=public.hag_sport_admin('sms-review-list');if jsonb_array_length(r)<>1 or r->0->>'reply_text'<>'Please remove me' then raise exception 'review list';end if;
  r:=public.hag_sport_admin('sms-review-close','SM'||repeat('1',32));if r->>'ok'<>'true' then raise exception 'review close';end if;

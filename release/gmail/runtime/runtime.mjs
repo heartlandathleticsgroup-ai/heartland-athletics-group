@@ -1,6 +1,5 @@
 // Unpublished runtime assembly. No network or DB I/O occurs on import.
-import {Buffer} from "node:buffer";
-import {createHash,timingSafeEqual} from "node:crypto";
+import {createSignedWorkerFixture} from "./signed-worker-candidate.mjs";
 import {createReleaseExecutor} from "./driver.mjs";
 import {createCredentialVault,createGmailBackend,gmailControlDb,gmailDispatchDb} from "./backend.mjs";
 import {createCallbackBridge,createFlowDb} from "./callback.mjs";
@@ -11,22 +10,12 @@ import {createGatewayCore,createIngressGuardCore} from "./gateway-core.mjs";
 import {postgresAdapter} from "./postgres-adapter.mjs";
 import {validEmail} from "./policy.mjs";
 const mode="release-candidate",API="https://unrqbfngcgvqnytxbtgj.supabase.co",ADMIN="https://heartlandathleticsgroup.com";
-const PRIVATE_WORKER=API+"/functions/v1/hag-gmail-worker";
 const PREF=API+"/functions/v1/hag-subscriptions";
 const goodKey=k=>typeof k==="string"&&/^[a-f0-9]{64}$/.test(k)&&new Set(k).size>=8;
 function response(status,value){return new Response(JSON.stringify(value),{status,headers:{"Content-Type":"application/json","Cache-Control":"no-store","Referrer-Policy":"no-referrer","X-Content-Type-Options":"nosniff"}});}
-function digest(v){return createHash("sha256").update(v).digest();}
 function keyring(current,next){
  const m=new Map();for(const item of [current,next])if(item){if(!goodKey(item.key)||typeof item.version!=="string"||! /^[a-zA-Z0-9_-]{1,32}$/.test(item.version)||m.has(item.version))throw Error("Invalid key configuration");m.set(item.version,item.key);}
  return v=>m.get(v)||null;
-}
-// pg_net sends an empty JSON body by default. Bound it strictly; never parse
-// arbitrary job instructions from a scheduler request.
-async function emptyWorkerBody(req){
- if(!req.body)return true;
- if(req.headers.has("content-encoding")||!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(req.headers.get("content-type")||""))return false;
- const reader=req.body.getReader();let timer;const chunks=[];let n=0;
- try{const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error("Timeout")),1000);});while(true){const {done,value}=await Promise.race([reader.read(),timeout]);if(done)break;n+=value.byteLength;if(n>32)return false;chunks.push(value);}return /^\s*\{\s*\}\s*$/.test(Buffer.concat(chunks).toString("utf8"));}catch{return false;}finally{clearTimeout(timer);void reader.cancel().catch(()=>{});}
 }
 function flags(cfg){
  if(!cfg||cfg.runtime!=="approved-runtime")return {configured:false,oauth:false,send:false,preferences:false};
@@ -62,17 +51,10 @@ export function createReleaseRuntime({config,postgres,fetcher,now=Date.now}){
  let controlBusy=0,workerBusy=false;
  const control=async req=>{if(controlBusy>=8)return response(429,{ok:false});controlBusy++;try{return await controlRoute(req);}finally{controlBusy--;}};
  const pump=createGmailBackend({...common,verifyAdmin:async()=>null}).pump;
- const worker=async req=>{
-  const u=new URL(req.url);
-  if(u.href!==PRIVATE_WORKER||req.method!=="POST"||req.headers.has("origin"))return response(403,{ok:false});
-  const token=req.headers.get("authorization")?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
-  if(!token||!timingSafeEqual(digest(token),digest(config.workerKey)))return response(403,{ok:false});
-  if(!await emptyWorkerBody(req))return response(400,{ok:false});
-  if(!f.send)return response(503,{ok:false,disabled:true});
-  if(workerBusy)return response(429,{ok:false});
-  workerBusy=true;
-  try{const outcome=await pump();return response(200,{outcome});}catch{return response(503,{ok:false});}finally{workerBusy=false;}
- };
+ const worker=createSignedWorkerFixture({mode:"isolated-acceptance",key:config.workerKey,clock:now,ready:async()=>f.send,
+  consume:async(nonce,stamp)=>{if(workerBusy)return false;const r=await dispatchExec.execute("select hag_private.gmail_worker_consume($1::uuid,$2::bigint) as value",[nonce,stamp]);return r?.rows?.length===1&&r.rows[0].value===true;},
+  pump:async()=>{if(workerBusy)return "unavailable";workerBusy=true;try{return await pump();}finally{workerBusy=false;}}
+ });
  // No trust in forwarded IPs. Use a conservative shared bucket until
  // hosted ingress verification passes; separate opt-out lane in database.
  // Availability/DoS acceptance remains a release gate before public signup.

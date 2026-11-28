@@ -1,11 +1,12 @@
 import {Buffer} from "node:buffer";
 import assert from "node:assert/strict";
 import {createReleaseRuntime} from "../release/gmail/runtime/runtime.mjs";
+import {workerSignature} from "../release/gmail/runtime/signed-worker-candidate.mjs";
 import {checkedDbOptions} from "../release/gmail/runtime/driver.mjs";
 import {validEmail} from "../release/gmail/runtime/policy.mjs";
 import {GMAIL_SCOPE} from "../release/gmail/runtime/policy.mjs";
 import {CALLBACK_URI,CONTROL_BASE} from "../release/gmail/runtime/protocol.mjs";
-const now=1000000,actor="00000000-0000-4000-8000-000000000001",session="00000000-0000-4000-8000-000000000002",job="00000000-0000-4000-8000-000000000003",ticket="00000000-0000-4000-8000-000000000004";
+const now=1795839000000,actor="00000000-0000-4000-8000-000000000001",session="00000000-0000-4000-8000-000000000002",job="00000000-0000-4000-8000-000000000003",ticket="00000000-0000-4000-8000-000000000004";
 const bearer="fictional.header.signature",clientId="fixture.apps.googleusercontent.com",clientSecret="fixture-client-secret",postalFooter="Fictional postal footer for isolated acceptance";
 const origin="https://heartlandathleticsgroup.com",host="https://unrqbfngcgvqnytxbtgj.supabase.co",workerUrl=host+"/functions/v1/hag-gmail-worker",prefUrl=host+"/functions/v1/hag-subscriptions";
 const ref="unrqbfngcgvqnytxbtgj",ca="-----BEGIN CERTIFICATE-----\nfictional\n-----END CERTIFICATE-----";
@@ -15,6 +16,7 @@ const opts=checkedDbOptions(config.controlDb,ca,"control");assert.equal(opts.opt
 for(const url of [config.controlDb+"?sslmode=disable",config.controlDb.replace("aws-0-us-east-2.pooler.supabase.com","evil.invalid"),config.dispatchDb,config.controlDb.replace("6543","5432")])assert.throws(()=>checkedDbOptions(url,ca,"control"));
 assert.throws(()=>checkedDbOptions(config.controlDb,"untrusted","control"));
 assert.ok(validEmail("test+label@example.com"));for(const v of ["a..b@example.com","a,b@example.com","a@example.com\r\nBcc:x@example.com","a@-example.com","a@"+ "x".repeat(64)+".com"])assert.ok(!validEmail(v));
+const usedNonces=new Set();let workerSequence=0;
 let connected=false,enabled=false,generation=0,cred=null,launch=null,state=null,flow=null,queued=false,reserved=false,finished=null,proofAllowed=true,sendCount=0,requestCount=0,driverCount=0,signups=0,enqueues=0;
 const proof={gate:"authorized",sessionActive:true,actor,session,stepUpAt:now};
 const roles={hag_gmail_control_login:"hag_gmail_control",hag_gmail_dispatch_login:"hag_gmail_dispatch",hag_subscription_gateway_login:"hag_subscription_runtime"};
@@ -34,6 +36,7 @@ const postgres=o=>{
   else if(q.includes("gmail_store")){if(args[0]===generation){cred=args[1];connected=true;enabled=false;generation++;v=true;}}
   else if(q.includes("gmail_review_list"))v=[];
   else if(q.includes("gmail_disable")){enabled=false;generation++;launch=null;state=null;flow=null;v=args[0]?{credential:cred,key_version:"one"}:{};if(args[0]){connected=false;cred=null;}}
+  else if(q.includes("gmail_worker_consume")){v=enabled&&!usedNonces.has(args[0]);if(v)usedNonces.add(args[0]);}
   else if(q.includes("gmail_claim"))v=enabled&&queued&&!reserved?{id:job,lease:ticket,key_version:"outbox"}:null;
   else if(q.includes("gmail_reserve")){if(enabled&&!reserved){reserved=true;v={id:job,ticket,generation,credential:cred,key_version:"one",message:{destination:"release-test@example.com",purpose:"manage",token:"a".repeat(64)}};}}
   else if(q.includes("gmail_dispatch_allowed"))v=enabled&&args[1]===generation;
@@ -60,10 +63,11 @@ const disabled=createReleaseRuntime({config:{runtime:"disabled"},postgres:()=>{t
 assert.equal(driverCount,0);assert.equal(requestCount,0);
 const rt=createReleaseRuntime({config,postgres,fetcher,now:()=>now});assert.equal(driverCount,3);
 const post=(route,headers={},body)=>rt.control(new Request(CONTROL_BASE+"/oauth/gmail/"+route,{method:"POST",headers:{origin,authorization:"Bearer "+bearer,...headers},body}));
-const work=(secret=config.workerKey,headers={})=>rt.worker(new Request(workerUrl,{method:"POST",headers:{authorization:"Bearer "+secret,...headers}}));
+const workerReq=(secret=config.workerKey,headers={},body="{}",nonce="00000000-0000-4000-8000-"+String(++workerSequence).padStart(12,"0"))=>new Request(workerUrl,{method:"POST",headers:{"content-type":"application/json","x-hag-timestamp":String(now/1000),"x-hag-nonce":nonce,"x-hag-signature":secret==="0".repeat(64)?secret:workerSignature({key:secret,timestamp:now/1000,nonce}),...headers},body});
+const work=(secret=config.workerKey,headers={})=>rt.worker(workerReq(secret,headers));
 const pref=(p,source=origin)=>rt.preferences(new Request(prefUrl+(p.action==="unsubscribe"?"/unsubscribe":""),{method:"POST",headers:{origin:source,"content-type":"application/json"},body:JSON.stringify(p)}));
 assert.equal((await post("status",{origin:"https://evil.invalid"})).status,403);assert.equal(requestCount,0);
-assert.equal((await work("0".repeat(64))).status,403);assert.equal((await work(config.workerKey,{origin})).status,403);assert.equal((await rt.worker(new Request(workerUrl,{method:"POST",headers:{authorization:"Bearer "+config.workerKey,"content-type":"application/json"},body:JSON.stringify({job:"untrusted"})}))).status,400);assert.equal(requestCount,0);
+assert.equal((await work("0".repeat(64))).status,403);assert.equal((await work(config.workerKey,{origin})).status,403);assert.equal((await rt.worker(workerReq(config.workerKey,{},JSON.stringify({job:"untrusted"})))).status,400);assert.equal(requestCount,0);
 assert.deepEqual(await (await post("status")).json(),{connected:false,enabled:false});
 const prep=await (await post("prepare")).json(),launched=await rt.control(new Request(prep.launchUrl,{method:"POST",headers:{origin,"content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant:prep.grant})}));
 assert.equal(launched.status,303);const cookie=launched.headers.get("set-cookie").split(";")[0],google=new URL(launched.headers.get("location"));
@@ -75,14 +79,14 @@ const off={enabled:false,destination:"",topics:[],consent:false},form={name:"Fic
 assert.equal((await pref({action:"subscribe",requestId:job,version:"draft-3c3-v1",form})).status,503);assert.equal(signups,0);enabled=true;assert.equal((await pref({action:"subscribe",requestId:job,version:"draft-3c3-v1",form})).status,202);assert.equal(signups,1);assert.equal(enqueues,0);enabled=false;
 assert.equal((await pref({action:"subscribe",requestId:job,version:"draft-3c3-v1",form:{...form,email:off,sms:{enabled:true,destination:"+12025550123",topics:["hag-announcements"],consent:true}}})).status,400);
 assert.equal((await pref({action:"access",requestId:job,purpose:"manage",form:{channel:"email",destination:"release-test@example.com"}})).status,202);assert.equal(enqueues,1);
-assert.deepEqual(await (await rt.worker(new Request(workerUrl,{method:"POST",headers:{authorization:"Bearer "+config.workerKey,"content-type":"application/json"},body:"{}"}))).json(),{outcome:"empty"});assert.equal(sendCount,0);
-enabled=true;assert.deepEqual(await (await work()).json(),{outcome:"accepted-not-delivered"});assert.equal(finished,"accepted-not-delivered");assert.equal(sendCount,1);assert.deepEqual(await (await work()).json(),{outcome:"empty"});
+assert.equal((await work()).status,409);assert.equal(sendCount,0);
+enabled=true;assert.deepEqual(await (await work()).json(),{ok:true,outcome:"accepted-not-delivered"});assert.equal(finished,"accepted-not-delivered");assert.equal(sendCount,1);assert.deepEqual(await (await work()).json(),{ok:true,outcome:"empty"});
 assert.equal((await pref({action:"manage",token:"a".repeat(64)})).status,200);
 assert.equal((await pref({action:"unsubscribe",token:"a".repeat(64)})).status,200);
 proofAllowed=false;assert.equal((await post("disable")).status,403);proofAllowed=true;
 assert.deepEqual(await (await post("disable")).json(),{enabled:false});assert.equal((await (await post("disconnect")).json()).providerRevoked,true);assert.equal(sendCount,1);
 const locked=createReleaseRuntime({config:{...config,oauth:false,send:false,preferences:false},postgres,fetcher,now:()=>now});
 const before=requestCount;assert.equal((await locked.control(new Request(CONTROL_BASE+"/oauth/gmail/prepare",{method:"POST",headers:{origin,authorization:"Bearer "+bearer}}))).status,503);
-assert.equal((await locked.worker(new Request(workerUrl,{method:"POST",headers:{authorization:"Bearer "+config.workerKey}}))).status,503);assert.equal(requestCount,before);
+assert.equal((await locked.worker(workerReq())).status,503);assert.equal(requestCount,before);
 await rt.close();await locked.close();
-console.log("PASS: release runtime exact hosted routes, OAuth redirect/callback, TLS driver policy, private worker secret, email single opt-in and direct unsubscribe using mocks only");
+console.log("PASS: release runtime exact hosted routes, OAuth redirect/callback, TLS driver policy, signed one-use worker request, email single opt-in and direct unsubscribe using mocks only");

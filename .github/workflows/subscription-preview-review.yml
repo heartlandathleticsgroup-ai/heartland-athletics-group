@@ -29,6 +29,7 @@ jobs:
           node tests/subscriber-welcome.test.mjs
           node tests/sender-readiness.test.mjs
           node tests/twilio-webhook.test.mjs
+          node tests/twilio-join.test.mjs
           python3 release/gmail/private-runtime-setup.py --self-test
           node --check previews/subscriptions/server/gateway.mjs
           node --check previews/subscriptions/server/postgres-adapter.mjs

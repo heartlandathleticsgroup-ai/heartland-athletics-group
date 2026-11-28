@@ -57,36 +57,20 @@ begin
  t:=btrim(coalesce(d->>'title','')); b:=btrim(coalesce(d->>'body','')); l:=btrim(coalesce(d->>'url','')); i:=btrim(coalesce(d->>'image','')); dt:=coalesce(d->>'date',''); loc:=btrim(coalesce(d->>'location','')); approved:=coalesce((d->>'permission')::boolean,false); finish:=coalesce(d->>'end_date',''); placement:=coalesce(d->>'scope','general');
  if char_length(t) not between 1 and 140 or char_length(b)>4000 or char_length(loc)>200 or char_length(l)>500 or char_length(i)>300 then raise exception 'Field length invalid'; end if;
  if l<>'' and l !~ '^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(/[A-Za-z0-9._~:/?&=%+@!$(),;-]*)?(\?[A-Za-z0-9._~:/?&=%+@!$(),;-]*)?(#[A-Za-z0-9._~:/?&=%+@!$(),;-]*)?$' then raise exception 'Use a valid HTTPS link'; end if;
- if i ~ '^media:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}i !~ '^/assets/[A-Za-z0-9_./-]+\.(png|jpg|jpeg|webp|avif|gif)$' or i ~ '(^|/)\.\.?(/|$)' or i ~ '//') then raise exception 'Use an existing local raster image'; end if;
- if k='event' then
-  if dt !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then raise exception 'Event date required'; end if;
-  perform dt::date;
-  if finish<>'' then if finish !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}
- return jsonb_build_object('title',t,'body',b,'url',l,'image',i,'date',dt,'location',loc,'end_date',finish,'scope',placement,'permission',case when k='sponsor' then approved else false end);
-end $$;
- then
+ if i ~ '^media:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
   if not exists(select 1 from public.hag_cms_media where id=substring(i from 7)::uuid) then raise exception 'Media not found'; end if;
  elsif i<>'' and (i !~ '^/assets/[A-Za-z0-9_./-]+\.(png|jpg|jpeg|webp|avif|gif)$' or i ~ '(^|/)\.\.?(/|$)' or i ~ '//') then raise exception 'Use an existing local raster image'; end if;
  if k='event' then
   if dt !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then raise exception 'Event date required'; end if;
   perform dt::date;
- else dt:=''; loc:=''; end if;
- return jsonb_build_object('title',t,'body',b,'url',l,'image',i,'date',dt,'location',loc,'permission',case when k='sponsor' then approved else false end);
-end $$;
- or finish::date<dt::date then raise exception 'Invalid event end date'; end if; end if;
+  if finish<>'' then
+   if finish !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then raise exception 'Invalid event end date'; end if;
+   if finish::date<dt::date then raise exception 'Invalid event end date'; end if;
+  end if;
  else dt:=''; finish:=''; loc:=''; end if;
  if k<>'sponsor' then placement:='general'; end if;
  if placement not in ('general','gus-macker','gus-macker-featured') then raise exception 'Invalid sponsor placement'; end if;
- return jsonb_build_object('title',t,'body',b,'url',l,'image',i,'date',dt,'location',loc,'permission',case when k='sponsor' then approved else false end);
-end $$;
- then
-  if not exists(select 1 from public.hag_cms_media where id=substring(i from 7)::uuid) then raise exception 'Media not found'; end if;
- elsif i<>'' and (i !~ '^/assets/[A-Za-z0-9_./-]+\.(png|jpg|jpeg|webp|avif|gif)$' or i ~ '(^|/)\.\.?(/|$)' or i ~ '//') then raise exception 'Use an existing local raster image'; end if;
- if k='event' then
-  if dt !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then raise exception 'Event date required'; end if;
-  perform dt::date;
- else dt:=''; loc:=''; end if;
- return jsonb_build_object('title',t,'body',b,'url',l,'image',i,'date',dt,'location',loc,'permission',case when k='sponsor' then approved else false end);
+ return jsonb_build_object('title',t,'body',b,'url',l,'image',i,'date',dt,'location',loc,'end_date',finish,'scope',placement,'permission',case when k='sponsor' then approved else false end);
 end $$;
 create or replace function hag_private.hag_cms_change(a text,k text,item uuid,expected integer,d jsonb) returns jsonb language plpgsql security definer set search_path='' as $$
 declare rec hag_private.hag_cms_items%rowtype; validated jsonb; pubrev integer;

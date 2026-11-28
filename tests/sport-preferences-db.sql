@@ -42,6 +42,15 @@ begin
  if hag_private.sport_sms_confirm(smsraw) then raise exception 'SMS token replay';end if;
  if (select count(*) from hag_private.sport_audience('basketball','camps-clinics','sms'))<>1 or (select count(*) from hag_private.sport_audience('volleyball','camps-clinics','sms'))<>0 then raise exception 'SMS exact scope';end if;
  begin perform hag_private.sport_admin('catalog');raise exception 'unauthorized catalog';exception when raise_exception then if sqlerrm<>'Access unavailable' then raise;end if;end;
+ perform set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);
+ perform set_config('request.jwt.claims','{"session_id":"00000000-0000-4000-8000-000000000002","aal":"aal2"}',true);
+ perform set_config('hag.fixture.gate','authorized',true);
+ insert into auth.mfa_amr_claims(session_id,created_at,updated_at,authentication_method) values('00000000-0000-4000-8000-000000000002',now(),now(),'totp');
+ execute 'set local role authenticated';
+ if not (public.hag_sport_admin('save','pickleball','Pickleball',true)->>'ok')::boolean then raise exception 'admin catalog save';end if;
+ if jsonb_array_length(public.hag_sport_admin('catalog'))<>8 then raise exception 'admin catalog load';end if;
+ if (public.hag_sport_admin_count(rules,'email')->>'count')::int<>1 then raise exception 'admin audience count';end if;
+ execute 'reset role';
 end $qa$;
 select 'PASS: sport consent, atomic welcome, separate channels, intersection, future sports, count deduplication, secure edits and suppression' as result;
 rollback;

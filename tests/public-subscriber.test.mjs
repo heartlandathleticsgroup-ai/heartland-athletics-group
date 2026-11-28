@@ -7,7 +7,7 @@ assert.equal(SPORTS.length,7);assert.equal(UPDATE_TYPES.length,9);assert.equal(S
 const markup=read("subscribe/index.html");
 for(const id of ["subscriber-name","email-destination","sms-destination","subscribe-submit"])assert.match(markup,new RegExp('id="'+id+'"[^>]* disabled'));
 const ordered=["step-info","step-sports","step-topics","step-channel","step-privacy"].map(id=>markup.indexOf('id="'+id+'"'));assert.ok(ordered.every((v,i)=>v>=0&&(i===0||v>ordered[i-1])));
-class Node {constructor(){this.children=[];this.handlers={};this.checked=false;this.disabled=false;this.hidden=false;}append(...v){this.children.push(...v);}addEventListener(name,fn){this.handlers[name]=fn;}change(){this.handlers.change?.();}}
+class Node {constructor(){this.children=[];this.handlers={};this.checked=false;this.disabled=false;this.hidden=false;}append(...v){this.children.push(...v);}addEventListener(name,fn){const prior=this.handlers[name];this.handlers[name]=event=>{prior?.(event);fn(event);};}change(){this.handlers.change?.();}}
 const nodes=new Map(),doc={getElementById(id){if(!nodes.has(id))nodes.set(id,new Node());return nodes.get(id);},createElement(){return new Node();}};
 const get=id=>doc.getElementById(id);attachSignup(doc);
 const sports=get("sports-options").children.map(label=>label.children[0]);assert.equal(sports.length,7);assert.ok(sports.every(s=>!s.checked));

@@ -43,11 +43,12 @@ export function attachSignup(doc,{call=null,catalog=BASE_SPORTS,smsEnabled=false
  const selected=controls=>controls.filter(x=>x.checked).map(x=>x.value);
  const sports=addOptions($("sports-options"),sportList),updates=addOptions($("update-options"),UPDATE_TYPES);exclusivity(sports);
  const overrides={};let requestId=null,busy=false;
+ for(const x of [...sports,...updates])x.addEventListener("change",()=>{for(const c of ["email","sms"])if(!overrides[c]?.toggle.checked)$(c+"-consent").checked=false;});
  for(const c of ["email","sms"]){
   const enabled=$(c+"-enabled"),details=$(c+"-details"),consent=$(c+"-consent"),custom=$(c+"-customize"),root=$(c+"-custom-options");
   $(c+"-wording").textContent=CONSENT[c]+SPORT_CONSENT_SUFFIX;
   const sportRoot=doc.createElement("div"),updateRoot=doc.createElement("div"),toggle=doc.createElement("input"),label=doc.createElement("label");toggle.type="checkbox";label.append(toggle," Use different preferences for this channel");root.append(label,sportRoot,updateRoot);
-  const sp=addOptions(sportRoot,sportList),up=addOptions(updateRoot,UPDATE_TYPES);exclusivity(sp);sportRoot.hidden=true;updateRoot.hidden=true;
+  const sp=addOptions(sportRoot,sportList),up=addOptions(updateRoot,UPDATE_TYPES);exclusivity(sp);for(const x of [...sp,...up])x.addEventListener("change",()=>{consent.checked=false;});sportRoot.hidden=true;updateRoot.hidden=true;
   toggle.addEventListener("change",()=>{sportRoot.hidden=updateRoot.hidden=!toggle.checked;if(toggle.checked){for(const s of sp)s.checked=selected(sports).includes(s.value);for(const u of up)u.checked=selected(updates).includes(u.value);}consent.checked=false;});
   overrides[c]={toggle,sp,up};
   const sync=()=>{details.hidden=!enabled.checked;$(c+"-destination").disabled=!live||!enabled.checked;if(!enabled.checked){$(c+"-destination").value="";consent.checked=false;toggle.checked=false;sportRoot.hidden=updateRoot.hidden=true;}};

@@ -32,6 +32,7 @@ jobs:
           node tests/twilio-join.test.mjs
           node tests/twilio-send.test.mjs
           node tests/twilio-status.test.mjs
+          node tests/twilio-postgres.test.mjs
           node tests/dual-channel-gateway.test.mjs
           node tests/signed-worker.test.mjs
           python3 release/gmail/private-runtime-setup.py --self-test

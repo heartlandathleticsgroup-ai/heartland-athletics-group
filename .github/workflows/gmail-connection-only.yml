@@ -26,9 +26,11 @@ jobs:
           node tests/admin-auth-state.test.mjs
           node tests/admin-passkey.test.mjs
           scratch="$(mktemp -d)"
+          export DENO_DIR="$scratch/cache"
           curl --fail --silent --show-error --location --proto '=https' --max-time 90 https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-unknown-linux-gnu.zip -o "$scratch/deno.zip"
           echo "e890975bc2549807bbcc0b584ffafda72cc7c93349dd99c80483dd784f6c4609  $scratch/deno.zip" | sha256sum -c -
           unzip -q "$scratch/deno.zip" -d "$scratch"
-          (cd release/gmail; "$scratch/deno" cache --frozen --config deno.json connection-edge-entry.mjs; "$scratch/deno" check --frozen --config deno.json connection-edge-entry.mjs)
+          sed 's|../release/gmail/connection-edge-entry.mjs|./connection-edge-entry.mjs|' tests/gmail-connection-edge.test.mjs > release/gmail/connection-edge-fixture.mjs
+          (cd release/gmail; "$scratch/deno" cache --frozen --config deno.json connection-edge-entry.mjs connection-edge-fixture.mjs; "$scratch/deno" check --frozen --config deno.json connection-edge-entry.mjs)
           "$scratch/deno" run --no-prompt tests/gmail-connection-only.test.mjs
-          (cd release/gmail; "$scratch/deno" run --cached-only --frozen --no-prompt --allow-env=HAG_GMAIL_RUNTIME_STATE,HAG_GMAIL_OAUTH_ENABLED,HAG_GMAIL_SEND_ENABLED,HAG_PREFERENCES_ENABLED,HAG_SPORT_PREFERENCES_ENABLED,HAG_GMAIL_CONTROL_DATABASE_URL,HAG_DATABASE_CA_PEM,HAG_GMAIL_CLIENT_ID,HAG_GMAIL_CLIENT_SECRET,HAG_PRIVATE_POSTAL_FOOTER,HAG_PROJECT_PUBLISHABLE_KEY,HAG_GMAIL_VAULT_KEY,HAG_GMAIL_VAULT_KEY_VERSION ../../tests/gmail-connection-edge.test.mjs)
+          (cd release/gmail; "$scratch/deno" run --cached-only --frozen --config deno.json --no-prompt --allow-env=HAG_GMAIL_RUNTIME_STATE,HAG_GMAIL_OAUTH_ENABLED,HAG_GMAIL_SEND_ENABLED,HAG_PREFERENCES_ENABLED,HAG_SPORT_PREFERENCES_ENABLED,HAG_GMAIL_CONTROL_DATABASE_URL,HAG_DATABASE_CA_PEM,HAG_GMAIL_CLIENT_ID,HAG_GMAIL_CLIENT_SECRET,HAG_PRIVATE_POSTAL_FOOTER,HAG_PROJECT_PUBLISHABLE_KEY,HAG_GMAIL_VAULT_KEY,HAG_GMAIL_VAULT_KEY_VERSION connection-edge-fixture.mjs)

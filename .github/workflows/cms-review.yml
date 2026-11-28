@@ -2,7 +2,7 @@ name: CMS implementation review
 on:
   pull_request:
     branches: [main]
-    paths: ['admin/**','release/cms/**','assets/js/cms-public.mjs','assets/css/cms-public.css','index.html','tests/admin-cms.test.mjs','.github/workflows/cms-review.yml']
+    paths: ['admin/**','release/cms/**','assets/js/cms-*.mjs','assets/css/cms-public.css','index.html','tests/admin-cms.test.mjs','.github/workflows/cms-review.yml']
 permissions:
   contents: read
 jobs:
@@ -28,6 +28,8 @@ jobs:
       - run: |
           node --check admin/auth.js
           node --check admin/cms.mjs
+          node --check admin/cms-image.mjs
+          node --check assets/js/cms-render.mjs
           node --check assets/js/cms-public.mjs
           node tests/admin-cms.test.mjs
           node tests/admin-dashboard.test.mjs
@@ -38,3 +40,5 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -f release/cms/fixture.sql
           psql -X -v ON_ERROR_STOP=1 -f release/cms/schema.sql
           psql -X -v ON_ERROR_STOP=1 -f release/cms/test.sql
+          psql -X -v ON_ERROR_STOP=1 -f release/cms/enhancements.sql
+          psql -X -v ON_ERROR_STOP=1 -f release/cms/test-enhancements.sql

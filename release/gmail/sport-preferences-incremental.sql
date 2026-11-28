@@ -263,7 +263,7 @@ create function hag_private.sport_sms_confirm(p_raw text)
 returns boolean language plpgsql volatile security invoker set search_path='' as $$
 declare p hag_private.sport_preferences; d text; rev bigint; outcome jsonb;
 begin
- if p_raw is null or p_raw !~ '^[a-f0-9]{64} then return false;end if;
+ if p_raw is null or p_raw !~ '^[a-f0-9]{64}$' then return false;end if;
  select x.method_id,x.revision,m.destination into p.method_id,rev,d from hag_private.sport_sms_confirmation x join hag_private.hag_contact_methods m on m.id=x.method_id where x.token_hash=extensions.digest(p_raw,'sha256');
  if p.method_id is null then return false;end if;
  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('hag-subscription:sms:'||d,0));

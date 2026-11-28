@@ -6,7 +6,8 @@ pkg="$(bash release/gmail/package.sh)"
 scratch="$(mktemp -d /tmp/hag-deno-XXXXXX)"
 trap 'rm -rf "$pkg" "$scratch"' EXIT
 test -f "$pkg/public/preferences/consent.mjs"
-grep -q 'GMAIL_RELEASE_ENABLED=false' "$pkg/public/admin/gmail-controls.mjs"
+grep -q 'SIGNUP_RELEASE_ENABLED=false' "$pkg/public/subscribe/signup.mjs"
+grep -q 'SMS_RELEASE_ENABLED=false' "$pkg/public/subscribe/signup.mjs"
 grep -q 'PREFERENCE_RELEASE_ENABLED=false' "$pkg/public/preferences/preferences.mjs"
 curl --fail --silent --show-error --location --proto '=https' --max-time 90 \
  https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-unknown-linux-gnu.zip -o "$scratch/deno.zip"

@@ -10,7 +10,7 @@ const bearer="fictional.header.signature",clientId="fixture.apps.googleuserconte
 const origin="https://heartlandathleticsgroup.com",host="https://unrqbfngcgvqnytxbtgj.supabase.co",workerUrl=host+"/functions/v1/hag-gmail-worker",prefUrl=host+"/functions/v1/hag-subscriptions";
 const ref="unrqbfngcgvqnytxbtgj",ca="-----BEGIN CERTIFICATE-----\nfictional\n-----END CERTIFICATE-----";
 const dbUrl=login=>"postgresql://"+login+"."+ref+":fictional-password@aws-0-us-east-2.pooler.supabase.com:6543/postgres";
-const config={runtime:"approved-runtime",oauth:true,send:true,preferences:true,clientId,clientSecret,postalFooter,publishableKey:"sb_publishable_fixture",controlDb:dbUrl("hag_gmail_control_login"),dispatchDb:dbUrl("hag_gmail_dispatch_login"),gatewayDb:dbUrl("hag_subscription_gateway_login"),ca,vault:{key:"0123456789abcdef".repeat(4),version:"one"},outbox:{key:"123456789abcdef0".repeat(4),version:"outbox"},workerKey:"23456789abcdef01".repeat(4)};
+const config={runtime:"approved-runtime",oauth:true,send:true,preferences:true,signup:true,clientId,clientSecret,postalFooter,publishableKey:"sb_publishable_fixture",controlDb:dbUrl("hag_gmail_control_login"),dispatchDb:dbUrl("hag_gmail_dispatch_login"),gatewayDb:dbUrl("hag_subscription_gateway_login"),ca,vault:{key:"0123456789abcdef".repeat(4),version:"one"},outbox:{key:"123456789abcdef0".repeat(4),version:"outbox"},workerKey:"23456789abcdef01".repeat(4)};
 const opts=checkedDbOptions(config.controlDb,ca,"control");assert.equal(opts.options.ssl.rejectUnauthorized,true);assert.equal(opts.options.ssl.servername,"aws-0-us-east-2.pooler.supabase.com");assert.equal(opts.options.prepare,false);assert.equal(opts.options.max,1);
 for(const url of [config.controlDb+"?sslmode=disable",config.controlDb.replace("aws-0-us-east-2.pooler.supabase.com","evil.invalid"),config.dispatchDb,config.controlDb.replace("6543","5432")])assert.throws(()=>checkedDbOptions(url,ca,"control"));
 assert.throws(()=>checkedDbOptions(config.controlDb,"untrusted","control"));
@@ -39,7 +39,7 @@ const postgres=o=>{
   else if(q.includes("gmail_dispatch_allowed"))v=enabled&&args[1]===generation;
   else if(q.includes("gmail_finish")){finished=args[1];v=true;}
   else if(q.includes("subscription_gateway_budget")){assert.equal(args[0],"edge-shared");v=true;}
-  else if(q.includes("subscription_email_opt_in")){assert.equal(args[3],"release-test@example.com");signups++;v=null;}
+  else if(q.includes("subscription_email_opt_in_welcome")){assert.equal(args[3],"release-test@example.com");assert.equal(args[7],config.outbox.key);assert.equal(args[8],config.outbox.version);signups++;v=null;}
   else if(q.includes("subscription_enqueue_email")){assert.equal(args[1],"access");assert.equal(args[4],"release-test@example.com");enqueues++;queued=true;v=null;}
   else if(q.includes("subscription_redeem")){v=args[1]==="manage"?{ok:true,channel:"email",suppressed:false,edit_token:"b".repeat(64),preferences:[{topic:"hag-announcements",status:"active"}]}:{ok:true};}
   else if(q.includes("subscription_edit")){v=true;}
@@ -84,5 +84,9 @@ assert.deepEqual(await (await post("disable")).json(),{enabled:false});assert.eq
 const locked=createReleaseRuntime({config:{...config,oauth:false,send:false,preferences:false},postgres,fetcher,now:()=>now});
 const before=requestCount;assert.equal((await locked.control(new Request(CONTROL_BASE+"/oauth/gmail/prepare",{method:"POST",headers:{origin,authorization:"Bearer "+bearer}}))).status,503);
 assert.equal((await locked.worker(new Request(workerUrl,{method:"POST",headers:{authorization:"Bearer "+config.workerKey}}))).status,503);assert.equal(requestCount,before);
-await rt.close();await locked.close();
+const prefsOnly=createReleaseRuntime({config:{...config,oauth:false,send:false,preferences:true,signup:false},postgres,fetcher,now:()=>now});
+const req=payload=>new Request(prefUrl+(payload.action==="unsubscribe"?"/unsubscribe":""),{method:"POST",headers:{origin,"content-type":"application/json"},body:JSON.stringify(payload)});
+assert.equal((await prefsOnly.preferences(req({action:"subscribe",requestId:job,version:"draft-3c3-v1",form}))).status,503);
+assert.equal((await prefsOnly.preferences(req({action:"unsubscribe",token:"a".repeat(64)}))).status,200);
+await rt.close();await locked.close();await prefsOnly.close();
 console.log("PASS: release runtime exact hosted routes, OAuth redirect/callback, TLS driver policy, private worker secret, email single opt-in and direct unsubscribe using mocks only");

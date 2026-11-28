@@ -29,10 +29,10 @@ async function emptyWorkerBody(req){
  try{const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error("Timeout")),1000);});while(true){const {done,value}=await Promise.race([reader.read(),timeout]);if(done)break;n+=value.byteLength;if(n>32)return false;chunks.push(value);}return /^\s*\{\s*\}\s*$/.test(Buffer.concat(chunks).toString("utf8"));}catch{return false;}finally{clearTimeout(timer);void reader.cancel().catch(()=>{});}
 }
 function flags(cfg){
- if(!cfg||cfg.runtime!=="approved-runtime")return {configured:false,oauth:false,send:false,preferences:false};
+ if(!cfg||cfg.runtime!=="approved-runtime")return {configured:false,oauth:false,send:false,preferences:false,signup:false};
  // Separate release controls. A disabled deployment does not even create
  // database connections or load Google secrets. Sender enablement also requires DB approval.
- return {configured:true,oauth:cfg.oauth===true,send:cfg.oauth===true&&cfg.send===true,preferences:cfg.preferences===true};
+ return {configured:true,oauth:cfg.oauth===true,send:cfg.oauth===true&&cfg.send===true,preferences:cfg.preferences===true,signup:cfg.signup===true&&cfg.preferences===true&&cfg.oauth===true&&cfg.send===true};
 }
 export function createReleaseRuntime({config,postgres,fetcher,now=Date.now}){
  const f=flags(config);
@@ -79,14 +79,14 @@ export function createReleaseRuntime({config,postgres,fetcher,now=Date.now}){
  const canonical=s=>s==="edge-shared"?"edge-shared":null;
  const db=postgresAdapter(gatewayExec.execute);
  const optInEmail=async(id,item)=>{
-  if(!f.send||item.channel!=="email"||!validEmail(item.destination))throw Error("Signup unavailable");
+  if(!f.signup||item.channel!=="email"||!validEmail(item.destination))throw Error("Signup unavailable");
   await gatewayExec.execute("select hag_private.subscription_email_opt_in_welcome($1::uuid,$2,$3,$4,$5::text[],$6,$7,$8,$9) as value",[id,item.name,item.adult,item.destination,item.topics,item.consentText!==undefined,item.consentVersion,config.outbox.key,config.outbox.version]);
  };
  const enqueueEmail=async(id,action,item)=>{
   if(!f.send||action!=="access"||item.channel!=="email"||!validEmail(item.destination)||!["manage","unsubscribe"].includes(item.purpose))throw Error("Access only");
   await gatewayExec.execute("select hag_private.subscription_enqueue_email($1::uuid,$2,$3,$4,$5,$6::text[],$7,$8,$9,$10,$11) as value",[id,action,null,null,item.destination,null,null,null,item.purpose,config.outbox.key,config.outbox.version]);
  };
- const gateway=createGatewayCore({db:{...db,optInEmail,issueSms:async()=>{throw Error("SMS provider disabled");},enqueueEmail},delivery:{mode:"email-only",accept:async()=>{throw Error("SMS provider disabled");}},source:()=> "edge-shared",ingress:createIngressGuardCore(canonical),canonicalSource:canonical,atomicEmail:true});
+ const gateway=createGatewayCore({db:{...db,optInEmail,issueSms:async()=>{throw Error("SMS provider disabled");},enqueueEmail},delivery:{mode:"email-only",accept:async()=>{throw Error("SMS provider disabled");}},source:()=> "edge-shared",ingress:createIngressGuardCore(canonical),canonicalSource:canonical,atomicEmail:true,signupAvailable:f.signup,accessAvailable:f.send});
  const preferences=async req=>{
   if(!f.preferences)return response(503,{ok:false,disabled:true});
   try{

@@ -23,10 +23,12 @@ verify_jwt = false
 [functions.hag-subscriptions]
 verify_jwt = false
 TOML
-cp "$root/release/gmail/consolidated-migration.sql" "$root/release/gmail/operational-rollback.sql" "$out/"
-mkdir -p "$out/public/preferences" "$out/public/admin"
+cp "$root/release/gmail/consolidated-migration.sql" "$root/release/gmail/welcome-migration.sql" "$root/release/gmail/operational-rollback.sql" "$out/"
+mkdir -p "$out/public/preferences" "$out/public/assets/css"
 cp "$root/release/gmail/public/preferences/"* "$out/public/preferences/"
 cp "$root/release/gmail/runtime/consent.mjs" "$out/public/preferences/consent.mjs"
-cp "$root/admin/index.html" "$root/admin/auth.js" "$root/admin/gmail-controls.mjs" "$out/public/admin/"
+cp -R "$root/subscribe" "$root/privacy" "$root/terms" "$root/sms-terms" "$out/public/"
+cp "$root/assets/css/subscribers.css" "$out/public/assets/css/"
+# Do not overlay the live CMS/admin files. The release package is review-only.
 # This is an overlay, not a replacement for existing site files. Keep both release locks false.
 printf '%s\n' "$out"

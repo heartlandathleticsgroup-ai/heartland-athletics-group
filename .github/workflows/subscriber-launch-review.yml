@@ -17,9 +17,17 @@ jobs:
           node --check subscribe/signup.mjs
           node --check release/gmail/runtime/runtime.mjs
           node tests/subscriber-launch.test.mjs
+          node tests/gmail-release-runtime.test.mjs
           node tests/admin-dashboard.test.mjs
           node tests/admin-communications.test.mjs
           node tests/admin-auth-state.test.mjs
           node tests/admin-passkey.test.mjs
           node tests/admin-cms.test.mjs
       - run: bash tests/subscriber-launch-db-ci.sh
+      - run: |
+          pkg="$(bash release/gmail/package.sh)"
+          trap 'rm -rf "$pkg"' EXIT
+          test -f "$pkg/welcome-migration.sql"
+          test -f "$pkg/public/subscribe/index.html"
+          test -f "$pkg/public/preferences/consent.mjs"
+          test ! -d "$pkg/public/admin"

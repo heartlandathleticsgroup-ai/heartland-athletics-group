@@ -18,6 +18,8 @@ begin
  if claimed is null then return;end if;
  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('hag-subscription:email:'||p_destination,0));
  select exists(select 1 from hag_private.hag_contact_methods cm join hag_private.hag_subscriptions s on s.contact_method_id=cm.id where cm.channel='email' and cm.destination=p_destination and s.status='active') into had_active;
+ -- Existing active subscribers must use verified preferences to add topics.
+ if had_active then return; end if;
  perform hag_private.stage_subscription_request(p_name,p_adult,'email',p_destination,p_topics,p_consent,p_version);
  select id into m from hag_private.hag_contact_methods where channel='email' and destination=p_destination;
  if m is null or exists(select 1 from hag_private.hag_suppressions where contact_method_id=m and active) then return;end if;

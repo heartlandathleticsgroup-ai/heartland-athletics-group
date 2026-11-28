@@ -37,7 +37,7 @@ async function body(req){
   return JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(bytes));
  }finally{clearTimeout(timer);void reader.cancel().catch(()=>{});}
 }
-export function createGatewayCore({db,delivery,source,ingress,canonicalSource,atomicEmail=false}){
+export function createGatewayCore({db,delivery,source,ingress,canonicalSource,atomicEmail=false,signupAvailable=true,accessAvailable=true}){
  // Required ingress guard handles all requests including malformed bodies.
  // Runtime must supply canonical trusted source; never read forwarded IP headers here.
  if(!db||!delivery||delivery.mode!=="email-only"||typeof source!=="function"||typeof ingress!=="function"||typeof canonicalSource!=="function")throw Error("Isolated simulation dependencies required");
@@ -77,6 +77,7 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource,at
     }
     if(items?.some(v=>!fixture(v.channel,v.destination)))throw Error();
    }catch{return bad();}
+   if((x.action==='subscribe'&&!signupAvailable)||(x.action==='access'&&!accessAvailable))return response(503,{message:'Service unavailable.'},true);
    const issuing=!!items;
    const generic=()=>response(202,{message:x.action==="subscribe"?SIGNUP:GENERIC},true);
    try{

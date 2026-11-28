@@ -8,6 +8,7 @@ const proof={gate:"authorized",sessionActive:true,actor:"fixture-actor",session:
 const options={mode:"isolated-acceptance",vault,clientId:"fixture.apps.googleusercontent.com",clientSecret:"fixture-secret",postalFooter,now:()=>now,
  verifyAdmin:async bearer=>bearer==="fixture-admin"?proof:null,
  claim:async testId=>{if(!approved||claimed||testId!==id)return null;claimed=true;return {testId:id,generation:1,recipient:to,keyVersion:"fixture",credential:vault.seal({token:"fixture-refresh"},"refresh")};},
+ start:async(testId,generation)=>testId===id&&generation===1&&claimed,
  finish:async(testId,v)=>{assert.equal(testId,id);outcome=v;return true;},
  fetchFixture:async(url,opts)=>{calls++;assert.equal(opts.redirect,"error");assert.equal(opts.credentials,"omit");if(url.endsWith("/token"))return new Response(JSON.stringify({access_token:"fixture-access-token",expires_in:3600,token_type:"Bearer"}),{headers:{"Content-Type":"application/json"}});assert.equal(url,"https://gmail.googleapis.com/gmail/v1/users/me/messages/send");const raw=Buffer.from(JSON.parse(opts.body).raw,"base64url").toString("utf8");assert.match(raw,/From: Heartland Athletics Group <no-reply@heartlandathleticsgroup.com>/);assert.match(raw,/Reply-To: info@heartlandathleticsgroup.com/);assert.ok(raw.includes("To: "+to));assert.ok(raw.includes(postalFooter));assert.doesNotMatch(raw,/\/preferences\/|Bcc:|Cc:/);if(fail)throw Error("Synthetic timeout");return new Response(JSON.stringify({id:"fixture-message"}),{headers:{"Content-Type":"application/json"}});}
 };
@@ -21,4 +22,6 @@ assert.equal(await run({testId:id,bearer:"fixture-admin"}),"not-authorized");ass
 claimed=false;fail=true;
 assert.equal(await run({testId:id,bearer:"fixture-admin"}),"ambiguous-hold-no-resend");assert.equal(calls,4);
 assert.equal(await run({testId:id,bearer:"fixture-admin"}),"not-authorized");assert.equal(calls,4);
+claimed=false;fail=false;
+const denied=createSenderTestFixture({...options,start:async()=>false});assert.equal(await denied({testId:id,bearer:"fixture-admin"}),"authorization-required");assert.equal(calls,5);
 console.log("PASS: fixture-only owner-approved single recipient, exact sender and reply-to, no subscriber links, one attempt, provider acceptance is not delivery, ambiguous failure never retried");

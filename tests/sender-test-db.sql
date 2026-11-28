@@ -13,6 +13,7 @@ begin
  execute 'set local role hag_gmail_dispatch';
  v:=hag_private.gmail_sender_test_claim(testid);
  if v->>'recipient' is distinct from 'jhawkins@heartlandathleticsgroup.com' or hag_private.gmail_sender_test_claim(testid) is not null then raise exception 'claim scope or replay';end if;
+ if hag_private.gmail_sender_test_finish(testid,'accepted-not-delivered') or not hag_private.gmail_sender_test_start(testid,g) or hag_private.gmail_sender_test_start(testid,g) then raise exception 'final dispatch fence';end if;
  if not hag_private.gmail_sender_test_finish(testid,'accepted-not-delivered') or hag_private.gmail_sender_test_finish(testid,'provider-rejected') then raise exception 'finish replay';end if;
  execute 'reset role';
  if exists(select 1 from hag_private.gmail_connection where enabled) or exists(select 1 from hag_private.subscription_email_outbox) or exists(select 1 from hag_private.hag_subscriptions) then raise exception 'test touched production-like delivery';end if;

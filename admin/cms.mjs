@@ -1,10 +1,10 @@
 // Uses the existing verified admin session. No new credentials or local draft storage.
-import {card,raster,mediaId} from '../assets/js/cms-render.mjs';
+import {card,raster,mediaId,logoSize} from '../assets/js/cms-render.mjs?v=3';
 import {prepareImage} from './cms-image.mjs';
 export const KINDS=['news','event','sponsor'];
 export const stateOf=r=>r.published_revision==null?'Draft':r.published_revision===r.revision?'Published':'Unpublished edits';
 export function draftFrom(values,kind){
- return {title:String(values.title||'').trim(),body:String(values.body||'').trim(),url:String(values.url||'').trim(),image:String(values.image||'').trim(),date:kind==='event'?String(values.date||''):'',location:kind==='event'?String(values.location||'').trim():'',end_date:kind==='event'?String(values.end_date||''):'',scope:kind==='sponsor'?String(values.scope||'general'):'general',permission:kind==='sponsor'&&values.permission===true};
+ return {title:String(values.title||'').trim(),body:String(values.body||'').trim(),url:String(values.url||'').trim(),image:String(values.image||'').trim(),date:kind==='event'?String(values.date||''):'',location:kind==='event'?String(values.location||'').trim():'',end_date:kind==='event'?String(values.end_date||''):'',scope:kind==='sponsor'?String(values.scope||'general'):'general',logo_size:kind==='sponsor'?logoSize(values.logo_size):'standard',permission:kind==='sponsor'&&values.permission===true};
 }
 export function attachCMS(root,rpc,allowed){
  const doc=root.ownerDocument; let rows=[],media=[],generation=0,busy=false,loaded=false;const imageCache=new Map();
@@ -39,7 +39,7 @@ export function attachCMS(root,rpc,allowed){
   if((!enabled()||busy)&&!force)return;
   const p=panels[k];if(p.dirty&&!force&&!globalThis.confirm('Discard unsaved edits?'))return;
   p.current=r;p.dirty=false;p.form.reset();p.heading.textContent=r?'Edit draft':'New '+k;
-  for(const [name,input] of Object.entries(p.inputs)){if(input.type==='checkbox')input.checked=!!r?.draft[name];else input.value=r?.draft[name]||(name==='scope'?'general':'');}
+  for(const [name,input] of Object.entries(p.inputs)){if(input.type==='checkbox')input.checked=!!r?.draft[name];else input.value=r?.draft[name]||(name==='scope'?'general':name==='logo_size'?'standard':'');}
   p.message.textContent='';p.form.hidden=false;mediaOptions();preview(k);
  }
  async function perform(fn){
@@ -56,8 +56,8 @@ export function attachCMS(root,rpc,allowed){
   form.className='cms-form';message.setAttribute('role','status');list.className='cms-list';
   const fields=[['title',k==='sponsor'?'Sponsor name':'Title','text',140],['body',k==='sponsor'?'Public recognition text':'Description / announcement','textarea',4000],['url','Optional HTTPS website or registration link','url',500],['image','Image reference (library selection or existing /assets/ path)','text',300]];
   if(k==='event')fields.push(['date','Event date','date',10],['end_date','End date (optional)','date',10],['location','Public venue / location','text',200]);
-  if(k==='sponsor')fields.push(['scope','Recognition placement','select',0],['permission','I have permission to publish this sponsor name and logo','checkbox',0]);
-  for(const [name,label,type,max] of fields){const wrap=make('label',label);const input=make(type==='textarea'?'textarea':type==='select'?'select':'input');if(type==='select'){for(const [v,t] of [['general','General H.A.G. recognition'],['gus-macker','Gus Macker sponsor directory'],['gus-macker-featured','Gus Macker featured + directory']])input.append(new Option(t,v));}else if(type!=='textarea')input.type=type;input.name=name;if(max)input.maxLength=max;if(name==='title'||name==='date')input.required=true;wrap.append(input);form.append(wrap);inputs[name]=input;}
+  if(k==='sponsor')fields.push(['scope','Recognition placement','select',0],['logo_size','Logo display size (not a public sponsorship tier)','select',0],['permission','I have permission to publish this sponsor name and logo','checkbox',0]);
+  for(const [name,label,type,max] of fields){const wrap=make('label',label);const input=make(type==='textarea'?'textarea':type==='select'?'select':'input');if(type==='select'){for(const [v,t] of (name==='logo_size'?[['compact','Compact'],['standard','Standard'],['large','Large'],['premier','Extra large']]:[['general','General H.A.G. recognition'],['gus-macker','Gus Macker sponsor directory'],['gus-macker-featured','Gus Macker featured + directory']]))input.append(new Option(t,v));}else if(type!=='textarea')input.type=type;input.name=name;if(max)input.maxLength=max;if(name==='title'||name==='date')input.required=true;wrap.append(input);form.append(wrap);inputs[name]=input;}
   const mediaSelect=make('select');mediaSelect.setAttribute('aria-label','Select library image');
   const imageFile=make('input');imageFile.type='file';imageFile.accept='image/jpeg,image/png,image/webp,image/avif,image/gif,image/heic,image/heif';imageFile.setAttribute('aria-label','Upload image');
   const tools=make('div');tools.className='cms-editor-tools';

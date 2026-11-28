@@ -49,12 +49,12 @@ begin
  return found;
 end $$;
 create or replace function hag_private.hag_cms_validate(k text,d jsonb) returns jsonb language plpgsql stable set search_path='' as $$
-declare t text; b text; l text; i text; dt text; loc text; approved boolean; finish text; placement text;
+declare t text; b text; l text; i text; dt text; loc text; approved boolean; finish text; placement text; logo_size text;
 begin
  if k is null or k not in ('news','event','sponsor') or jsonb_typeof(d) is distinct from 'object' or octet_length(d::text)>22000 then raise exception 'Invalid content'; end if;
- if exists(select 1 from jsonb_object_keys(d) x where x not in ('title','body','url','image','date','location','permission','end_date','scope')) then raise exception 'Unsupported field'; end if;
+ if exists(select 1 from jsonb_object_keys(d) x where x not in ('title','body','url','image','date','location','permission','end_date','scope','logo_size')) then raise exception 'Unsupported field'; end if;
  if exists(select 1 from jsonb_each(d) x where (x.key='permission' and jsonb_typeof(x.value)<>'boolean') or (x.key<>'permission' and jsonb_typeof(x.value)<>'string')) then raise exception 'Invalid field type'; end if;
- t:=btrim(coalesce(d->>'title','')); b:=btrim(coalesce(d->>'body','')); l:=btrim(coalesce(d->>'url','')); i:=btrim(coalesce(d->>'image','')); dt:=coalesce(d->>'date',''); loc:=btrim(coalesce(d->>'location','')); approved:=coalesce((d->>'permission')::boolean,false); finish:=coalesce(d->>'end_date',''); placement:=coalesce(d->>'scope','general');
+ t:=btrim(coalesce(d->>'title','')); b:=btrim(coalesce(d->>'body','')); l:=btrim(coalesce(d->>'url','')); i:=btrim(coalesce(d->>'image','')); dt:=coalesce(d->>'date',''); loc:=btrim(coalesce(d->>'location','')); approved:=coalesce((d->>'permission')::boolean,false); finish:=coalesce(d->>'end_date',''); placement:=coalesce(d->>'scope','general'); logo_size:=coalesce(d->>'logo_size','standard');
  if char_length(t) not between 1 and 140 or char_length(b)>4000 or char_length(loc)>200 or char_length(l)>500 or char_length(i)>300 then raise exception 'Field length invalid'; end if;
  if l<>'' and l !~ '^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(/[A-Za-z0-9._~:/?&=%+@!$(),;-]*)?(\?[A-Za-z0-9._~:/?&=%+@!$(),;-]*)?(#[A-Za-z0-9._~:/?&=%+@!$(),;-]*)?$' then raise exception 'Use a valid HTTPS link'; end if;
  if i ~ '^media:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
@@ -68,9 +68,10 @@ begin
    if finish::date<dt::date then raise exception 'Invalid event end date'; end if;
   end if;
  else dt:=''; finish:=''; loc:=''; end if;
- if k<>'sponsor' then placement:='general'; end if;
+ if k<>'sponsor' then placement:='general'; logo_size:='standard'; end if;
+ if logo_size not in ('compact','standard','large','premier') then raise exception 'Invalid logo size'; end if;
  if placement not in ('general','gus-macker','gus-macker-featured') then raise exception 'Invalid sponsor placement'; end if;
- return jsonb_build_object('title',t,'body',b,'url',l,'image',i,'date',dt,'location',loc,'end_date',finish,'scope',placement,'permission',case when k='sponsor' then approved else false end);
+ return jsonb_build_object('title',t,'body',b,'url',l,'image',i,'date',dt,'location',loc,'end_date',finish,'scope',placement,'logo_size',logo_size,'permission',case when k='sponsor' then approved else false end);
 end $$;
 create or replace function hag_private.hag_cms_change(a text,k text,item uuid,expected integer,d jsonb) returns jsonb language plpgsql security definer set search_path='' as $$
 declare rec hag_private.hag_cms_items%rowtype; validated jsonb; pubrev integer;

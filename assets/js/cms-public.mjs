@@ -1,4 +1,4 @@
-import {BASE,KEY,FEATURE_EVENT,DOT,DRY,card,eventDate,formatBody,imageNode,safeLink,safeImage} from './cms-render.mjs';
+import {BASE,KEY,FEATURE_EVENT,logoSize,sponsorPriority,card,eventDate,formatBody,imageNode,safeLink,safeImage} from './cms-render.mjs?v=3';
 export {safeImage,safeLink};
 export function groupRows(rows){const out={news:[],event:[],sponsor:[]};for(const r of Array.isArray(rows)?rows:[]){if(!Object.hasOwn(out,r?.kind)||typeof r.content?.title!=='string')continue;out[r.kind].push({...r.content,id:r.id})}out.event.sort((a,b)=>String(a.date).localeCompare(String(b.date)));return out}
 const request=async(fetcher,path)=>{const res=await fetcher(BASE+'/rest/v1/'+path,{headers:{apikey:KEY},credentials:'omit',signal:AbortSignal.timeout(6000)});if(!res.ok)throw Error('Unavailable');return res.json()};
@@ -18,9 +18,9 @@ export async function loadPublic(root,fetcher=globalThis.fetch){
   for(const host of doc.querySelectorAll('[data-cms-sponsor-list]')){
    const featured=host.dataset.cmsSponsorList==='featured';
    let items=featured?eventSponsors.filter(x=>x.scope==='gus-macker-featured'):eventSponsors;
-   items=items.slice().sort((a,b)=>featured?((a.id===DOT?0:a.id===DRY?1:2)-(b.id===DOT?0:b.id===DRY?1:2)||a.title.localeCompare(b.title)):a.title.localeCompare(b.title));
-   const nodes=items.map(c=>{const url=safeLink(c.url),n=doc.createElement(url?'a':'div');if(url){n.href=url;n.target='_blank';n.rel='noopener noreferrer'}n.className=featured?'macker-sponsor-card '+(c.id===DOT?'macker-sponsor-card-featured':'macker-sponsor-card-major'):'macker-sponsor-directory-card';const img=imageNode(doc,c,'sponsor',resolve);if(img)n.append(img);const title=doc.createElement('strong');title.textContent=c.title;n.append(title);if(featured&&c.body){const span=doc.createElement('span');span.textContent=c.body;n.append(span)}return n});
-   host.replaceChildren(...nodes);host.hidden=!nodes.length;
+   items=items.slice().sort((a,b)=>featured?sponsorPriority(a,b):a.title.localeCompare(b.title));
+   const nodes=items.map(c=>{const url=safeLink(c.url),n=doc.createElement(url?'a':'div');if(url){n.href=url;n.target='_blank';n.rel='noopener noreferrer'}n.className=featured?'macker-sponsor-card '+(logoSize(c.logo_size)==='premier'?'macker-sponsor-card-featured':logoSize(c.logo_size)==='large'?'macker-sponsor-card-major':''):'macker-sponsor-directory-card';n.dataset.logoSize=logoSize(c.logo_size);const img=imageNode(doc,c,'sponsor',resolve);if(img)n.append(img);const title=doc.createElement('strong');title.textContent=c.title;n.append(title);if(featured&&c.body){const span=doc.createElement('span');span.textContent=c.body;n.append(span)}return n});
+   host.replaceChildren(...nodes);host.classList.add('cms-sized-sponsor-grid');host.hidden=!nodes.length;
   }
   const feed=doc.querySelector('[data-hag-public-cms]');if(!feed)return;
   groups.event=groups.event.filter(x=>x.id!==FEATURE_EVENT);

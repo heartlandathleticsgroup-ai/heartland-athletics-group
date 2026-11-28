@@ -7,8 +7,19 @@ set role authenticated;
 select set_config('test.uid','00000000-0000-4000-8000-000000000001',false);
 select set_config('test.state','authorized',false);
 do $$
-declare m jsonb; u uuid; p jsonb; x uuid;
+declare m jsonb; u uuid; p jsonb; x uuid; sponsor jsonb; sid uuid;
 begin
+ if (select content->>'logo_size' from public.hag_cms_publications where id='8b110000-0000-4000-8000-000000000002') is distinct from 'premier' then raise exception 'Dot Foods size mismatch'; end if;
+ if (select content->>'logo_size' from public.hag_cms_publications where id='8b110000-0000-4000-8000-000000000003') is distinct from 'large' then raise exception 'Be Dry size mismatch'; end if;
+ sponsor:=public.hag_cms_change('save','sponsor',null,0,'{"title":"Small sponsor","logo_size":"compact","scope":"gus-macker","permission":true}');
+ sid:=(sponsor->>'id')::uuid;
+ perform public.hag_cms_change('publish','sponsor',sid,1,null);
+ if (select content->>'logo_size' from public.hag_cms_publications where id=sid) is distinct from 'compact' then raise exception 'Sponsor size not published'; end if;
+ perform public.hag_cms_change('save','sponsor',sid,2,'{"title":"Small sponsor","logo_size":"large","scope":"gus-macker","permission":true}');
+ if (select content->>'logo_size' from public.hag_cms_publications where id=sid) is distinct from 'compact' then raise exception 'Draft size leaked'; end if;
+ perform public.hag_cms_change('publish','sponsor',sid,3,null);
+ if (select content->>'logo_size' from public.hag_cms_publications where id=sid) is distinct from 'large' then raise exception 'Updated size not published'; end if;
+ begin perform public.hag_cms_change('save','sponsor',sid,4,'{"title":"Small sponsor","logo_size":"999px"}'); raise exception 'Invalid size accepted' using errcode='XX000'; exception when raise_exception then null; end;
  -- Header-valid PNG fixture, used only for SQL checks.
  m:=public.hag_cms_media_add('Fixture','image/png','iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jcR0AAAAASUVORK5CYII=');
  u:=(m->>'id')::uuid;

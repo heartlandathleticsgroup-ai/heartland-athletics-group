@@ -33,3 +33,8 @@ const fakeDoc={createElement:makeNode,createTextNode:t=>({tag:'text',textContent
 const formatted=formatBody(fakeDoc,'## Heading\n- **Bold**\n<script>alert(1)</script>');
 assert.equal(formatted.children[0].tag,'h4');assert.equal(formatted.children[1].tag,'ul');assert.equal(formatted.children[1].children[0].children[1].tag,'strong');assert.equal(formatted.children[2].children[0].textContent,'<script>alert(1)</script>');
 console.log('Media, safe formatting, and multi-day event helpers passed');
+
+import {logoSize,sponsorPriority} from '../assets/js/cms-render.mjs';
+assert.equal(logoSize('premier'),'premier');assert.equal(logoSize('unexpected'),'standard');assert.equal(draftFrom({title:'S',logo_size:'large'},'sponsor').logo_size,'large');assert.equal(draftFrom({title:'N',logo_size:'premier'},'news').logo_size,'standard');
+assert.deepEqual([{title:'A',logo_size:'compact'},{title:'B',logo_size:'premier'},{title:'C',logo_size:'large'}].sort(sponsorPriority).map(x=>x.title),['B','C','A']);
+console.log('Sponsor prominence controls passed');

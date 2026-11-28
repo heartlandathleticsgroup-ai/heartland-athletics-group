@@ -2,6 +2,9 @@ export const BASE='https://unrqbfngcgvqnytxbtgj.supabase.co', KEY='sb_publishabl
 export const FEATURE_EVENT='8b110000-0000-4000-8000-000000000001';
 export const DOT='8b110000-0000-4000-8000-000000000002';
 export const DRY='8b110000-0000-4000-8000-000000000003';
+export const LOGO_SIZES=Object.freeze(['compact','standard','large','premier']);
+export function logoSize(v){return LOGO_SIZES.includes(v)?v:'standard'}
+export function sponsorPriority(a,b){return LOGO_SIZES.indexOf(logoSize(b.logo_size))-LOGO_SIZES.indexOf(logoSize(a.logo_size))||a.title.localeCompare(b.title)}
 export function mediaId(v){return typeof v==='string'&&/^media:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(v)?v.slice(6):null}
 export function safeLink(v){try{const u=new URL(v);return u.protocol==='https:'&&!u.username&&!u.password?u.href:null}catch{return null}}
 export function safeImage(v){return typeof v==='string'&&/^\/assets\/[A-Za-z0-9_./-]+\.(png|jpg|jpeg|webp|avif|gif)$/.test(v)&&!/(^|\/)\.\.?(\/|$)|\/\//.test(v)?v:null}
@@ -22,7 +25,7 @@ export function imageNode(doc,c,kind,resolve){
  return img;
 }
 export function card(doc,c,kind,resolve){
- const a=doc.createElement('article');a.className='cms-public-card cms-'+kind;
+ const a=doc.createElement('article');a.className='cms-public-card cms-'+kind;if(kind==='sponsor')a.dataset.logoSize=logoSize(c.logo_size);
  const img=imageNode(doc,c,kind,resolve);if(img)a.append(img);
  const content=doc.createElement('div');content.className='cms-card-copy';
  const badge=doc.createElement('span');badge.className='cms-card-label';badge.textContent=kind==='news'?'H.A.G. news':kind==='event'?'Upcoming event':'Community partner';content.append(badge);

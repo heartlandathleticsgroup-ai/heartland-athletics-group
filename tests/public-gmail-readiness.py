@@ -12,6 +12,24 @@ def txt(name):
     return ["".join(shlex.split(record)) for record in query(name,"TXT")]
 try:
     spf=[s for s in txt(domain) if s.lower().startswith("v=spf1")]
+    print("SPF POLICY RECORD: "+json.dumps(spf))
+    # Only public SPF records are printed; never dump all TXT records or tokens.
+    seen=set()
+    def google_reference(records,depth=0):
+        if depth>5: return False
+        for record in records:
+            for part in record.lower().split()[1:]:
+                term=part.lstrip("+")
+                if term.startswith("include:"): target=term[8:]
+                elif term.startswith("redirect="): target=term[9:]
+                else: continue
+                if target=="_spf.google.com": return True
+                if target in seen or len(seen)>=10 or not re.fullmatch(r"[a-z0-9_.-]{1,253}",target): continue
+                seen.add(target)
+                nested=[s for s in txt(target) if s.lower().startswith("v=spf1")]
+                if len(nested)==1 and google_reference(nested,depth+1): return True
+        return False
+    print("SPF GOOGLE REFERENCE (direct or bounded include/redirect): "+str(google_reference(spf)))
     dmarc=[s for s in txt("_dmarc."+domain) if s.lower().startswith("v=dmarc1")]
     dkim=[s for s in txt("google._domainkey."+domain) if re.search(r"(?:^|;)\s*p\s*=\s*[A-Za-z0-9+/]",s)]
     mx=query(domain,"MX")

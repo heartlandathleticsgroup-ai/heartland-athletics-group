@@ -54,7 +54,7 @@ export function attachSignup(doc,{call=null,catalog=BASE_SPORTS,smsEnabled=false
   const sync=()=>{details.hidden=!enabled.checked;$(c+"-destination").disabled=!live||!enabled.checked;if(!enabled.checked){$(c+"-destination").value="";consent.checked=false;toggle.checked=false;sportRoot.hidden=updateRoot.hidden=true;}};
   enabled.addEventListener("change",sync);sync();custom.hidden=false;
  }
- if(live&&!smsEnabled)$("sms-channel").disabled=true;
+ if(live&&!smsEnabled){$("sms-channel").disabled=true;$("sms-enabled").checked=false;$("sms-consent").checked=false;}
  const form=$("subscriber-form");
  form.addEventListener("input",()=>{if(!busy)requestId=null;});
  form.addEventListener("submit",async event=>{
@@ -62,7 +62,7 @@ export function attachSignup(doc,{call=null,catalog=BASE_SPORTS,smsEnabled=false
   const choice=c=>{const o=overrides[c];return {enabled:$(c+"-enabled").checked,destination:$(c+"-destination").value,sports:selected(o.toggle.checked?o.sp:sports),updates:selected(o.toggle.checked?o.up:updates),consent:$(c+"-consent").checked};};
   let payload;try{payload=sportEnvelope({name:$("subscriber-name").value,adult:$("adult").checked,email:choice("email"),sms:choice("sms")},requestId??=randomId(),catalog.map(x=>x[0]),{smsEnabled});}catch(e){$("signup-error").textContent=e.message;return;}
   busy=true;$("signup-fields").disabled=true;$("signup-error").textContent="";
-  try{await call(payload);form.reset();for(const c of ["email","sms"]){$(c+"-details").hidden=true;$(c+"-destination").disabled=true;}requestId=null;$("release-status").textContent="Request received. Eligible email subscriptions begin without a confirmation step. A welcome acknowledgment may be sent with preference and unsubscribe links.";}
+  try{await call(payload);form.reset();for(const c of ["email","sms"]){$(c+"-details").hidden=true;$(c+"-destination").disabled=true;}requestId=null;$("release-status").textContent="Request received. If eligible, your email selections begin without a confirmation step. You may receive one welcome email with preference and unsubscribe links. Already subscribed? Use Manage preferences to change your interests.";}
   catch{$("signup-error").textContent="Unable to complete the request. Please try again or contact H.A.G.";}
   finally{busy=false;$("signup-fields").disabled=false;}
  });

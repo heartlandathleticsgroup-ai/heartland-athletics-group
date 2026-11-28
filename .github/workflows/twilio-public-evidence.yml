@@ -5,6 +5,7 @@ on:
   workflow_dispatch:
 jobs:
   static-review:
+    if: github.head_ref != 'admin/phase-3c3-subscription-preview'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

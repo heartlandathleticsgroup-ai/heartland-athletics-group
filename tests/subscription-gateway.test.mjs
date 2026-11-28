@@ -1,0 +1,74 @@
+import assert from "node:assert/strict";
+import {randomUUID,randomBytes} from "node:crypto";
+import {createGateway,createSimulatedDelivery,createIngressGuard,GENERIC,SIGNUP} from "../previews/subscriptions/server/gateway.mjs";
+import {postgresAdapter} from "../previews/subscriptions/server/postgres-adapter.mjs";
+import {CONSENT_VERSION} from "../previews/subscriptions/consent.mjs";
+import {subscriptionEnvelope,accessEnvelope} from "../previews/subscriptions/form-envelope.mjs";
+const origin="https://heartlandathleticsgroup.com",url="https://stage.invalid/subscriptions";
+const capture=createSimulatedDelivery(),claimed=new Set(),tokens=new Map(),calls=[];
+let allowed=true,ingressAllowed=true,src="192.0.2.1",throwIssue=false;
+const db={
+ async budget(s,a){calls.push(["budget",s,a]);return allowed;},
+ async optInEmail(id,i){calls.push(['optInEmail',id,i.channel]);if(throwIssue)throw Error('simulated unavailable');claimed.add(id+':email');},
+ async issue(id,a,i){calls.push(["issue",id,a,i.channel]);if(throwIssue)throw Error("simulated unavailable");const k=id+":"+i.channel;if(claimed.has(k)||i.destination==="unknown@example.invalid")return null;claimed.add(k);await Promise.resolve();const t=randomBytes(32).toString("hex");tokens.set(t,i.purpose);return t;},
+ async redeem(t,p){if(tokens.get(t)!==p)return null;tokens.delete(t);return p==="manage"?{channel:"email",suppressed:false,preferences:[{topic:"hag-announcements",status:"active",private:"do not leak"}],edit_token:randomBytes(32).toString("hex"),private:"do not leak"}:{ok:true};},
+ async edit(){return true;}
+};
+const gateway=createGateway({db,delivery:capture,source:()=>src,ingress:async()=>ingressAllowed});
+const req=(x,opts={})=>new Request(url,{method:"POST",headers:{origin,"content-type":"application/json",...opts.headers},body:JSON.stringify(x),...opts,...(opts.headers?{headers:{origin,"content-type":"application/json",...opts.headers}}:{})});
+const off={enabled:false,destination:"",topics:[],consent:false};
+const form={name:"Fixture",adult:true,email:{enabled:true,destination:"fixture@example.invalid",topics:["hag-announcements"],consent:true},sms:off};
+const sub=subscriptionEnvelope(form,randomUUID());
+const access=accessEnvelope({channel:"email",destination:"fixture@example.invalid"},randomUUID());
+const generic=async (r,message=GENERIC)=>{assert.equal(r.status,202);assert.deepEqual(await r.json(),{message});assert.equal(r.headers.get("cache-control"),"no-store");};
+await Promise.all(Array.from({length:20},()=>gateway(req(sub)).then(r=>generic(r,SIGNUP))));
+assert.equal(capture.drain().length,0);assert.ok(claimed.has(sub.requestId+":email"));
+assert.ok(!calls.some(x=>x[0]==="issue"&&x[3]==="email"));
+const smsSub=subscriptionEnvelope({...form,email:off,sms:{enabled:true,destination:"+12025550123",topics:["hag-announcements"],consent:true}},randomUUID());
+await Promise.all(Array.from({length:20},()=>gateway(req(smsSub)).then(r=>generic(r,SIGNUP))));
+let issued=capture.drain();assert.equal(issued.length,1);assert.equal(issued[0].channel,"sms");const t=issued[0].token;
+let rs=await Promise.all(Array.from({length:10},()=>gateway(req({action:"confirm",token:t})).then(r=>r.json())));assert.equal(rs.filter(x=>x.ok).length,1);
+await generic(await gateway(req(access)));issued=capture.drain();assert.equal(issued.length,1);
+let result=await gateway(req({action:"manage",token:issued[0].token})).then(r=>r.json());assert.equal(result.ok,true);assert.equal(result.private,undefined);assert.deepEqual(result.preferences,[{topic:"hag-announcements",status:"active"}]);assert.match(result.editToken,/^[0-9a-f]{64}$/);
+await generic(await gateway(req({...access,requestId:randomUUID(),form:{channel:"email",destination:"unknown@example.invalid"}})));assert.equal(capture.drain().length,0);
+allowed=false;await generic(await gateway(req({...sub,requestId:randomUUID()})),SIGNUP);allowed=true;
+throwIssue=true;await generic(await gateway(req({...sub,requestId:randomUUID()})),SIGNUP);throwIssue=false;
+assert.equal((await gateway(req(sub,{headers:{origin:"https://evil.invalid"}}))).status,403);
+assert.equal((await gateway(new Request(url,{method:"GET",headers:{origin}}))).status,405);
+assert.equal((await gateway(new Request(url,{method:"OPTIONS",headers:{origin,"access-control-request-method":"POST","access-control-request-headers":"content-type"}}))).status,204);
+assert.equal((await gateway(req(sub,{headers:{"content-type":"text/plain"}}))).status,400);
+assert.equal((await gateway(req(sub,{headers:{"content-length":"9000"}}))).status,400);
+assert.equal((await gateway(req({...sub,form:{...form,name:"x".repeat(9000)}}))).status,400);
+assert.equal((await gateway(req({...sub,form:{...form,adult:false}}))).status,400);
+assert.equal((await gateway(req({...sub,form:{...form,email:{...form.email,consent:false}}}))).status,400);
+assert.equal((await gateway(req({...sub,form:{...form,email:{...form.email,destination:"real@example.com"}}}))).status,400);
+assert.equal((await gateway(req({...sub,version:"old"}))).status,400);
+assert.equal((await gateway(req({...sub,role:"service_role"}))).status,400);
+assert.equal((await gateway(req({action:"manage",token:"bad"}))).status,400);
+assert.equal((await gateway(req({action:"edit",token:result.editToken,add:["hag-announcements"],remove:[],adult:true,consent:false,version:CONSENT_VERSION}))).status,400);
+assert.equal((await gateway(req({action:"edit",token:result.editToken,add:["hag-announcements"],remove:["hag-announcements"],adult:true,consent:true,version:CONSENT_VERSION}))).status,400);
+assert.equal((await gateway(req({action:"edit",token:result.editToken,add:[],remove:["hag-announcements"],adult:false,consent:false,version:CONSENT_VERSION}))).status,200);
+ingressAllowed=false;assert.equal((await gateway(req(sub))).status,429);ingressAllowed=true;src=null;assert.equal((await gateway(req(sub))).status,503);src="192.0.2.1";
+await generic(await gateway(req({...sub,requestId:randomUUID()},{headers:{"x-forwarded-for":"attacker"}})),SIGNUP);assert.equal(calls.filter(c=>c[0]==="budget").at(-1)[1],src);
+const queries=[];const adapter=postgresAdapter(async(q,args)=>{queries.push([q,args]);return {rows:[{value:true}]};});
+await adapter.budget(src,"subscribe");await adapter.issueSms(randomUUID(),"subscribe",{channel:"sms",destination:"+12025550123",name:"Fixture",adult:true,topics:["hag-announcements"],consentText:"canonical",consentVersion:CONSENT_VERSION,purpose:"confirm"});await adapter.inspect("x");await adapter.redeem("x","confirm");await adapter.edit({token:"x",add:[],remove:["hag-announcements"],adult:false,consent:false,version:CONSENT_VERSION});
+assert.equal(queries.length,5);assert.equal(adapter.issue,undefined);assert.throws(()=>adapter.issueSms(randomUUID(),"subscribe",{channel:"email"}));assert.ok(queries.every(([q,args])=>q.includes("$1")&&Array.isArray(args)&&!q.includes("fixture@example.invalid")));
+console.log("Gateway tests passed: mock concurrent issuance/replay, validation, origin, bounds, generic responses, verified projection and fixed SQL.");
+
+let tick=0;const guard=createIngressGuard({clock:()=>tick});assert.equal(guard("not an IP"),false);
+for(let i=0;i<40;i++)assert.equal(guard("2001:db8::1"),true);
+assert.equal(guard("2001:0db8:0:0:0:0:0:1"),false);
+tick=60000;assert.equal(guard("2001:db8::1"),true);
+const overall=createIngressGuard({clock:()=>0});
+for(let i=0;i<600;i++)assert.equal(overall("2001:db8::"+(i+1).toString(16)),true);
+assert.equal(overall("2001:db8::ffff"),false);
+console.log("Ingress source canonicalization, per-source/global limits and window reset passed.");
+
+assert.equal(guard("2001:db8::1","optout"),true);
+assert.equal(overall("2001:db8::ffff","optout"),true);
+for(let i=1;i<20;i++)assert.equal(overall("2001:db8::ffff","optout"),true);
+assert.equal(overall("2001:db8::ffff","optout"),false);
+assert.equal((await gateway(req({action:"unsubscribe",token:"a".repeat(64)}))).status,400);
+assert.equal((await gateway(new Request(url+"/unsubscribe",{method:"POST",headers:{origin,"content-type":"application/json"},body:JSON.stringify(sub)}))).status,400);
+assert.equal((await gateway(req({action:"edit",token:result.editToken,add:[],remove:["hag-announcements"],adult:false,consent:false,version:"old-draft"}))).status,200);
+console.log("Dedicated opt-out lane and consent-independent withdrawal tests passed.");

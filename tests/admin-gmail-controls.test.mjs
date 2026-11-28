@@ -1,0 +1,53 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {execFileSync} from "node:child_process";
+import {GMAIL_RELEASE_ENABLED,GMAIL_CONTROL_BASE,createGmailAdminClient,attachGmailControls} from "../admin/gmail-controls.mjs";
+assert.equal(GMAIL_RELEASE_ENABLED,false);
+const read=p=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
+const base=execFileSync("git",["show","origin/main:admin/auth.js"],{encoding:"utf8"});
+const sportExpected=base.replace('import {attachCMS}','import {attachSportAdmin,SPORT_ADMIN_RELEASE_ENABLED} from "./sport-admin.mjs";\nimport {attachCMS}').replace("let communications=null,cms=null,gmailControls=null;","let communications=null,cms=null,gmailControls=null,sportAdmin=null;").replace("gmailControls?.clear();","gmailControls?.clear();sportAdmin?.clear();").replace("  const gmailApi=","  sportAdmin=attachSportAdmin($(\"authorized-panel\"),{allowed,api:SPORT_ADMIN_RELEASE_ENABLED?async args=>{if(!allowed())throw Error(\"Access unavailable\");const {p_action,...rest}=args;if(p_action.startsWith(\"draft-\"))return data(await client.rpc(\"hag_sport_admin_drafts\",{p_action:p_action.slice(6),...rest}));return data(await client.rpc(p_action===\"count-union\"?\"hag_sport_admin_count\":\"hag_sport_admin\",p_action===\"count-union\"?rest:args));}:null});\n  const gmailApi=");
+assert.equal(read("admin/auth.js"),sportExpected,"preserve live Gmail and existing auth, add locked sport attachment only");
+assert.match(read("admin/sport-admin.mjs"),/SPORT_ADMIN_RELEASE_ENABLED=false/);
+const html=read("admin/index.html");
+assert.equal(html.match(/form-action [^;]+;/)?.[0],"form-action https://unrqbfngcgvqnytxbtgj.supabase.co/functions/v1/hag-gmail-control/oauth/gmail/launch https://accounts.google.com/o/oauth2/v2/auth;");
+assert.match(html,/base-uri 'none';/);assert.match(html,/object-src 'none'/);
+assert.match(html,/<div id="authorized-panel" hidden>/);
+assert.match(html,/data-gmail-action="prepare" disabled/);
+assert.match(html,/<meta name="referrer" content="strict-origin">/);
+assert.match(html,/data-gmail-action="disconnect" disabled/);
+assert.doesNotMatch(html,/data-gmail-action="enable"/);
+let allowed=true,calls=0,sessionReads=0,connected=true,enabled=true,holds=[{job_id:"00000000-0000-4000-8000-000000000001",created_at:"2026-11-27",started:true,outcome:"ambiguous-hold-no-resend",private:"ignore"}];
+const request=async(url,o)=>{
+ calls++;assert.ok(url.startsWith(GMAIL_CONTROL_BASE+"/"));assert.equal(o.headers.Authorization,"Bearer fixture-admin-bearer");assert.equal(o.credentials,"omit");assert.equal(o.redirect,"error");
+ const action=url.split("/").at(-1);let result;
+ if(action==="status")result={connected,enabled,credential:"not projected"};
+ else if(action==="review")result={holds};
+ else if(action==="disable"){enabled=false;result={enabled};}
+ else if(action==="disconnect"){connected=false;enabled=false;result={connected,enabled,providerRevoked:false};}
+ else if(action==="review-close"){holds=[];result={ok:true};}
+ else if(action==="rotate")result={ok:true,enabled:false};
+ else throw Error("Unexpected action");
+ return new Response(JSON.stringify(result),{status:200});
+};
+const api=createGmailAdminClient({mode:"isolated-acceptance",allowed:()=>allowed,getBearer:async()=>{sessionReads++;return "fixture-admin-bearer";},request});
+assert.throws(()=>createGmailAdminClient({mode:"production",allowed:()=>true,getBearer:async()=>"",request}));
+assert.deepEqual(await api("status"),{connected:true,enabled:true});
+assert.equal((await api("review")).holds[0].private,undefined);
+await assert.rejects(api("enable"));await assert.rejects(api("review-close",{job:"invalid",disposition:"closed-unverified-no-resend"}));
+allowed=false;const count=calls;await assert.rejects(api("status"));assert.equal(calls,count);allowed=true;
+const abort=new AbortController();abort.abort();await assert.rejects(api("status",undefined,abort.signal));assert.equal(calls,count);
+const elt=(action)=>({dataset:{gmailAction:action},disabled:false,textContent:"",children:[],append(...v){this.children.push(...v);},replaceChildren(...v){this.children=v;},setAttribute(){},addEventListener(k,fn){this.click=fn;}});
+globalThis.document={createElement:()=>elt()};
+const buttons=["status","disable","disconnect","rotate"].map(elt),status=elt(),notice=elt(),list=elt();
+const panel={querySelector:s=>({"[data-gmail-status]":status,"[data-gmail-notice]":notice,"[data-gmail-holds]":list})[s],querySelectorAll:()=>buttons};
+const root={querySelector:()=>panel};
+attachGmailControls(root,{allowed:()=>true});
+assert.ok(buttons.every(b=>b.disabled));assert.match(status.textContent,/Not connected/);
+allowed=false;const ui=attachGmailControls(root,{allowed:()=>allowed,api});assert.ok(buttons.every(b=>b.disabled));allowed=true;ui.refreshAccess();assert.equal(buttons[0].disabled,false);assert.equal(buttons[1].disabled,false);
+const settle=()=>new Promise(r=>setTimeout(r,10));
+buttons[0].click();await settle();assert.match(status.textContent,/Connected · Enabled/);
+buttons[1].click();await settle();assert.match(status.textContent,/Connected · Disabled/);assert.equal(buttons[3].disabled,false);
+buttons[2].click();await settle();assert.match(status.textContent,/Disconnected · Disabled/);assert.match(notice.textContent,/manual verification/);
+allowed=false;ui.clear();assert.equal(list.children.length,0);assert.ok(buttons.every(b=>b.disabled));assert.match(status.textContent,/Not connected/);
+assert.ok(sessionReads>0);
+console.log("PASS: authorized dashboard attachment only, release lock, scoped admin actions, stale-session clear and emergency disable/disconnect");

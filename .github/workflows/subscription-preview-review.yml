@@ -1,0 +1,98 @@
+name: Unpublished subscription preview checks
+on:
+  pull_request:
+    branches: [main]
+    paths: ["subscribe/**", "preferences/**", "assets/css/subscribers.css", "tests/public-subscriber.test.mjs", "previews/subscriptions/**", "tests/subscription-preview.test.mjs", "tests/subscription-gateway.test.mjs", "tests/subscription-center.test.mjs", "tests/subscription-center-browser.*", "tests/subscription-concurrency.py", "tests/subscription-ci-schema.sql", "tests/subscription-postgres-ci.sh", "tests/subscription-runtime.test.mjs", "tests/subscription-email.test.mjs", "tests/subscription-email-db.sql", "tests/subscription-outbox.test.mjs", "tests/subscription-outbox-db.sql", "tests/subscription-outbox-concurrency.py", "tests/subscription-single-opt-in-db.sql", "tests/subscription-gmail.test.mjs", "tests/subscription-gmail-backend.test.mjs", "tests/subscription-gmail-backend-db.sql", "tests/subscription-gmail-auth-fixture.sql", "tests/subscription-gmail-runtime.test.mjs", "tests/subscription-gmail-hosted.test.mjs", "tests/admin-gmail-controls.test.mjs", "admin/gmail-controls.mjs", "admin/auth.js", "admin/index.html", "release/gmail/**", "tests/gmail-release-*", ".github/workflows/subscription-preview-review.yml", "supabase/admin-setup/phase-3c3-*.sql"]
+  push:
+    branches: [admin/phase-3c3-subscription-preview]
+permissions:
+  contents: read
+jobs:
+  preview-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Test exact commit with no deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet --no-tags https://github.com/heartlandathleticsgroup-ai/heartland-athletics-group.git "$RUNNER_TEMP/hag-preview"
+          cd "$RUNNER_TEMP/hag-preview"
+          git fetch origin "$GITHUB_SHA"
+          git checkout --detach "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node --check previews/subscriptions/consent.mjs
+          node --check previews/subscriptions/preview.mjs
+          node tests/subscription-preview.test.mjs
+          node tests/public-subscriber.test.mjs
+          node tests/sport-contract.test.mjs
+          node tests/subscriber-welcome.test.mjs
+          node tests/sender-readiness.test.mjs
+          node tests/twilio-webhook.test.mjs
+          node tests/twilio-join.test.mjs
+          node tests/twilio-send.test.mjs
+          node tests/twilio-status.test.mjs
+          node tests/twilio-postgres.test.mjs
+          node tests/dual-channel-gateway.test.mjs
+          node tests/signed-worker.test.mjs
+          python3 release/gmail/private-runtime-setup.py --self-test
+          node --check previews/subscriptions/server/gateway.mjs
+          node --check previews/subscriptions/server/postgres-adapter.mjs
+          node tests/subscription-gateway.test.mjs
+          node --check previews/subscriptions/center.mjs
+          node --check previews/subscriptions/server/gateway-core.mjs
+          node tests/subscription-center.test.mjs
+          node tests/subscription-center-browser.mjs
+          node tests/subscription-runtime.test.mjs
+          node tests/subscription-email.test.mjs
+          node tests/subscription-outbox.test.mjs
+          node tests/subscription-gmail.test.mjs
+          node tests/subscription-gmail-backend.test.mjs
+          node tests/subscription-gmail-runtime.test.mjs
+          bash tests/subscription-postgres-ci.sh
+          bash tests/gmail-release-ci.sh
+          node tests/admin-dashboard.test.mjs
+          node tests/admin-communications.test.mjs
+          node tests/admin-auth-state.test.mjs
+          node tests/admin-passkey.test.mjs
+          node tests/admin-gmail-controls.test.mjs
+          node tests/subscription-gmail-hosted.test.mjs
+          node tests/gmail-release-runtime.test.mjs
+          bash tests/gmail-release-package-ci.sh
+          git diff --exit-code origin/main...HEAD -- admin/auth-state.mjs admin/verified-passkey.mjs supabase/functions supabase/admin-setup/phase-3c2b-communications.sql
+          test "$(git diff --name-only origin/main...HEAD -- supabase)" = "$(printf '%s\n' supabase/admin-setup/phase-3c3-confirmation-draft.sql supabase/admin-setup/phase-3c3-confirmation-test.sql supabase/admin-setup/phase-3c3-email-readiness-draft.sql supabase/admin-setup/phase-3c3-gateway-draft.sql supabase/admin-setup/phase-3c3-gateway-test.sql supabase/admin-setup/phase-3c3-gmail-backend-draft.sql supabase/admin-setup/phase-3c3-outbox-draft.sql supabase/admin-setup/phase-3c3-pending-draft.sql supabase/admin-setup/phase-3c3-runtime-role-draft.sql supabase/admin-setup/phase-3c3-single-opt-in-draft.sql)"
+
+  public-readiness-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read public DNS and unauthenticated disabled function status
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --quiet --no-tags https://github.com/heartlandathleticsgroup-ai/heartland-athletics-group.git "$RUNNER_TEMP/hag-readiness"
+          cd "$RUNNER_TEMP/hag-readiness"
+          git fetch origin "$GITHUB_SHA"
+          git checkout --detach "$GITHUB_SHA"
+          python3 tests/public-gmail-readiness.py
+  verification-pages-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify published pages with no submission or provider calls
+        shell: bash
+        run: |
+          set -euo pipefail
+          for page in subscribe privacy sms-terms terms; do
+            curl --fail --silent --show-error --max-time 15 --proto '=https' "https://heartlandathleticsgroup.com/$page/" -o "$RUNNER_TEMP/$page.html"
+            grep -q "form-action 'none'" "$RUNNER_TEMP/$page.html"
+            grep -q "script-src 'none'" "$RUNNER_TEMP/$page.html"
+            grep -q "connect-src 'none'" "$RUNNER_TEMP/$page.html"
+            if grep -Ei '<(form|script|iframe)([[:space:]>])' "$RUNNER_TEMP/$page.html"; then exit 1; fi
+            echo "$page: accessible, static"
+          done
+          grep -q '833) 947-0815' "$RUNNER_TEMP/subscribe.html"
+          grep -q 'Enrollment preview' "$RUNNER_TEMP/subscribe.html"
+          grep -q 'Text messaging originator opt-in data and consent will not be sold or shared' "$RUNNER_TEMP/privacy.html"
+          grep -q '833) 947-0815' "$RUNNER_TEMP/sms-terms.html"
+          echo 'PASS: public Twilio evidence and policies accessible with static safety locks'

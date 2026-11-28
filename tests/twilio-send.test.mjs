@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import {createTwilioAckFixture,SMS_ACK,STATUS_URL} from "../release/gmail/runtime/twilio-send-candidate.mjs";
+assert.equal(SMS_ACK,"Heartland Athletics Group: Your text subscription is confirmed! You'll receive updates based on your selected interests. Msg frequency varies. Msg & data rates may apply. Reply STOP to opt out or HELP for help.");
+const accountSid="AC"+"a".repeat(32),serviceSid="MG"+"b".repeat(32),apiKeySid="SK"+"c".repeat(32),apiSecret="d".repeat(32),ticket="00000000-0000-4000-8000-000000000001",destination="+12025550123";
+let enabled=false,claimed=false,allowed=true,calls=0,result=null,blocked=false;
+const opts={mode:"isolated-acceptance",accountSid,serviceSid,apiKeySid,apiSecret,ready:async()=>enabled,claim:async()=>claimed?null:(claimed=true,{ticket,destination}),start:async()=>allowed,finish:async(t,r,s)=>{assert.equal(t,ticket);result={r,s};return true;},fetchFixture:async(url,o)=>{calls++;assert.equal(url,"https://api.twilio.com/2010-04-01/Accounts/"+accountSid+"/Messages.json");assert.equal(o.redirect,"error");assert.deepEqual(Object.fromEntries(new URLSearchParams(o.body)),{To:destination,MessagingServiceSid:serviceSid,Body:SMS_ACK,StatusCallback:STATUS_URL});return new Response(JSON.stringify(blocked?{code:21610}:{sid:"SM"+"e".repeat(32),account_sid:accountSid,messaging_service_sid:serviceSid,to:destination}),{status:blocked?400:201});}};
+assert.throws(()=>createTwilioAckFixture({...opts,mode:"production"}));const run=createTwilioAckFixture(opts);
+assert.equal(await run(),"disabled");assert.equal(calls,0);enabled=true;allowed=false;
+assert.equal(await run(),"cancelled");assert.equal(calls,0);assert.equal(await run(),"empty");
+claimed=false;allowed=true;assert.equal(await run(),"accepted");assert.equal(result.s,"SM"+"e".repeat(32));assert.equal(await run(),"empty");assert.equal(calls,1);
+claimed=false;blocked=true;assert.equal(await run(),"provider-blocked");assert.equal(result.s,null);assert.equal(await run(),"empty");assert.equal(calls,2);
+claimed=false;const fail=createTwilioAckFixture({...opts,fetchFixture:async()=>{throw Error("Fixture timeout");}});assert.equal(await fail(),"held");assert.equal(await fail(),"empty");
+console.log("PASS: fixed SMS acknowledgement, exact Twilio endpoint and service, disabled gate, suppression fence, provider block and no retry");

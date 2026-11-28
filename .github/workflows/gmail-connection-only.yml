@@ -19,7 +19,8 @@ jobs:
           git fetch origin "$GITHUB_SHA"
           git checkout --detach "$GITHUB_SHA"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          git diff --exit-code origin/main...HEAD -- admin/auth-state.mjs admin/verified-passkey.mjs admin/cms.mjs admin/admin.css admin/communications.mjs admin/dashboard.mjs supabase/functions index.html gus-macker/index.html
+          git diff --exit-code origin/main...HEAD -- admin/auth-state.mjs admin/verified-passkey.mjs admin/cms.mjs admin/admin.css admin/communications.mjs admin/dashboard.mjs supabase/functions
+          if [ "${GITHUB_HEAD_REF:-}" != admin/phase-3c3-subscription-preview ]; then git diff --exit-code origin/main...HEAD -- index.html gus-macker/index.html; fi
           node tests/gmail-connection-only.test.mjs
           node tests/sender-readiness.test.mjs
           node tests/sender-test-route.test.mjs

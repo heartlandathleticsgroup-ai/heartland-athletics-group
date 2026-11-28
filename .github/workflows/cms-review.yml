@@ -1,0 +1,40 @@
+name: CMS implementation review
+on:
+  pull_request:
+    branches: [main]
+    paths: ['admin/**','release/cms/**','assets/js/cms-public.mjs','assets/css/cms-public.css','index.html','tests/admin-cms.test.mjs','.github/workflows/cms-review.yml']
+permissions:
+  contents: read
+jobs:
+  cms:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.12
+        env:
+          POSTGRES_PASSWORD: local-ci-only
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: local-ci-only
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          node --check admin/auth.js
+          node --check admin/cms.mjs
+          node --check assets/js/cms-public.mjs
+          node tests/admin-cms.test.mjs
+          node tests/admin-dashboard.test.mjs
+          node tests/admin-communications.test.mjs
+          node tests/admin-auth-state.test.mjs
+          node tests/admin-passkey.test.mjs
+      - run: |
+          psql -X -v ON_ERROR_STOP=1 -f release/cms/fixture.sql
+          psql -X -v ON_ERROR_STOP=1 -f release/cms/schema.sql
+          psql -X -v ON_ERROR_STOP=1 -f release/cms/test.sql

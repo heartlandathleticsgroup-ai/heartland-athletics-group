@@ -6,6 +6,8 @@ const base="https://unrqbfngcgvqnytxbtgj.supabase.co/functions/v1/hag-gmail-cont
 const headers={"Cache-Control":"no-store","Referrer-Policy":"no-referrer","X-Content-Type-Options":"nosniff"};
 const unavailable=()=>new Response('{"ok":false}',{status:503,headers:{...headers,"Content-Type":"application/json"}});
 let runtime;
+const diagnosticCodes=new Set(["token-transport-unavailable","token-invalid-grant","token-invalid-client","token-unauthorized-client","token-access-denied","token-rate-limited","token-provider-rejected","token-access-missing-or-invalid","token-scope-not-send-only","token-refresh-missing-or-invalid","token-type-invalid","token-expiry-invalid","token-response-invalid","token-grant-validated","callback-state-unavailable","callback-state-consumed","callback-verifier-decrypted","callback-token-exchange-start","callback-token-not-accepted","callback-fresh-admin-rejected","callback-store-conflict","callback-credential-stored","callback-store-unavailable","control-operation-unavailable","bridge-state-invalid","bridge-cookie-or-state-invalid","bridge-flow-unavailable","bridge-flow-expired","bridge-admin-proof-rejected","bridge-flow-validated"]);
+const diagnostic=code=>{if(diagnosticCodes.has(code))console.info('HAG_GMAIL_PHASE '+code);};
 function config(){
  const read=name=>Deno.env.get(name);
  // Fail closed if any prohibited capability flag is absent or not exactly false.
@@ -20,7 +22,7 @@ export function handler(req){
    const u=new URL(req.url),short="/hag-gmail-control",long="/functions/v1/hag-gmail-control";
    const suffix=u.pathname.startsWith(short+"/")?u.pathname.slice(short.length):u.pathname.startsWith(long+"/")?u.pathname.slice(long.length):null;
    if(!suffix)return unavailable();
-   if(!runtime)runtime=createConnectionOnly({config:config(),postgres,fetcher:globalThis.fetch.bind(globalThis)});
+   if(!runtime)runtime=createConnectionOnly({config:config(),postgres,fetcher:globalThis.fetch.bind(globalThis),diagnostic});
    // Minimal preflight confirms hosted secret parsing and validated connection
    // configuration only. No database or Google call, no private data output.
    if(suffix==="/readiness"&&req.method==="GET"&&!u.search)return new Response(null,{status:204,headers});

@@ -3,3 +3,6 @@ Separate from draft PR #28. Only the control function may be replaced. Worker an
 
 ## Browser handoff correction
 Hosted status and prepare returned 200 on 2026-11-28 03:37 UTC; launch returned 403 before consuming the grant. The admin page's no-referrer policy can force a cross-origin HTML form POST Origin to null (MDN Referrer-Policy / Fetch standard). Use strict-origin only on the admin document so the browser sends the site origin, not its path or query. Keep exact Origin checks and all server-side no-referrer, token, PKCE and delivery locks unchanged. A loopback real-Chromium test covers both policies. No new credentials or Google calls.
+
+## Callback acceptance follow-up
+Actual user authorization reached Google and returned a code. Launch and callback redirected (303), but the result was failed; one-use state and flow were consumed and no credential stored. No DB error was logged. Add fixed, allowlisted phase diagnostics to distinguish provider rejection, response validation, fresh proof, and storage without logging code, token, URL, state, identifiers, provider body or raw exception. The exact grant validation and connection-only boundaries are unchanged. Do not enable sending or broaden OAuth scopes.

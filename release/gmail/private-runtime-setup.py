@@ -49,7 +49,9 @@ def private_input(prompt, trim=True):
 def scram(password, salt=None):
     # A verifier, not a plaintext password, is submitted to PostgreSQL.
     salt = salt if salt is not None else secrets.token_bytes(16)
-    count = 16384
+    # Standard PostgreSQL SCRAM iteration count for compatibility with older Supavisor.
+    # Passwords are independent 256-bit random values, not human-chosen passwords.
+    count = 4096
     salted = hashlib.pbkdf2_hmac("sha256", password.encode("ascii"), salt, count)
     client = hmac.digest(salted, b"Client Key", "sha256")
     stored = hashlib.sha256(client).digest()
@@ -218,7 +220,7 @@ def configure(host,ca,pem,publishable,footer,owner_password):
 
 def self_test():
     fixed = scram("test-password",b"0123456789abcdef")
-    assert fixed.startswith("SCRAM-SHA-256$16384:MDEyMzQ1Njc4OWFiY2RlZg==$")
+    assert fixed.startswith("SCRAM-SHA-256$4096:MDEyMzQ1Njc4OWFiY2RlZg==$")
     assert fixed == scram("test-password",b"0123456789abcdef")
     assert fixed != scram("different",b"0123456789abcdef")
     host = "aws-0-us-east-2.pooler.supabase.com"

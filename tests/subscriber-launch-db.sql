@@ -1,0 +1,42 @@
+-- Disposable database only. No network calls.
+begin;
+do $qa$
+declare d text:='welcome-test@example.com'; k text:=repeat('a',64); req uuid:=gen_random_uuid(); m uuid; g bigint; message jsonb; token text;
+begin
+ execute 'set local role hag_subscription_runtime';
+ perform hag_private.subscription_email_opt_in_welcome(req,'Fixture',true,d,array['hag-announcements'],true,'draft-3c3-v1',k,'fixture');
+ execute 'reset role';
+ if exists(select 1 from hag_private.hag_contact_methods where destination=d) then raise exception 'Disabled sender collected data';end if;
+ execute 'set local role hag_gmail_control';
+ g:=(hag_private.gmail_status()->>'generation')::bigint;
+ if not hag_private.gmail_store(g,'encrypted-fixture','fixture') then raise exception 'fixture store';end if;
+ g:=(hag_private.gmail_status()->>'generation')::bigint;
+ execute 'reset role';
+ execute 'set local role hag_gmail_release_operator';
+ if not hag_private.gmail_enable_reviewed(g) then raise exception 'fixture approval';end if;
+ execute 'reset role';
+ execute 'set local role hag_subscription_runtime';
+ perform hag_private.subscription_email_opt_in_welcome(req,'Fixture',false,d,array['hag-announcements'],true,'draft-3c3-v1',k,'fixture');
+ perform hag_private.subscription_email_opt_in_welcome(req,'Fixture',true,d,array['hag-announcements'],false,'draft-3c3-v1',k,'fixture');
+ execute 'reset role';
+ if exists(select 1 from hag_private.hag_contact_methods where destination=d) then raise exception 'Invalid consent accepted';end if;
+ execute 'set local role hag_subscription_runtime';
+ perform hag_private.subscription_email_opt_in_welcome(req,'Fixture',true,d,array['hag-announcements'],true,'draft-3c3-v1',k,'fixture');
+ perform hag_private.subscription_email_opt_in_welcome(req,'Fixture',true,d,array['hag-announcements'],true,'draft-3c3-v1',k,'fixture');
+ perform hag_private.subscription_email_opt_in_welcome(gen_random_uuid(),'Fixture',true,d,array['hag-announcements'],true,'draft-3c3-v1',k,'fixture');
+ execute 'reset role';
+ select id into strict m from hag_private.hag_contact_methods where destination=d;
+ if not exists(select 1 from hag_private.hag_subscriptions where contact_method_id=m and status='active' and email_opt_in_event_id is not null and confirmation_event_id is null) then raise exception 'Single opt-in missing';end if;
+ if (select count(*) from hag_private.subscription_welcome_once where method_id=m)<>1 or (select count(*) from hag_private.subscription_email_outbox)<>1 then raise exception 'Duplicate welcome';end if;
+ select extensions.pgp_sym_decrypt(payload,k)::jsonb into strict message from hag_private.subscription_email_outbox where request_id=req;
+ token:=message->>'token';
+ if message->>'purpose' is distinct from 'welcome' or message->>'destination' is distinct from d or not hag_private.subscription_email_delivery_eligible(token,d,'welcome') then raise exception 'Welcome payload invalid';end if;
+ execute 'set local role hag_subscription_runtime';
+ if (hag_private.subscription_redeem(token,'unsubscribe')->>'ok') is distinct from 'true' then raise exception 'Unsubscribe failed';end if;
+ execute 'reset role';
+ if hag_private.subscription_email_delivery_eligible(token,d,'welcome') then raise exception 'Suppression ignored';end if;
+ if not exists(select 1 from hag_private.hag_suppressions where contact_method_id=m and active) then raise exception 'Missing suppression';end if;
+ if has_function_privilege('anon','hag_private.subscription_email_opt_in_welcome(uuid,text,boolean,text,text[],boolean,text,text,text)','execute') or has_table_privilege('authenticated','hag_private.subscription_welcome_once','SELECT') then raise exception 'Public access';end if;
+end $qa$;
+rollback;
+select 'PASS: single opt-in, one welcome, encrypted payload, disabled collection and suppression' as result;

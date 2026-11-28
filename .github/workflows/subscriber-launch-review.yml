@@ -1,0 +1,33 @@
+name: Subscriber launch candidate review
+on:
+  pull_request:
+    branches: [main]
+    paths: ['subscribe/**','preferences/**','privacy/**','terms/**','sms-terms/**','release/gmail/**','tests/subscriber-launch*','.github/workflows/subscriber-launch-review.yml']
+permissions:
+  contents: read
+jobs:
+  subscriber:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          node --check subscribe/signup.mjs
+          node --check release/gmail/runtime/runtime.mjs
+          node tests/subscriber-launch.test.mjs
+          node tests/gmail-release-runtime.test.mjs
+          node tests/admin-dashboard.test.mjs
+          node tests/admin-communications.test.mjs
+          node tests/admin-auth-state.test.mjs
+          node tests/admin-passkey.test.mjs
+          node tests/admin-cms.test.mjs
+      - run: bash tests/subscriber-launch-db-ci.sh
+      - run: |
+          pkg="$(bash release/gmail/package.sh)"
+          trap 'rm -rf "$pkg"' EXIT
+          test -f "$pkg/welcome-migration.sql"
+          test -f "$pkg/public/subscribe/index.html"
+          test -f "$pkg/public/preferences/consent.mjs"
+          test ! -d "$pkg/public/admin"

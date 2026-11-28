@@ -2,19 +2,20 @@ import {nextPanel,isSixDigit,expired} from "./auth-state.mjs";
 import {signInWithVerifiedPasskey} from "./verified-passkey.mjs";
 import {attachCommunications} from "./communications.mjs";
 import {attachGmailControls,createGmailAdminClient,GMAIL_RELEASE_ENABLED} from "./gmail-controls.mjs";
+import {attachCMS} from "./cms.mjs?v=3";
 const BASE="https://unrqbfngcgvqnytxbtgj.supabase.co", PUBLISHABLE_KEY="sb_publishable_JeTzqF2gS0-pEHLs3VLOmg_GmK22bon";
 const $=id=>document.getElementById(id);
 const panels=["login","enroll","challenge","authorized"];
 const notices={login:"Sign in with your approved administrator account.",enroll:"An authenticator is required before administrative access.",challenge:"Complete authenticator verification.",authorized:"Secure administrator session verified.",denied:"Access denied or session expired. Sign in again."};
 const STORAGE="hag-admin-auth-v1", CLOCK="hag-admin-clock-v1";
-let communications=null;
+let communications=null,cms=null;
 let gmailControls=null;
 let client=null,busy=false,started=0,last=0,active=false,enrollment=null,currentPanel=null;
 const say=s=>{$("notice").textContent=s;};
 function passkeyAvailable(){return !!(window.isSecureContext&&window.PublicKeyCredential&&navigator.credentials&&client?.auth?.passkey?.startAuthentication&&client?.auth?.registerPasskey);}
 function clearEnrollment(){enrollment=null;$("enroll-details").hidden=true;$("qr").removeAttribute("src");$("setup-key").textContent="";$("enroll-code").value="";$("start-enroll").disabled=false;}
 function show(panel){
- if(panel!=="authorized"){communications?.clear();gmailControls?.clear();}
+ if(panel!=="authorized"){communications?.clear();cms?.clear();gmailControls?.clear();}
  panels.forEach(p=>{$(p+"-panel").hidden=p!==panel;});
  currentPanel=panel;$("signout").hidden=panel==="login";
  gmailControls?.refreshAccess?.();
@@ -49,8 +50,10 @@ async function assess(){
  if(panel==="challenge"){
    $("factor").replaceChildren(...factors.map(f=>{const o=document.createElement("option");o.value=f.id;o.textContent=f.friendly_name||"Authenticator";return o;}));
  }
+ const entering=panel==='authorized'&&currentPanel!==panel;
  show(panel);
  if(panel==="authorized"){
+   if(entering)void cms?.refresh();
    const assurance=data(await client.auth.mfa.getAuthenticatorAssuranceLevel());
    $("register-passkey").hidden=!passkeyAvailable()||assurance.currentLevel!=="aal2";
  }
@@ -121,6 +124,7 @@ async function init(){
    if(!allowed())throw Error("Access unavailable");
    return data(await client.rpc("hag_communications_read",{p_view:view,p_offset:offset,p_channel:channel}));
   },allowed);
+  cms=attachCMS($("authorized-panel"),async(name,args)=>{if(!allowed())throw Error("Access unavailable");return data(await client.rpc(name,args));},allowed);
   // No provider operations unless an independently approved release flips the lock.
   const gmailApi=GMAIL_RELEASE_ENABLED?createGmailAdminClient({mode:"release-candidate",allowed,getBearer:async()=>{if(!allowed())throw Error("Access unavailable");const {session}=data(await client.auth.getSession());if(!allowed()||!session)throw Error("Access unavailable");return session.access_token;},request:globalThis.fetch.bind(globalThis)}):null;
   gmailControls=attachGmailControls($("authorized-panel"),{allowed,api:gmailApi});

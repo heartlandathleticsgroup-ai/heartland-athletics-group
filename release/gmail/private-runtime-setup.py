@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import warnings
 
 REF = "unrqbfngcgvqnytxbtgj"
@@ -32,6 +33,7 @@ NEW = {r[2] for r in ROLES} | {"HAG_DATABASE_CA_PEM", "HAG_GMAIL_VAULT_KEY",
 HOST = re.compile(r"aws-[0-9]+-us-east-2\.pooler\.supabase\.com\Z")
 LOGIN_LIST = ",".join("'" + r[0] + "'" for r in ROLES)
 class SetupError(Exception): pass
+class PoolerAuthError(SetupError): pass
 
 def fail(message):
     raise SetupError(message)
@@ -62,6 +64,19 @@ def run(args, env=None, data=None, timeout=45, label="Local command"):
     except (OSError, subprocess.TimeoutExpired):
         fail(label + " unavailable or timed out; no raw output shown.")
     if result.returncode:
+        # Inspect only locally; expose fixed categories, never server-provided text.
+        if label == "TLS database operation":
+            err = result.stderr.lower()
+            if "password authentication failed" in err or "28p01" in err:
+                raise PoolerAuthError("Database password authentication rejected.")
+            if "certificate" in err or "ssl error" in err:
+                fail("Database TLS certificate verification failed.")
+            if "could not translate host name" in err or "could not resolve" in err:
+                fail("Database hostname resolution failed.")
+            if "timeout" in err or "timed out" in err:
+                fail("Database connection timed out.")
+            if "circuit breaker" in err or "too many" in err:
+                fail("Database pooler rate limit or circuit breaker; do not retry.")
         fail(label + " failed; no raw output shown to protect credentials.")
     return result.stdout
 
@@ -138,6 +153,19 @@ select 'PASS';
 rollback;
 """
 
+def verify_restricted(host, login, password, ca, check):
+    # Supavisor may briefly cache an old role secret after rotation. Reuse the
+    # exact credential once; never rotate again or retry TLS/other errors.
+    try:
+        return psql(host,6543,login,password,ca,check)
+    except PoolerAuthError:
+        print("NOTICE: "+login+" pooler authentication rejected; one retry after cache refresh.")
+        time.sleep(25)
+        try:
+            return psql(host,6543,login,password,ca,check)
+        except PoolerAuthError:
+            fail("Restricted pooler authentication rejected twice for "+login+"; no further retry.")
+
 def disabled(owner):
     return owner("select count(*) from pg_roles where rolname in ("+LOGIN_LIST+") and rolcanlogin;") == "0"
 
@@ -164,7 +192,7 @@ def configure(host,ca,pem,publishable,footer,owner_password):
                      "not exists(select 1 from pg_roles where rolname=session_user and "
                      "(rolsuper or rolbypassrls or rolcreaterole or rolcreatedb or rolinherit)) "
                      "then 'PASS' else 'FAIL' end; rollback;")
-            if psql(host,6543,login,passwords[login],ca,check)!="PASS":
+            if verify_restricted(host,login,passwords[login],ca,check)!="PASS":
                 fail("Restricted transaction-pooler identity verification did not pass.")
             print("PASS: "+login+" TLS and assigned role.")
         finally:
@@ -244,7 +272,34 @@ def self_test():
             assert "fixture-owner" not in output.getvalue() and "postgresql://" not in output.getvalue()
         assert not state["active"] and state["uploaded"] is not reject
         assert len(state["tests"])==(1 if reject else 3)
-    print("PASS: offline private setup, unique keys, narrow URLs, SCRAM, temporary login cleanup and no upload on TLS failure")
+    # Bounded retry only for authentication rejection, reusing identical password.
+    calls=[]
+    def flaky(*args):
+        calls.append(args)
+        if len(calls)==1: raise PoolerAuthError("fixture")
+        return "PASS"
+    with patch.object(module,"psql",flaky),patch.object(time,"sleep",lambda n:None),contextlib.redirect_stdout(io.StringIO()):
+        assert verify_restricted(host,ROLES[0][0],"fixture-password",Path("fixture.crt"),"fixture-check")=="PASS"
+    assert len(calls)==2 and calls[0]==calls[1]
+    calls.clear()
+    def rejected(*args):
+        calls.append(args)
+        raise PoolerAuthError("fixture")
+    with patch.object(module,"psql",rejected),patch.object(time,"sleep",lambda n:None),contextlib.redirect_stdout(io.StringIO()):
+        try: verify_restricted(host,ROLES[0][0],"fixture-password",Path("fixture.crt"),"fixture-check")
+        except SetupError: pass
+        else: raise AssertionError("persistent auth failure accepted")
+    assert len(calls)==2 and calls[0]==calls[1]
+    calls.clear()
+    def bad_tls(*args):
+        calls.append(args)
+        raise SetupError("fixture TLS failure")
+    with patch.object(module,"psql",bad_tls),patch.object(time,"sleep",lambda n:None):
+        try: verify_restricted(host,ROLES[0][0],"fixture-password",Path("fixture.crt"),"fixture-check")
+        except SetupError: pass
+        else: raise AssertionError("TLS failure accepted")
+    assert len(calls)==1
+    print("PASS: offline private setup, unique keys, narrow URLs, SCRAM, temporary login cleanup and no upload on TLS failure; bounded same-password pooler retry")
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)

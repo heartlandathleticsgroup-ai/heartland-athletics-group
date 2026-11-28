@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {createSignup} from '../release/subscribers/signup-core.mjs';
+import {CONSENT_VERSION,NOTICE_VERSION} from '../release/subscribers/consent.mjs';
+const origin='https://heartlandathleticsgroup.com',url='https://unrqbfngcgvqnytxbtgj.supabase.co/functions/v1/hag-email-signup';
+const payload={requestId:'11111111-1111-4111-8111-111111111111',notice:NOTICE_VERSION,version:CONSENT_VERSION,terms:true,form:{name:'Adult fixture',adult:true,email:{enabled:true,destination:'fixture@example.invalid',topics:['hag-announcements'],consent:true},sms:{enabled:false,destination:'',topics:[],consent:false}}};
+const req=(v=payload,o=origin)=>new Request(url,{method:'POST',headers:{origin:o,'content-type':'application/json'},body:JSON.stringify(v)});
+let hits=0;
+const h=createSignup({enabled:true,db:async d=>{hits++;assert.equal(d.destination,'fixture@example.invalid');assert.equal(d.channel,'email');return true}});
+assert.equal((await createSignup({enabled:false})(req())).status,503);
+assert.equal((await h(req(payload,'https://evil.example'))).status,403);
+for(const x of [{...payload,terms:false},{...payload,notice:'unknown'},{...payload,form:{...payload.form,adult:false}},{...payload,form:{...payload.form,email:{...payload.form.email,consent:false}}},{...payload,form:{...payload.form,sms:{enabled:true,destination:'+12025550123',topics:['hag-announcements'],consent:true}}}])assert.equal((await h(req(x))).status,400);
+assert.equal(hits,0);
+assert.equal((await h(req())).status,202);
+assert.equal(hits,1);
+assert.equal((await createSignup({enabled:true,db:async()=>false})(req())).status,503);
+console.log('Subscriber launch gateway tests passed: disabled state, consent, adult gate, origin, SMS denial, failure response.');

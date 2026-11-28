@@ -26,7 +26,7 @@ export function createSportClient({mode,request}){
  return async payload=>{
  const r=await request(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload),cache:"no-store",credentials:"omit",redirect:"error",referrerPolicy:"no-referrer"});
  if(payload.action==="sport-catalog"){if(r.status!==200)throw Error("Catalog unavailable");return (await r.json()).catalog;}
- if(r.status!==202)throw Error("Request unavailable");return true;
+ if(r.status!==202)throw Error("Request unavailable");if(payload.form?.sms?.enabled){const v=await r.json(),c=v?.smsConfirmation;if(!/^\+18(?:00|33|44|55|66|77|88)[0-9]{7}$/.test(c?.number)||!/^JOIN [a-f0-9]{24}$/.test(c?.command)||c.expiresMinutes!==15)return {smsConfirmation:null};return {smsConfirmation:c};}return true;
  };
 }
 export function sportEnvelope(form,requestId,catalog,{smsEnabled=false}={}){
@@ -62,7 +62,7 @@ export function attachSignup(doc,{call=null,catalog=BASE_SPORTS,smsEnabled=false
   const choice=c=>{const o=overrides[c];return {enabled:$(c+"-enabled").checked,destination:$(c+"-destination").value,sports:selected(o.toggle.checked?o.sp:sports),updates:selected(o.toggle.checked?o.up:updates),consent:$(c+"-consent").checked};};
   let payload;try{payload=sportEnvelope({name:$("subscriber-name").value,adult:$("adult").checked,email:choice("email"),sms:choice("sms")},requestId??=randomId(),catalog.map(x=>x[0]),{smsEnabled});}catch(e){$("signup-error").textContent=e.message;return;}
   busy=true;$("signup-fields").disabled=true;$("signup-error").textContent="";
-  try{await call(payload);form.reset();for(const c of ["email","sms"]){$(c+"-details").hidden=true;$(c+"-destination").disabled=true;}requestId=null;$("release-status").textContent="Request received. If eligible, your email selections begin without a confirmation step. You may receive one welcome email with preference and unsubscribe links. Already subscribed? Use Manage preferences to change your interests.";}
+  try{const result=await call(payload);form.reset();for(const c of ["email","sms"]){$(c+"-details").hidden=true;$(c+"-destination").disabled=true;}requestId=null;const instruction=result?.smsConfirmation; $("release-status").textContent=payload.form.sms.enabled?(instruction?"To confirm your text subscription, send "+instruction.command+" to "+instruction.number+" from the number you entered within 15 minutes. Message and data rates may apply. SMS is not active until confirmed. Email selections are separate.":"Your request was received, but text confirmation instructions are unavailable. Contact H.A.G. for help. Email selections are separate."):"Request received. If eligible, your email selections begin without a confirmation step. You may receive one welcome email with preference and unsubscribe links. Already subscribed? Use Manage preferences to change your interests.";}
   catch{$("signup-error").textContent="Unable to complete the request. Please try again or contact H.A.G.";}
   finally{busy=false;$("signup-fields").disabled=false;}
  });

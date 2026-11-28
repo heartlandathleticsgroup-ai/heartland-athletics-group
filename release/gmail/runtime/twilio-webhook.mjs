@@ -48,7 +48,7 @@ export function createTwilioInboundFixture({mode,accountSid,serviceSid,number,au
    // Opt-outs/review remain available even with signup/sending paused.
    // START records provider unblock only; does not enroll or restore local consent.
    if(event.kind==="join"&&!await ready())return reply(200,"<Response/>");
-   const ok=await record({messageSid:params.get("MessageSid"),from:params.get("From"),...event});
+   const ok=await record({messageSid:params.get("MessageSid"),from:params.get("From"),...event,...(event.kind==="review"?{reviewText:body.slice(0,1600)}:{})});
    if(ok!==true)return reply(503);
    // Twilio/carrier handles built-in keyword replies. No duplicate TwiML or API messages.
    return reply(200,"<Response/>");

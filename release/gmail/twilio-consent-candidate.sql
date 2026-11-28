@@ -19,6 +19,24 @@ create table hag_private.sms_provider_blocks(
  blocked_at timestamptz not null default clock_timestamp(),
  provider_unblocked_at timestamptz
 );
+create table hag_private.sms_review_queue(
+ message_sid text primary key references hag_private.sms_provider_events(message_sid),
+ reply_text text not null check(char_length(reply_text)<=1600),
+ created_at timestamptz not null default clock_timestamp(),
+ resolved_at timestamptz
+);
+create table hag_private.sms_confirmation_outbox(
+ method_id uuid primary key references hag_private.hag_contact_methods(id),
+ created_at timestamptz not null default clock_timestamp(),
+ expires_at timestamptz not null default clock_timestamp()+interval '15 minutes',
+ state text not null default 'queued' check(state in ('queued','reserved','accepted','held','cancelled')),
+ ticket uuid unique, reserved_at timestamptz, finished_at timestamptz
+);
+alter table hag_private.sms_review_queue enable row level security;
+alter table hag_private.sms_review_queue force row level security;
+alter table hag_private.sms_confirmation_outbox enable row level security;
+alter table hag_private.sms_confirmation_outbox force row level security;
+revoke all on hag_private.sms_review_queue,hag_private.sms_confirmation_outbox from public,anon,authenticated,service_role,hag_subscription_runtime,hag_gmail_dispatch,hag_gmail_control;
 alter table hag_private.sms_join_pending enable row level security;
 alter table hag_private.sms_join_pending force row level security;
 alter table hag_private.sms_provider_events enable row level security;
@@ -40,7 +58,7 @@ begin
  return found;
 end$$;
 -- Must only be called by a signature-validated provider adapter; no runtime grants yet.
-create function hag_private.sms_record_inbound(p_sid text,p_dest text,p_kind text,p_code text default null)
+create function hag_private.sms_record_inbound(p_sid text,p_dest text,p_kind text,p_code text default null,p_review text default null)
 returns boolean language plpgsql security definer set search_path='' as $$
 declare pending hag_private.sms_join_pending; m uuid; raw text;
 begin
@@ -59,6 +77,20 @@ begin
    insert into hag_private.hag_suppressions(contact_method_id,reason,active) values(m,'stop',true) on conflict(contact_method_id,reason) do update set active=true;
    update hag_private.subscription_capabilities set used_at=clock_timestamp() where method_id=m and used_at is null and purpose<>'unsubscribe';
   end if;
+ elsif p_kind='review' then
+  -- Unknown replies might be reasonable-language opt-outs. Conservatively stop
+  -- marketing while a staff member reviews the actual text. Never auto-unblock.
+  insert into hag_private.sms_review_queue(message_sid,reply_text) values(p_sid,left(coalesce(p_review,''),1600));
+  insert into hag_private.sms_provider_blocks(destination) values(p_dest) on conflict(destination) do update set blocked_at=clock_timestamp(),provider_unblocked_at=null;
+  delete from hag_private.sms_join_pending where destination=p_dest;
+  select id into m from hag_private.hag_contact_methods where channel='sms' and destination=p_dest;
+  if m is not null then
+   insert into hag_private.hag_suppressions(contact_method_id,reason,active) values(m,'manual',true) on conflict(contact_method_id,reason) do update set active=true;
+   insert into hag_private.hag_consent_events(subscription_id,event_kind,consent_version,consent_text,source,channel)
+   select id,'withdrawn','hag-sports-v1','SMS reply requires manual review; marketing withdrawn conservatively.','manual_revocation','sms' from hag_private.hag_subscriptions where contact_method_id=m and status in ('pending','active');
+   update hag_private.hag_subscriptions set status='withdrawn' where contact_method_id=m and status in ('pending','active');
+   update hag_private.subscription_capabilities set used_at=clock_timestamp() where method_id=m and used_at is null and purpose<>'unsubscribe';
+  end if;
  elsif p_kind='start' then
   update hag_private.sms_provider_blocks set provider_unblocked_at=clock_timestamp() where destination=p_dest;
  elsif p_kind='join' then
@@ -69,9 +101,14 @@ begin
   -- never leaves this transaction. Any failed creation/confirmation rolls back.
   raw:=hag_private.sport_sms_signup(pending.request_id,pending.display_name,true,p_dest,pending.sports,pending.updates,true,pending.version);
   if raw is null or not hag_private.sport_sms_confirm(raw) then raise exception 'SMS confirmation unavailable';end if;
+  select id into m from hag_private.hag_contact_methods where channel='sms' and destination=p_dest;
+  insert into hag_private.sms_confirmation_outbox(method_id) values(m) on conflict do nothing;
   delete from hag_private.sms_join_pending where request_id=pending.request_id;
  end if;
+ if p_kind in ('stop','review') and m is not null then update hag_private.sms_confirmation_outbox set state='cancelled',finished_at=clock_timestamp() where method_id=m and state='queued';end if;
  return true;
-end$$;
-revoke all on function hag_private.sms_stage_join(uuid,text,boolean,text,text[],text[],boolean,text,text),hag_private.sms_record_inbound(text,text,text,text) from public,anon,authenticated,service_role,hag_subscription_runtime,hag_gmail_dispatch,hag_gmail_control;
+end$;
+-- Confirmation acceptance is separate from consent. No runtime grant until a verified
+-- provider, independent SMS role, bounded budget, and final dispatch fence exist.
+revoke all on function hag_private.sms_stage_join(uuid,text,boolean,text,text[],text[],boolean,text,text),hag_private.sms_record_inbound(text,text,text,text,text) from public,anon,authenticated,service_role,hag_subscription_runtime,hag_gmail_dispatch,hag_gmail_control;
 commit;

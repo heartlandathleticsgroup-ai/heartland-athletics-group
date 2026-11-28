@@ -38,7 +38,7 @@ async function body(req){
   return JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(bytes));
  }finally{clearTimeout(timer);void reader.cancel().catch(()=>{});}
 }
-export function createGatewayCore({db,delivery,source,ingress,canonicalSource,atomicEmail=false,signupReady=async()=>true,sportMode=false}){
+export function createGatewayCore({db,delivery,source,ingress,canonicalSource,atomicEmail=false,signupReady=async()=>true,sportMode=false,smsJoin=null}){
  // Required ingress guard handles all requests including malformed bodies.
  // Runtime must supply canonical trusted source; never read forwarded IP headers here.
  if(!db||!delivery||delivery.mode!=="email-only"||typeof source!=="function"||typeof ingress!=="function"||typeof canonicalSource!=="function")throw Error("Isolated simulation dependencies required");
@@ -69,7 +69,7 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource,at
      case "sport-subscribe":
       if(!sportMode||!exact(x,["action","requestId","version","form"])||!id(x.requestId)||x.version!==SPORT_VERSION||!exact(x.form,["name","adult","email","sms"]))throw Error();
       for(const ch of ["email","sms"])if(!exact(x.form[ch],["enabled","destination","sports","updates","consent"]))throw Error();
-      if(x.form.sms.enabled)throw Error();
+      if(x.form.sms.enabled&&typeof smsJoin!=="function")throw Error();
       {sportItems=x.form.email;}break;
      case "sport-manage":
       if(!sportMode||!exact(x,["action","token"])||!token(x.token))throw Error();break;
@@ -97,7 +97,18 @@ export function createGatewayCore({db,delivery,source,ingress,canonicalSource,at
    try{
     if(!await db.budget(src,({"sport-subscribe":"subscribe","sport-manage":"manage","sport-edit":"edit","sport-catalog":"access"})[x.action]||x.action))return issuing?generic():response(429,{message:"Try again later."},true);
     if(x.action==="sport-catalog")return response(200,{catalog:await db.sportCatalog()},true);
-    if(x.action==="sport-subscribe"){try{const catalog=await db.sportCatalog();data=selectionPayload(x.form,catalog.map(v=>v.code));if(!validEmail(data.email.destination))return bad();}catch{return bad();}await db.sportSignup(x.requestId,data.name,data.email);return generic();}
+    if(x.action==="sport-subscribe"){
+     let catalog;try{catalog=(await db.sportCatalog()).map(v=>v.code);data=selectionPayload(x.form,catalog);if(data.email.enabled&&!validEmail(data.email.destination)||data.sms.enabled&&!/^\+1[2-9][0-9]{9}$/.test(data.sms.destination))return bad();}catch{return bad();}
+     // Both channels share the request ID, but enrollment and consent remain independent.
+     // No live SMS adapter is supplied by the current runtime.
+     if(data.email.enabled)try{await db.sportSignup(x.requestId,data.name,data.email);}catch{}
+     if(data.sms.enabled&&typeof smsJoin==="function"){
+      try{const instructions=await smsJoin({requestId:x.requestId,version:x.version,form:data,catalog});
+       if(/^\+18(?:00|33|44|55|66|77|88)[0-9]{7}$/.test(instructions?.number)&&/^JOIN [a-f0-9]{24}$/.test(instructions?.command)&&instructions.expiresMinutes===15)return response(202,{message:SIGNUP,smsConfirmation:instructions},true);
+      }catch{/* Generic response, do not reveal subscriber existence. */}
+     }
+     return generic();
+    }
     if(x.action==="sport-manage"){const v=await db.sportManage(x.token);return response(200,v&&token(v.editToken)?{ok:true,...v}:{ok:false},true);}
     if(x.action==="sport-edit")return response(200,{ok:await db.sportEdit(x)===true},true);
     if(issuing){

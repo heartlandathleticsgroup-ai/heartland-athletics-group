@@ -23,6 +23,7 @@ jobs:
           node tests/gmail-connection-only.test.mjs
           node tests/sender-readiness.test.mjs
           node tests/sender-test-route.test.mjs
+          node tests/sender-test-retired.test.mjs
           python3 tests/gmail-browser-handoff.py
           node tests/admin-dashboard.test.mjs
           node tests/admin-communications.test.mjs

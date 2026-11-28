@@ -2,7 +2,7 @@ name: Gmail connection-only review
 on:
   pull_request:
     branches: [main]
-    paths: ["release/gmail/**", "admin/gmail-connection.mjs", "admin/auth.js", "admin/index.html", "tests/gmail-connection-only.test.mjs", "tests/gmail-connection-edge.test.mjs", ".github/workflows/gmail-connection-only.yml"]
+    paths: ["release/gmail/**", "admin/gmail-connection.mjs", "admin/auth.js", "admin/index.html", "tests/gmail-connection-only.test.mjs", "tests/gmail-browser-handoff.py", "tests/gmail-connection-edge.test.mjs", ".github/workflows/gmail-connection-only.yml"]
 permissions:
   contents: read
 jobs:
@@ -21,6 +21,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           git diff --exit-code origin/main...HEAD -- admin/auth-state.mjs admin/verified-passkey.mjs admin/cms.mjs admin/admin.css admin/communications.mjs admin/dashboard.mjs supabase/functions index.html gus-macker/index.html
           node tests/gmail-connection-only.test.mjs
+          python3 tests/gmail-browser-handoff.py
           node tests/admin-dashboard.test.mjs
           node tests/admin-communications.test.mjs
           node tests/admin-auth-state.test.mjs
